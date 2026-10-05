@@ -20,7 +20,20 @@
       "expo-notifications"
     ],
     "android": {
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "CAMERA", "POST_NOTIFICATIONS"]
-    }
+      "package": "com.vasco88.tuveterinariacomunidad",
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "fffa2d9a-495a-4715-94ef-c124f5721bf5"
+      }
+    },
+    "owner": "vasco_88"
   }
 }
