@@ -1,0 +1,18 @@
+# Local Python environments and editor state
+env/
+.venv*/
+.vs/
+__pycache__/
+*.py[cod]
+
+# Local Django data and uploads
+db.sqlite3
+media/
+staticfiles/
+.env
+
+# Local backups and browser/tool artifacts
+Respaldos/
+output/
+.playwright-cli/
+.tmp_excel_sample/

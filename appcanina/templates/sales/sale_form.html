@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="page-heading" id="onboarding-sale-heading"><div><p class="eyebrow">{% if linked_appointment %}Cobro de peluquería{% else %}Mostrador{% endif %}</p><h1>{% if linked_appointment %}Turno de {{ linked_appointment.patient.name }}{% else %}Nueva venta{% endif %}</h1><p>Sumá productos y servicios en un único cobro.</p></div><div class="page-actions"><button type="button" class="button button-ghost onboarding-trigger" data-onboarding-start="sale"><span aria-hidden="true">?</span> Guía de venta</button><a class="button button-ghost" href="{% url 'sale_list' %}">Historial</a></div></div>
+{% if linked_appointment %}<div class="appointment-sale-banner"><strong>Paciente asociado: {{ linked_appointment.patient.name }}</strong><span>Servicios del turno ya incluidos. Podés sumar productos al mismo cobro.</span></div>{% elif linked_consultation_patient %}<div class="appointment-sale-banner"><strong>Consulta asociada a: {{ linked_consultation_patient.name }}</strong><span>Podés sumar productos si el paciente los necesita antes de confirmar el cobro.</span></div>{% endif %}
+<div class="sale-layout"><div>
+  <form method="post" class="card form-grid sale-product-form" id="onboarding-sale-product-form">{% csrf_token %}<input type="hidden" name="action" value="product">
+    <div class="sale-finder" id="onboarding-sale-finder" aria-label="Búsqueda rápida de productos">
+      <div><label for="sale-product-search">Buscar producto</label><input id="sale-product-search" type="search" placeholder="Nombre, marca o código interno" autocomplete="off"></div>
+      <div><label for="sale-category-filter">Categoría</label><select id="sale-category-filter"><option value="">Todas las categorías</option>{% for value,label in product_categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+      <p id="sale-product-match-count" class="form-help" aria-live="polite">Escribí para filtrar el listado.</p>
+    </div>
+    <div><label for="{{ product_form.product.id_for_label }}">{{ product_form.product.label }}</label>{{ product_form.product }}{{ product_form.product.errors }}</div>
+    <div><label for="{{ product_form.grams.id_for_label }}">{{ product_form.grams.label }}</label>{{ product_form.grams }}{{ product_form.grams.errors }}</div>
+    <div><label for="{{ product_form.quantity.id_for_label }}">{{ product_form.quantity.label }}</label>{{ product_form.quantity }}{{ product_form.quantity.errors }}</div>
+    {{ product_form.non_field_errors }}
+    <div class="form-actions"><button>Agregar producto</button></div>
+  </form>
+  <form method="post" class="card form-grid" id="onboarding-sale-service-form">{% csrf_token %}<input type="hidden" name="action" value="service">{% for field in service_form %}<div><label>{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<div class="form-actions"><button>Agregar servicio de peluquería</button></div></form>
+</div><aside class="card sale-summary" id="onboarding-sale-cart"><p class="eyebrow">Carrito</p>{% for index,item in cart %}<div class="cart-line"><div><strong>{{ item.description }}</strong><p>{{ item.quantity }} × ${{ item.unit_price }}</p></div><form method="post">{% csrf_token %}<input type="hidden" name="action" value="remove"><input type="hidden" name="index" value="{{ index }}"><button class="danger-link">Quitar</button></form></div>{% empty %}<p>Agregá productos o servicios.</p>{% endfor %}<strong class="sale-total">${{ total }}</strong>{% if cart %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="checkout">{% for field in checkout_form %}{% if field.name != "patient" or not linked_appointment and not linked_consultation_patient %}<p><label>{{ field.label }}</label>{{ field }}{{ field.errors }}</p>{% endif %}{% endfor %}{{ checkout_form.non_field_errors }}<button>Confirmar venta</button></form>{% endif %}</aside></div>
+<script>
+(() => {
+  const search = document.getElementById('sale-product-search');
+  const category = document.getElementById('sale-category-filter');
+  const select = document.getElementById('{{ product_form.product.id_for_label }}');
+  const counter = document.getElementById('sale-product-match-count');
+  const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const filterProducts = () => {
+    const query = normalize(search.value.trim());
+    let matches = 0;
+    [...select.options].forEach((option, index) => {
+      if (index === 0) return;
+      const visible = (!query || normalize(option.text).includes(query)) && (!category.value || option.dataset.category === category.value);
+      option.hidden = !visible;
+      if (visible) matches += 1;
+    });
+    const noun = matches === 1 ? 'producto disponible' : 'productos disponibles';
+    counter.textContent = query || category.value ? `${matches} ${noun} según tu búsqueda.` : `Mostrando ${matches} ${noun}.`;
+    if (select.selectedOptions[0] && select.selectedOptions[0].hidden) select.value = '';
+  };
+  search.addEventListener('input', filterProducts);
+  category.addEventListener('change', filterProducts);
+  filterProducts();
+})();
+</script>
+<script src="{% static 'vendor/driver.js' %}"></script><script src="{% static 'js/onboarding.js' %}"></script>
+{% endblock %}

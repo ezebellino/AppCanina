@@ -1,0 +1,57 @@
+[30/Jul/2026 23:38:48] "GET /cuenta/ingresar/ HTTP/1.1" 200 953
+[30/Jul/2026 23:38:48,089] - Broken pipe from ('127.0.0.1', 62178)
+[30/Jul/2026 23:39:01] "GET /cuenta/ingresar/ HTTP/1.1" 200 953
+[30/Jul/2026 23:39:01,817] - Broken pipe from ('127.0.0.1', 51274)
+[30/Jul/2026 23:42:58] "GET /peluqueria/4/editar/ HTTP/1.1" 200 3556
+[30/Jul/2026 23:42:58] "GET /static/css/app.css?v=20260730-1 HTTP/1.1" 200 19179
+Not Found: /favicon.ico
+[30/Jul/2026 23:42:58] "GET /favicon.ico HTTP/1.1" 404 6149
+[30/Jul/2026 23:47:29] "GET /peluqueria/ HTTP/1.1" 200 4625
+[30/Jul/2026 23:47:29] "GET /static/css/app.css?v=20260730-1 HTTP/1.1" 304 0
+[30/Jul/2026 23:47:38] "GET /inventario/ HTTP/1.1" 200 2639
+[30/Jul/2026 23:47:40] "GET /inventario/importar/ HTTP/1.1" 200 2175
+[30/Jul/2026 23:57:08] "POST /inventario/importar/ HTTP/1.1" 200 2374
+[30/Jul/2026 23:57:08] "GET /static/css/app.css?v=20260730-1 HTTP/1.1" 304 0
+[30/Jul/2026 23:58:38] "POST /inventario/importar/ HTTP/1.1" 200 9429
+[30/Jul/2026 23:58:47] "POST /inventario/importar/ HTTP/1.1" 302 0
+[30/Jul/2026 23:58:47] "GET /inventario/ HTTP/1.1" 200 14464
+[30/Jul/2026 23:59:03] "GET /inventario/?q=bayer HTTP/1.1" 200 1891
+[30/Jul/2026 23:59:10] "GET /inventario/14/editar/ HTTP/1.1" 200 6861
+[30/Jul/2026 23:59:13] "GET /buscar/ HTTP/1.1" 200 1585
+[30/Jul/2026 23:59:24] "GET /peluqueria/ HTTP/1.1" 200 4625
+[30/Jul/2026 23:59:29] "GET /inventario/ HTTP/1.1" 200 14319
+[30/Jul/2026 23:59:32] "GET /ventas/ HTTP/1.1" 200 7192
+[31/Jul/2026 00:08:59] "GET /ventas/ HTTP/1.1" 200 7192
+[31/Jul/2026 00:08:59] "GET /static/css/app.css?v=20260730-1 HTTP/1.1" 200 19854
+Not Found: /favicon.ico
+[31/Jul/2026 00:09:00] "GET /favicon.ico HTTP/1.1" 404 6149
+[31/Jul/2026 00:09:12] "GET /ventas/ HTTP/1.1" 200 7192
+[31/Jul/2026 00:09:12] "GET /static/css/app.css?v=20260730-1 HTTP/1.1" 200 19854
+Not Found: /favicon.ico
+[31/Jul/2026 00:09:12] "GET /favicon.ico HTTP/1.1" 404 6149
+[31/Jul/2026 00:09:13] "GET /ventas/ HTTP/1.1" 200 7192
+[31/Jul/2026 00:09:13] "GET /static/css/app.css?v=20260730-1 HTTP/1.1" 200 19854
+Not Found: /favicon.ico
+[31/Jul/2026 00:09:13] "GET /favicon.ico HTTP/1.1" 404 6149
+[31/Jul/2026 00:09:13] "GET /ventas/ HTTP/1.1" 200 7192
+[31/Jul/2026 00:09:13] "GET /static/css/app.css?v=20260730-1 HTTP/1.1" 200 19854
+Not Found: /favicon.ico
+[31/Jul/2026 00:09:14] "GET /favicon.ico HTTP/1.1" 404 6149
+[31/Jul/2026 00:09:18] "GET /ventas/ HTTP/1.1" 200 7192
+[31/Jul/2026 00:09:19] "GET /ventas/ HTTP/1.1" 200 7192
+[31/Jul/2026 00:09:23] "POST /ventas/ HTTP/1.1" 302 0
+[31/Jul/2026 00:09:23] "GET /ventas/ HTTP/1.1" 200 6835
+[31/Jul/2026 00:09:41] "GET / HTTP/1.1" 200 2522
+[31/Jul/2026 00:09:41] "GET /static/css/app.css?v=20260730-1 HTTP/1.1" 304 0
+[31/Jul/2026 00:09:43] "GET /buscar/ HTTP/1.1" 200 1585
+[31/Jul/2026 00:09:45] "GET /peluqueria/ HTTP/1.1" 200 4625
+[31/Jul/2026 00:09:47] "GET /peluqueria/?view=day HTTP/1.1" 200 3163
+[31/Jul/2026 00:09:48] "GET /peluqueria/?view=week HTTP/1.1" 200 4125
+[31/Jul/2026 00:09:49] "GET /peluqueria/?view=day HTTP/1.1" 200 3163
+[31/Jul/2026 00:09:49] "GET /peluqueria/ HTTP/1.1" 200 4625
+[31/Jul/2026 00:09:50] "GET /ventas/ HTTP/1.1" 200 6835
+[31/Jul/2026 00:09:51] "GET /ventas/caja/ HTTP/1.1" 200 3841
+[31/Jul/2026 00:10:01] "GET /ventas/ HTTP/1.1" 200 6835
+[31/Jul/2026 00:10:01] "GET /static/css/app.css?v=20260730-1 HTTP/1.1" 304 0
+[31/Jul/2026 00:10:22] "POST /ventas/ HTTP/1.1" 302 0
+[31/Jul/2026 00:10:22] "GET /ventas/ HTTP/1.1" 200 7205

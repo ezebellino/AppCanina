@@ -1,0 +1,24 @@
+services:
+  appcanina:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_DEBUG: "0"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
+      DJANGO_DB_PATH: "/data/db.sqlite3"
+      DJANGO_MEDIA_ROOT: "/data/media"
+      DJANGO_SERVE_MEDIA: "1"
+      DJANGO_SECRET_KEY: "cambia-esta-clave-antes-de-exponer-la-app"
+    volumes:
+      - appcanina_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/cuenta/ingresar/', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  appcanina_data:

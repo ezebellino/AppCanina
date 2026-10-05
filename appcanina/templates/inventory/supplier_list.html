@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Proveedores{% endblock %}
+{% block content %}
+<div class="page-heading supplier-heading">
+  <div><p class="eyebrow">Comercio</p><h1>Proveedores</h1><p>Compras, visitas y precios, todo a mano.</p></div>
+  {% if perms.inventory.add_supplier %}<a class="button" href="{% url 'supplier_create' %}"><span class="button-icon" aria-hidden="true">＋</span>Nuevo proveedor</a>{% endif %}
+</div>
+<section class="supplier-overview" aria-label="Resumen de proveedores"><span>{{ suppliers|length }}</span><p>proveedor{{ suppliers|length|pluralize:"es" }} activo{{ suppliers|length|pluralize:"s" }}</p></section>
+{% if suppliers %}<section class="supplier-grid">{% for supplier in suppliers %}<article class="card supplier-card">
+  <div class="supplier-card-top"><span class="supplier-avatar" aria-hidden="true">{{ supplier.name|first|upper }}</span><div><h2>{{ supplier.name }}</h2><span class="supplier-frequency">{{ supplier.get_visit_frequency_display }}</span></div></div>
+  <dl class="supplier-meta"><div><dt>Contacto</dt><dd>{% if supplier.phone %}<a href="tel:{{ supplier.phone }}">{{ supplier.phone }}</a>{% elif supplier.email %}<a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a>{% else %}Sin datos de contacto{% endif %}</dd></div><div><dt>Última visita</dt><dd>{% if supplier.last_visit_on %}{{ supplier.last_visit_on|date:"d/m/Y" }}{% else %}Sin registrar{% endif %}</dd></div><div><dt>Productos activos</dt><dd>{{ supplier.product_count }}</dd></div></dl>
+  {% if supplier.notes %}<p class="supplier-notes">{{ supplier.notes|truncatechars:110 }}</p>{% endif %}
+  <div class="supplier-actions">{% if perms.inventory.change_product %}<a class="button button-ghost button-small" href="{% url 'supplier_price_increase' supplier.id %}">↗ Ajustar precios</a>{% endif %}<a class="supplier-link" href="{% url 'inventory_list' %}?supplier={{ supplier.id }}">Ver productos <span aria-hidden="true">→</span></a></div>
+</article>{% endfor %}</section>{% else %}<section class="card supplier-empty"><span aria-hidden="true">▣</span><h2>Todavía no hay proveedores</h2><p>Creá el primero para asociarlo a los productos que cargues.</p>{% if perms.inventory.add_supplier %}<a class="button" href="{% url 'supplier_create' %}">Crear proveedor</a>{% endif %}</section>{% endif %}
+{% endblock %}

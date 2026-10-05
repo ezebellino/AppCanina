@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Resumen del día · AppCanina{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">Comercio · {{ today|date:"d/m/Y" }}</p><h1>Resumen del día</h1></div>
+  <div class="page-actions"><a class="button button-ghost" href="{% url 'sale_list' %}"><span class="button-icon" aria-hidden="true">↶</span>Historial</a><a class="button" href="{% url 'sale_create' %}">＋ Nueva venta</a></div>
+</div>
+<section class="daily-summary-grid">
+  <article class="card daily-total"><span class="eyebrow">Vendido hoy</span><strong>${{ total }}</strong><p>{{ sales_count }} venta{{ sales_count|pluralize:"s" }} registrada{{ sales_count|pluralize:"s" }}</p></article>
+  <article class="card daily-payment"><span class="eyebrow">Efectivo</span><strong>${{ payment_totals.cash }}</strong><p>Ingresó a caja</p></article>
+  <article class="card daily-payment"><span class="eyebrow">Transferencia</span><strong>${{ payment_totals.transfer }}</strong><p>Pago digital</p></article>
+  <article class="card daily-payment"><span class="eyebrow">QR</span><strong>${{ payment_totals.qr }}</strong><p>Pago digital</p></article>
+</section>
+<section class="daily-detail-grid">
+  <article class="card"><div class="section-heading"><div><p class="eyebrow">Más vendidos</p><h2>Lo que salió hoy</h2></div></div>{% for line in top_lines %}<div class="daily-line"><div><strong>{{ line.description }}</strong><p>{{ line.quantity }} unidades</p></div><strong>${{ line.total }}</strong></div>{% empty %}<div class="empty"><p>Cuando registres ventas, acá vas a ver los productos y servicios más vendidos.</p></div>{% endfor %}</article>
+  <article class="card daily-cash"><p class="eyebrow">Caja</p>{% if cash_session %}<h2>Caja abierta</h2><strong>${{ cash_summary.expected }}</strong><p>Efectivo esperado hasta ahora.</p><a class="button button-ghost" href="{% url 'cash_dashboard' %}">Ver y cerrar caja</a>{% else %}<h2>Sin caja abierta</h2><p>Abrí la caja para registrar cobros en efectivo y llevar el control del cierre.</p><a class="button" href="{% url 'cash_dashboard' %}">Abrir caja</a>{% endif %}</article>
+</section>
+{% endblock %}

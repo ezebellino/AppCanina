@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Nuevo recordatorio · AppCanina{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">{{ patient.name }}</p><h1>Nuevo recordatorio</h1><p>Guardá el próximo cuidado para no olvidarlo.</p></div></div>
+<form method="post" class="card single-form">{% csrf_token %}{% for field in form %}<p><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</p>{% endfor %}<div class="form-actions"><a href="{% url 'patient_detail' patient.id %}">Cancelar</a><button>Guardar recordatorio</button></div></form>
+{% endblock %}

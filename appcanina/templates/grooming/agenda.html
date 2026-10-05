@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Peluquería · AppCanina{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">Peluquería canina</p><h1>Agenda</h1><p>Organizá servicios, profesionales y estados desde una sola vista.</p></div>
+  <div class="page-actions">
+    {% if perms.grooming.view_groomingservice %}<a class="button secondary" href="{% url 'grooming_service_list' %}">Servicios</a>{% endif %}
+    {% if perms.grooming.add_groomingappointment %}<a class="button" href="{% url 'grooming_appointment_create' %}">＋ Nuevo turno</a>{% endif %}
+  </div>
+</div>
+
+<section class="agenda-insights">
+  <a class="agenda-insight today" href="?view=day"><span>Turnos activos hoy</span><strong>{{ today_appointments|length }}</strong></a>
+  <a class="agenda-insight delayed" href="?view=day&status=confirmed"><span>Demorados</span><strong>{{ delayed_appointments|length }}</strong><small>{% if delayed_appointments %}Revisá su estado.{% else %}Sin pendientes atrasados.{% endif %}</small></a>
+  <div class="agenda-insight next"><span>Próximo servicio</span>{% if next_appointment %}<strong>{{ next_appointment.starts_at|date:"H:i" }}</strong><small>{{ next_appointment.patient.name }} · {{ next_appointment.service.name }}</small>{% else %}<strong>—</strong><small>No hay próximos turnos activos.</small>{% endif %}</div>
+</section>
+
+<section class="agenda-toolbar card">
+  <div class="agenda-view-switch"><a class="{% if view_mode == 'all' %}active{% endif %}" href="{% url 'grooming_agenda' %}">Todos</a><a class="{% if view_mode == 'day' %}active{% endif %}" href="?view=day">Hoy</a><a class="{% if view_mode == 'week' %}active{% endif %}" href="?view=week">Semana</a></div>
+  <form method="get" class="agenda-filters">
+    <input type="hidden" name="view" value="{{ view_mode }}">
+    <select name="status"><option value="">Todos los estados</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <select name="employee"><option value="">Todos los profesionales</option><option value="unassigned" {% if selected_employee == 'unassigned' %}selected{% endif %}>Sin asignar</option>{% for employee in employees %}<option value="{{ employee.id }}" {% if selected_employee == employee.id|stringformat:'s' %}selected{% endif %}>{{ employee.get_full_name|default:employee.username }}</option>{% endfor %}</select>
+    <button class="button button-small" type="submit">Filtrar</button>
+  </form>
+</section>
+
+<section class="agenda-grid">
+  {% for appointment in appointments %}
+    <article class="card appointment-card{% if appointment in delayed_appointments %} delayed-appointment{% endif %}">
+      <div><p class="eyebrow">{{ appointment.starts_at|date:"d M · H:i" }}</p><h2>{{ appointment.patient.name }}</h2><p>{{ appointment.service.name }}{% for service in appointment.additional_services.all %} · {{ service.name }}{% endfor %}</p>{% if appointment.assigned_to %}<p class="appointment-professional">Profesional: {{ appointment.assigned_to.get_full_name|default:appointment.assigned_to.username }}</p>{% else %}<p class="appointment-professional unassigned">Sin profesional asignado</p>{% endif %}</div>
+      <span class="status-badge {{ appointment.status }}">{{ appointment.get_status_display }}</span>
+      {% if perms.grooming.change_groomingappointment or perms.sales.add_sale %}<div class="inline-actions">
+        {% if perms.grooming.change_groomingappointment %}<a class="button button-small button-ghost" href="{% url 'grooming_appointment_edit' appointment.id %}">Editar</a>{% if appointment.status != "done" and appointment.status != "canceled" %}<form method="post" action="{% url 'grooming_appointment_status' appointment.id 'done' %}">{% csrf_token %}<button class="button button-small">Finalizar</button></form><button class="button button-small danger-outline" type="button" onclick="document.getElementById('absence-dialog-{{ appointment.id }}').showModal()">No asistió</button>{% endif %}{% endif %}
+        {% if appointment.status == "done" and perms.sales.add_sale %}{% if appointment.sale %}<span class="sale-linked">Cobrado</span>{% else %}<a class="button button-small" href="{% url 'sale_create_from_appointment' appointment.id %}">Cobrar turno</a>{% endif %}{% endif %}
+      </div>{% endif %}
+    </article>
+    {% if appointment.status != "canceled" and appointment.status != "done" and perms.grooming.change_groomingappointment %}<dialog id="absence-dialog-{{ appointment.id }}" class="action-dialog" onclick="if(event.target===this)this.close()"><div class="action-dialog-icon" aria-hidden="true">!</div><h2>Marcar inasistencia</h2><p>El turno de <strong>{{ appointment.patient.name }}</strong> se cancelará por inasistencia. Podrás verlo luego en el historial.</p><div class="action-dialog-actions"><button class="button button-ghost" type="button" onclick="this.closest('dialog').close()">Volver</button><form method="post" action="{% url 'grooming_appointment_status' appointment.id 'canceled' %}">{% csrf_token %}<button class="button danger-action" type="submit">Sí, marcar inasistencia</button></form></div></dialog>{% endif %}
+  {% empty %}<div class="empty card"><p>No hay turnos que coincidan con esta vista.</p></div>
+  {% endfor %}
+</section>
+{% endblock %}

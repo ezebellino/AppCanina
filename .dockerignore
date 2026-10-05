@@ -1,0 +1,12 @@
+.git
+.venv*
+env
+.vs
+__pycache__
+*.py[cod]
+appcanina/db.sqlite3
+appcanina/media
+appcanina/staticfiles
+.tmp_excel_sample
+ejemplos
+*.log

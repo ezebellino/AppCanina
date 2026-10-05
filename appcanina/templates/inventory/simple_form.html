@@ -1,0 +1,1 @@
+{% extends "base.html" %}{% block content %}<h1>{{ title }}</h1><form method="post" class="card single-form">{% csrf_token %}{% for field in form %}<p><label>{{ field.label }}</label>{{ field }}{{ field.errors }}</p>{% endfor %}<div class="form-actions"><a href="{% url back_url %}">Cancelar</a><button>Guardar</button></div></form>{% endblock %}

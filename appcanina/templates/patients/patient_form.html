@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if editing %}Editar {{ patient.name }}{% else %}Nuevo paciente{% endif %} · AppCanina{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">{% if editing %}Actualización de ficha{% else %}Alta inicial{% endif %}</p><h1>{% if editing %}Editar {{ patient.name }}{% else %}Nuevo paciente{% endif %}</h1><p>Registrá la mascota y su responsable principal.</p></div>{% if not editing %}<button type="button" class="button button-ghost onboarding-trigger" data-onboarding-start="patient-form"><span aria-hidden="true">?</span> Guía para cargar ficha</button>{% endif %}</div>
+<form method="post" enctype="multipart/form-data" class="form-grid">{% csrf_token %}<section class="card" id="onboarding-patient-section"><h2>Paciente</h2>{% if editing and patient.photo %}<img class="form-photo-preview" src="{{ patient.photo.url }}" alt="Foto actual de {{ patient.name }}">{% endif %}{{ patient_form.as_p }}</section><section class="card" id="onboarding-contact-section"><h2>Responsable o institución</h2>{{ contact_form.as_p }}</section><div class="form-actions"><a href="{% if editing %}{% url 'patient_detail' patient.id %}{% else %}{% url 'patient_list' %}{% endif %}">Cancelar</a><button>{% if editing %}Guardar cambios{% else %}Guardar ficha{% endif %}</button></div></form>
+{% if not editing %}<script src="{% static 'vendor/driver.js' %}"></script><script src="{% static 'js/onboarding.js' %}"></script>{% endif %}
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Mapa de avistamientos{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Comunidad</p><h1>Mapa de avistamientos</h1><p>Los puntos muestran una zona aproximada, nunca la ubicación exacta.</p></div><a class="button button-ghost" href="{% url 'lost_pet_list' %}">← Volver a avisos</a></div>
+<section class="card"><div id="lost-pet-map" style="height:min(62vh,620px);min-height:360px;border-radius:14px;background:#e9f1ef" aria-label="Mapa de avisos activos"></div><p id="map-status" class="form-help" style="margin-top:1rem">Cargando avisos publicados…</p></section>
+<section id="map-without-location" class="card" style="margin-top:1rem" hidden><h2>Avisos sin punto en el mapa</h2><div id="map-without-location-list"></div></section>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(() => {
+  const status = document.getElementById("map-status");
+  const noLocation = document.getElementById("map-without-location");
+  const noLocationList = document.getElementById("map-without-location-list");
+  const fallbackCenter = [-34.6037, -58.3816];
+  let tileUnavailable = false;
+  const map = window.L ? L.map("lost-pet-map").setView(fallbackCenter, 12) : null;
+  if (map) {
+    const tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap contributors"}).addTo(map);
+    tiles.on("tileerror", () => {
+      if (tileUnavailable) return;
+      tileUnavailable = true;
+      map.removeLayer(tiles);
+      map.getContainer().style.background = "repeating-linear-gradient(0deg, #e7f4f1 0, #e7f4f1 39px, #c8e1db 40px), repeating-linear-gradient(90deg, transparent 0, transparent 39px, #c8e1db 40px)";
+      status.textContent = "El mapa base no está disponible ahora; los puntos aproximados siguen visibles sobre una cuadrícula local.";
+    });
+  }
+  fetch("{% url 'lost_pet_map_data' %}", {headers: {Accept: "application/json"}})
+    .then(response => response.ok ? response.json() : Promise.reject())
+    .then(data => {
+      const visible = data.markers.filter(marker => marker.has_approximate_location);
+      const withoutLocation = data.markers.filter(marker => !marker.has_approximate_location);
+      if (!map) { status.textContent = "No se pudo cargar el mapa. Los avisos siguen disponibles desde la lista."; return; }
+      const bounds = [];
+      visible.forEach(marker => {
+        const popup = document.createElement("div");
+        const title = document.createElement("strong"); title.textContent = marker.name;
+        const detail = document.createElement("p"); detail.textContent = `${marker.species} · ${marker.area}`;
+        const link = document.createElement("a"); link.href = marker.detail_url; link.textContent = "Ver aviso";
+        popup.append(title, detail, link);
+        L.marker([marker.public_latitude, marker.public_longitude]).addTo(map).bindPopup(popup);
+        bounds.push([marker.public_latitude, marker.public_longitude]);
+      });
+      if (bounds.length) map.fitBounds(bounds, {padding: [36, 36], maxZoom: 15});
+      status.textContent = tileUnavailable ? "El mapa base no está disponible ahora; los puntos aproximados siguen visibles sobre una cuadrícula local." : (visible.length ? `${visible.length} aviso(s) con zona aproximada en el mapa.` : "No hay avisos activos con ubicación aproximada.");
+      if (withoutLocation.length) {
+        noLocation.hidden = false;
+        withoutLocation.forEach(marker => { const row = document.createElement("p"); row.textContent = `${marker.name} · ${marker.area}`; noLocationList.append(row); });
+      }
+    })
+    .catch(() => { status.textContent = "No se pudo cargar el mapa ahora. Volvé a intentarlo o consultá la lista de avisos."; });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Atención animal</p><h1>Cobrar consulta</h1><p>Paciente: <strong>{{ patient.name }}</strong>. El responsable principal se asociará automáticamente.</p></div></div>
+<form method="post" class="card single-form">{% csrf_token %}{% for field in form %}<p><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</p>{% endfor %}<div class="form-actions"><a href="{% url 'patient_detail' patient.id %}">Cancelar</a><button>Ir al cobro</button></div></form>
+{% endblock %}

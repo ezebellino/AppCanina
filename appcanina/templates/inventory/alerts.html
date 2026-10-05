@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Alertas de inventario · AppCanina{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Inventario</p><h1>Alertas operativas</h1><p>Priorizá reposición y control de vencimientos antes de la próxima venta.</p></div><a class="button button-ghost" href="{% url 'inventory_list' %}">Volver al inventario</a></div>
+<section class="alert-grid">
+  <article class="card alert-card danger"><div><p class="eyebrow">Vencidos</p><h2>{{ expired|length }} producto{{ expired|length|pluralize:"s" }}</h2></div>{% for product in expired %}<a href="{% url 'product_edit' product.id %}"><strong>{{ product.name }}</strong><span>Venció {{ product.expires_on|date:"d/m/Y" }}</span></a>{% empty %}<p>Sin productos vencidos.</p>{% endfor %}</article>
+  <article class="card alert-card warning"><div><p class="eyebrow">Próximos 30 días</p><h2>{{ expiring_soon|length }} producto{{ expiring_soon|length|pluralize:"s" }}</h2></div>{% for product in expiring_soon %}<a href="{% url 'product_edit' product.id %}"><strong>{{ product.name }}</strong><span>{% if product.expires_on == today %}Vence hoy{% else %}Vence {{ product.expires_on|date:"d/m/Y" }}{% endif %}</span></a>{% empty %}<p>Sin vencimientos próximos.</p>{% endfor %}</article>
+  <article class="card alert-card stock"><div><p class="eyebrow">Stock bajo</p><h2>{{ low_stock|length }} producto{{ low_stock|length|pluralize:"s" }}</h2></div>{% for product in low_stock %}<a href="{% url 'product_edit' product.id %}"><strong>{{ product.name }}</strong><span>{{ product.stock }} disponible · mínimo {{ product.minimum_stock }}</span></a>{% empty %}<p>El stock está por encima de los mínimos definidos.</p>{% endfor %}</article>
+</section>
+{% endblock %}

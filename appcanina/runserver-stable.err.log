@@ -1,0 +1,6 @@
+[31/Jul/2026 00:20:30] "GET /cuenta/ingresar/ HTTP/1.1" 200 953
+[31/Jul/2026 00:20:30,556] - Broken pipe from ('127.0.0.1', 53793)
+[31/Jul/2026 00:28:22] "GET /ventas/ HTTP/1.1" 200 14236
+[31/Jul/2026 00:28:22] "GET /static/css/app.css?v=20260730-1 HTTP/1.1" 200 19854
+Not Found: /favicon.ico
+[31/Jul/2026 00:28:22] "GET /favicon.ico HTTP/1.1" 404 6149

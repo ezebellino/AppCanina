@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Añadir vínculo · AppCanina{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">{{ patient.name }}</p><h1>Añadir responsable</h1><p>Vinculá una persona o institución como responsable, adoptante o cuidador.</p></div></div>
+<section class="card existing-contact-card"><div><p class="eyebrow">Opción recomendada</p><h2>Vincular un contacto existente</h2><p>Usalo cuando esta persona o institución ya está asociada a otra mascota.</p></div><form method="post" class="existing-contact-form">{% csrf_token %}<input type="hidden" name="action" value="existing">{% for field in existing_form %}<div><label>{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<button>Vincular a {{ patient.name }}</button></form></section><form method="post" class="form-grid new-contact-form">{% csrf_token %}<section class="card"><h2>Crear un contacto nuevo</h2>{{ contact_form.as_p }}</section><section class="card"><h2>Vínculo con {{ patient.name }}</h2>{{ relation_form.as_p }}<p class="form-help">Al marcarlo como principal, el contacto principal actual deja de serlo.</p></section><div class="form-actions"><a href="{% url 'patient_detail' patient.id %}">Cancelar</a><button>Guardar nuevo contacto</button></div></form>
+{% endblock %}

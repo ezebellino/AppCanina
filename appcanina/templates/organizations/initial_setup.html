@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Configurar negocio{% endblock %}
+{% block content %}
+<section class="card auth-card setup-card"><p class="eyebrow">Primera vez</p><h1>Configurá tu negocio</h1><p>Creá la cuenta administradora. Después vas a poder sumar empleados, pacientes y productos.</p><form method="post">{% csrf_token %}{% for field in form %}<p><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</p>{% endfor %}<button>Crear mi negocio</button></form><p class="form-help">Esta pantalla sólo aparece mientras no exista ningún usuario.</p></section>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Editar vínculo · AppCanina{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">{{ patient.name }} · {{ relation.contact.full_name }}</p><h1>Editar vínculo</h1><p>Cambiá el rol o definí este contacto como principal.</p></div></div>
+<form method="post" class="single-form">{% csrf_token %}<section class="card"><h2>Vínculo</h2>{{ form.as_p }}<p class="form-help">Al marcarlo como principal, se desmarca el contacto principal anterior.</p></section><div class="form-actions"><a href="{% url 'patient_detail' patient.id %}">Cancelar</a><button>Guardar cambios</button></div></form>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Inventario</p><h1>{% if product %}Editar producto{% else %}Nuevo producto{% endif %}</h1><p>La presentación permite vender alimento por kilo o bolsa.</p></div></div>
+<form method="post" class="card form-grid">{% csrf_token %}
+  {% for error in form.non_field_errors %}<p class="form-help">{{ error }}</p>{% endfor %}
+  {% for field in form %}<div{% if field.name == "new_brand" %} class="new-brand-field"{% endif %}><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.name == "new_brand" %}<button class="button button-small" name="add_brand" value="1" type="submit" formnovalidate>Agregar marca</button>{% endif %}{% if field.help_text %}<span class="form-help">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</div>{% endfor %}
+  <div class="form-actions"><a href="{% url 'inventory_list' %}">Cancelar</a><button>Guardar producto</button></div>
+</form>{% endblock %}
