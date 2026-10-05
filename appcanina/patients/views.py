@@ -21,6 +21,13 @@ logger = logging.getLogger(__name__)
 @login_required
 def dashboard(request):
     """Compact desktop-first landing page for the day-to-day operation."""
+    if (
+        request.user.has_perm("lost_pets.view_lostpetreport")
+        and not request.user.has_perm("patients.view_patient")
+        and not request.user.has_perm("grooming.view_groomingappointment")
+        and not request.user.has_perm("inventory.view_product")
+    ):
+        return redirect("lost_pet_list")
     today = timezone.localdate()
     metrics = []
     attention = []
@@ -59,6 +66,12 @@ def patient_list(request):
 
 @login_required
 def global_search(request):
+    if (
+        request.user.has_perm("lost_pets.view_lostpetreport")
+        and not request.user.has_perm("patients.view_patient")
+        and not request.user.has_perm("inventory.view_product")
+    ):
+        return redirect("lost_pet_list")
     query = request.GET.get("q", "").strip()
     patient_results, contact_results, product_results = [], [], []
     if query and request.user.has_perm("patients.view_patient"):

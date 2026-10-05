@@ -195,6 +195,7 @@ def brand_create(request):
 
 
 @login_required
+@permission_required("auth.add_user", raise_exception=True)
 def business_profile(request):
     profile = Organization.objects.filter(is_business_profile=True).first()
     form = BusinessProfileForm(request.POST or None, request.FILES or None, instance=profile)

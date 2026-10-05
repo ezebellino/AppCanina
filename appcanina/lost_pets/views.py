@@ -9,6 +9,7 @@ from patients.models import Patient
 
 from .forms import LostPetReportForm, SightingForm
 from .models import CommunityNotification, LostPetReport, Sighting
+from organizations.roles import is_community_collaborator
 
 
 @login_required
@@ -16,7 +17,10 @@ from .models import CommunityNotification, LostPetReport, Sighting
 def report_list(request):
     view_mode = request.GET.get("view", "active")
     reports = LostPetReport.objects.select_related("patient", "reporter").prefetch_related("sightings")
-    if view_mode == "all":
+    if is_community_collaborator(request.user):
+        view_mode = "active"
+        reports = reports.filter(status=LostPetReport.Status.PUBLISHED)
+    elif view_mode == "all":
         pass
     elif view_mode == "resolved":
         reports = reports.filter(status=LostPetReport.Status.RESOLVED)
@@ -81,7 +85,10 @@ def report_create(request):
 @login_required
 @permission_required("lost_pets.view_lostpetreport", raise_exception=True)
 def report_detail(request, report_id):
-    report = get_object_or_404(LostPetReport.objects.select_related("patient", "reporter").prefetch_related("sightings__reporter"), pk=report_id)
+    reports = LostPetReport.objects.select_related("patient", "reporter").prefetch_related("sightings__reporter")
+    if is_community_collaborator(request.user):
+        reports = reports.filter(status=LostPetReport.Status.PUBLISHED)
+    report = get_object_or_404(reports, pk=report_id)
     return render(request, "lost_pets/report_detail.html", {"report": report, "sightings": report.sightings.all()})
 
 

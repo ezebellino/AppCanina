@@ -8,6 +8,7 @@ from django.utils import timezone
 from patients.models import Patient
 
 from .models import LostPetReport, Sighting
+from organizations.roles import ensure_base_roles
 
 
 class LostPetReportTests(TestCase):
@@ -45,3 +46,26 @@ class LostPetReportTests(TestCase):
         self.assertNotIn("longitude", marker)
         self.assertNotEqual(marker["public_latitude"], -34.6037)
         self.assertNotEqual(marker["public_longitude"], -58.3816)
+
+    def test_community_collaborator_can_only_assist_on_published_reports(self):
+        roles = ensure_base_roles()
+        collaborator = User.objects.create_user("luz-colabora", password="secret")
+        collaborator.groups.add(roles["collaborator"])
+        published = LostPetReport.objects.create(reporter=self.user, name="Nube", species="cat", last_seen_at=timezone.now(), area_label="Centro")
+        hidden = LostPetReport.objects.create(reporter=self.user, name="Tango", species="dog", last_seen_at=timezone.now(), area_label="Barrio Sur", status=LostPetReport.Status.HIDDEN)
+
+        self.client.force_login(collaborator)
+
+        response = self.client.get(reverse("lost_pet_list", query={"view": "all"}))
+        self.assertContains(response, "Nube")
+        self.assertNotContains(response, "Tango")
+        self.assertEqual(self.client.get(reverse("lost_pet_detail", args=[hidden.id])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("lost_pet_create")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("patient_list")).status_code, 403)
+
+        response = self.client.post(
+            reverse("sighting_create", args=[published.id]),
+            {"seen_at": timezone.localtime().strftime("%Y-%m-%dT%H:%M"), "area_label": "Plaza", "description": "Lo vi cerca de la fuente", "latitude": "", "longitude": ""},
+        )
+        self.assertRedirects(response, reverse("lost_pet_detail", args=[published.id]))
+        self.assertEqual(Sighting.objects.latest("id").reporter, collaborator)
