@@ -8,7 +8,8 @@ from django.views.decorators.http import require_GET, require_POST
 from patients.models import Patient
 
 from .forms import LostPetReportForm, SightingForm
-from .models import CommunityNotification, LostPetReport, Sighting
+from .models import LostPetReport, Sighting
+from .notifications import notify_new_report, notify_new_sighting
 from organizations.roles import is_community_collaborator
 
 
@@ -77,6 +78,7 @@ def report_create(request):
         report.reporter = request.user
         report.status = LostPetReport.Status.PUBLISHED
         report.save()
+        notify_new_report(report)
         messages.success(request, "El aviso fue publicado y ya puede recibir avistamientos.")
         return redirect("lost_pet_detail", report_id=report.id)
     return render(request, "lost_pets/report_form.html", {"form": form})
@@ -103,8 +105,7 @@ def sighting_create(request, report_id):
         sighting.reporter = request.user
         sighting.status = Sighting.Status.PUBLISHED
         sighting.save()
-        if report.reporter_id != request.user.id:
-            CommunityNotification.objects.create(recipient=report.reporter, report=report, sighting=sighting, title=f"Nuevo avistamiento de {report.name}", body=f"{sighting.area_label} · {sighting.seen_at:%d/%m %H:%M}")
+        notify_new_sighting(report, sighting)
         messages.success(request, "El avistamiento fue publicado de inmediato.")
         return redirect("lost_pet_detail", report_id=report.id)
     return render(request, "lost_pets/sighting_form.html", {"form": form, "report": report})

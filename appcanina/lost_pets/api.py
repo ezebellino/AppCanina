@@ -55,4 +55,21 @@ def mobile_login(request):
 @token_required("lost_pets.view_lostpetreport")
 def mobile_notifications(request):
     items = CommunityNotification.objects.filter(recipient=request.mobile_user, read_at__isnull=True).select_related("report", "sighting")[:30]
-    return JsonResponse({"notifications": [{"id": item.id, "title": item.title, "body": item.body, "report_id": item.report_id, "created_at": item.created_at.isoformat()} for item in items]})
+    notifications = []
+    for item in items:
+        photo = item.sighting.photo if item.sighting and item.sighting.photo else item.report.photo
+        description = item.sighting.description if item.sighting and item.sighting.description else item.report.description
+        area = item.sighting.area_label if item.sighting else item.report.area_label
+        notifications.append({
+            "id": item.id,
+            "title": item.title,
+            "body": item.body,
+            "report_id": item.report_id,
+            "animal_name": item.report.name,
+            "species": item.report.get_species_display(),
+            "description": description,
+            "area": area,
+            "photo_url": request.build_absolute_uri(photo.url) if photo else None,
+            "created_at": item.created_at.isoformat(),
+        })
+    return JsonResponse({"notifications": notifications})

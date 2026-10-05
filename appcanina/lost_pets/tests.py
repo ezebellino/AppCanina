@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from patients.models import Patient
 
-from .models import LostPetReport, Sighting
+from .models import CommunityNotification, LostPetReport, MobileAccessToken, Sighting
 from organizations.roles import ensure_base_roles
 
 
@@ -69,3 +69,39 @@ class LostPetReportTests(TestCase):
         )
         self.assertRedirects(response, reverse("lost_pet_detail", args=[published.id]))
         self.assertEqual(Sighting.objects.latest("id").reporter, collaborator)
+
+    def test_community_user_receives_report_notification_with_animal_details(self):
+        roles = ensure_base_roles()
+        collaborator = User.objects.create_user("luz-colabora", password="secret")
+        collaborator.groups.add(roles["collaborator"])
+        self.client.force_login(self.user)
+
+        self.client.post(
+            reverse("lost_pet_create"),
+            {
+                "patient": "",
+                "name": "Mora",
+                "species": "dog",
+                "breed": "Mestiza",
+                "description": "Tiene collar violeta y una mancha blanca en el pecho.",
+                "last_seen_at": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+                "area_label": "Barrio Norte",
+                "latitude": "",
+                "longitude": "",
+            },
+        )
+        notification = CommunityNotification.objects.get(recipient=collaborator)
+        raw_token, _ = MobileAccessToken.issue(collaborator, "Prueba")
+
+        response = self.client.get(
+            reverse("mobile_notifications"),
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+
+        self.assertEqual(notification.title, "Alerta: Mora está extraviado")
+        self.assertEqual(response.status_code, 200)
+        item = response.json()["notifications"][0]
+        self.assertEqual(item["animal_name"], "Mora")
+        self.assertEqual(item["description"], "Tiene collar violeta y una mancha blanca en el pecho.")
+        self.assertEqual(item["area"], "Barrio Norte")
+        self.assertIsNone(item["photo_url"])
