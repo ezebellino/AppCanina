@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/v1/mapa/", views.map_data, name="lost_pet_map_data"),
     path("api/v1/sesion/", api.mobile_login, name="mobile_login"),
     path("api/v1/notificaciones/", api.mobile_notifications, name="mobile_notifications"),
+    path("api/v1/dispositivos/push/", api.mobile_push_device_register, name="mobile_push_device_register"),
     path("nuevo/", views.report_create, name="lost_pet_create"),
     path("<int:report_id>/", views.report_detail, name="lost_pet_detail"),
     path("<int:report_id>/avistamientos/nuevo/", views.sighting_create, name="sighting_create"),

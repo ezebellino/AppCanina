@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import CommunityNotification, MobileAccessToken
+from .models import CommunityNotification, MobileAccessToken, MobilePushDevice
 
 
 def token_required(permission):
@@ -73,3 +73,24 @@ def mobile_notifications(request):
             "created_at": item.created_at.isoformat(),
         })
     return JsonResponse({"notifications": notifications})
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.view_lostpetreport")
+def mobile_push_device_register(request):
+    try:
+        payload = json.loads(request.body)
+    except (TypeError, ValueError):
+        return JsonResponse({"detail": "JSON inválido."}, status=400)
+    push_token = (payload.get("push_token") or "").strip()
+    platform = (payload.get("platform") or "").lower()
+    if not push_token.startswith(("ExponentPushToken[", "ExpoPushToken[")):
+        return JsonResponse({"detail": "Token de notificación inválido."}, status=400)
+    if platform not in {MobilePushDevice.Platform.ANDROID, MobilePushDevice.Platform.IOS}:
+        return JsonResponse({"detail": "Plataforma de dispositivo inválida."}, status=400)
+    device, created = MobilePushDevice.objects.update_or_create(
+        token=push_token,
+        defaults={"user": request.mobile_user, "platform": platform, "active": True},
+    )
+    return JsonResponse({"id": device.id, "registered": created})

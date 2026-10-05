@@ -1,10 +1,17 @@
 import React, {useState} from "react";
-import {Button, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View} from "react-native";
+import {Button, Image, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View} from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 
 const API = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/extraviados/api/v1";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true}),
+});
 
 export default function App() {
   const [username, setUsername] = useState("");
@@ -20,6 +27,44 @@ export default function App() {
     if (!response.ok) throw Error(data.detail || "No se pudieron consultar las notificaciones.");
     setNotifications(data.notifications);
     setMessage(data.notifications.length ? `${data.notifications.length} notificación${data.notifications.length === 1 ? "" : "es"} pendiente${data.notifications.length === 1 ? "" : "s"}.` : "No hay notificaciones pendientes.");
+  };
+
+  const activatePushNotifications = async () => {
+    if (!Device.isDevice) {
+      setMessage("Las alertas push requieren un teléfono físico.");
+      return;
+    }
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("animales-extraviados", {
+        name: "Animales extraviados",
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 200, 250],
+      });
+    }
+    const current = await Notifications.getPermissionsAsync();
+    const permission = current.status === "granted" ? current : await Notifications.requestPermissionsAsync();
+    if (permission.status !== "granted") {
+      setMessage("No autorizaste las alertas. Podés activarlas más adelante desde la configuración del teléfono.");
+      return;
+    }
+    const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId || process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+    if (!projectId) {
+      setMessage("Falta asociar el proyecto de notificaciones antes de activar alertas en este dispositivo.");
+      return;
+    }
+    try {
+      const pushToken = (await Notifications.getExpoPushTokenAsync({projectId})).data;
+      const response = await fetch(`${API}/dispositivos/push/`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`},
+        body: JSON.stringify({push_token: pushToken, platform: Platform.OS}),
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo registrar este dispositivo.");
+      setMessage("Alertas activadas en este teléfono.");
+    } catch (error) {
+      setMessage(error.message);
+    }
   };
 
   const login = async () => {
@@ -79,6 +124,7 @@ export default function App() {
       <Text style={styles.help}>Cuando publiques un aviso podrás elegir si querés compartir tu ubicación o una foto. Nada se solicita por adelantado.</Text>
       <Button title="⌖ Compartir mi ubicación" onPress={shareLocation}/>
       <Button title="▣ Usar cámara" onPress={takePhoto}/>
+      <Button title="🔔 Activar alertas en este teléfono" onPress={activatePushNotifications}/>
       <Button title="Actualizar notificaciones" onPress={() => loadNotifications()}/>
       {photoUri ? <Image source={{uri: photoUri}} style={styles.preview}/> : null}
       {notifications.map(notification => <View key={notification.id} style={styles.notificationCard}>

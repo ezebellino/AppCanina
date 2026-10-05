@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from patients.models import Patient
 
-from .models import CommunityNotification, LostPetReport, MobileAccessToken, Sighting
+from .models import CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from organizations.roles import ensure_base_roles
 
 
@@ -105,3 +105,20 @@ class LostPetReportTests(TestCase):
         self.assertEqual(item["description"], "Tiene collar violeta y una mancha blanca en el pecho.")
         self.assertEqual(item["area"], "Barrio Norte")
         self.assertIsNone(item["photo_url"])
+
+    def test_mobile_user_can_register_a_push_device(self):
+        roles = ensure_base_roles()
+        collaborator = User.objects.create_user("push-colabora", password="secret")
+        collaborator.groups.add(roles["collaborator"])
+        raw_token, _ = MobileAccessToken.issue(collaborator, "Android de prueba")
+
+        response = self.client.post(
+            reverse("mobile_push_device_register"),
+            data='{"push_token":"ExponentPushToken[abc123]","platform":"android"}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["registered"])
+        self.assertTrue(MobilePushDevice.objects.filter(user=collaborator, platform="android").exists())

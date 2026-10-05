@@ -109,6 +109,23 @@ class MobileAccessToken(models.Model):
         return cls.objects.select_related("user").filter(digest=hashlib.sha256(raw_token.encode()).hexdigest(), revoked_at__isnull=True).first()
 
 
+class MobilePushDevice(models.Model):
+    class Platform(models.TextChoices):
+        ANDROID = "android", "Android"
+        IOS = "ios", "iOS"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="mobile_push_devices")
+    token = models.CharField(max_length=255, unique=True)
+    platform = models.CharField(max_length=12, choices=Platform.choices)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "dispositivo con notificaciones"
+        verbose_name_plural = "dispositivos con notificaciones"
+
+
 class CommunityNotification(models.Model):
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="community_notifications")
     report = models.ForeignKey(LostPetReport, on_delete=models.CASCADE, related_name="notifications")

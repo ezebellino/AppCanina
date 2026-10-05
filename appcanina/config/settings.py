@@ -72,6 +72,7 @@ STORAGES = {
 MEDIA_URL = "media/"
 MEDIA_ROOT = os.environ.get("DJANGO_MEDIA_ROOT", BASE_DIR / "media")
 SERVE_MEDIA = os.environ.get("DJANGO_SERVE_MEDIA", "0") == "1"
+EXPO_PUSH_ACCESS_TOKEN = os.environ.get("EXPO_PUSH_ACCESS_TOKEN", "")
 if FORCE_HTTPS:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True

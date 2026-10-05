@@ -16,10 +16,11 @@
           "cameraPermission": "Tu Veterinaria usa la cámara solo para adjuntar una foto a un aviso o avistamiento.",
           "photosPermission": "Tu Veterinaria necesita acceso a tus fotos solo cuando elegís adjuntar una imagen."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "android": {
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "CAMERA"]
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "CAMERA", "POST_NOTIFICATIONS"]
     }
   }
 }

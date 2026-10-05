@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from organizations.roles import COMMUNITY_COLLABORATOR_GROUP
 
 from .models import CommunityNotification
+from .push import send_expo_push
 
 
 def _summary(description, fallback):
@@ -24,6 +25,7 @@ def notify_new_report(report):
         for recipient in recipients
     ]
     CommunityNotification.objects.bulk_create(notifications)
+    send_expo_push(notifications)
 
 
 def notify_new_sighting(report, sighting):
@@ -46,3 +48,4 @@ def notify_new_sighting(report, sighting):
         for recipient in recipients
     ]
     CommunityNotification.objects.bulk_create(notifications)
+    send_expo_push(notifications)
