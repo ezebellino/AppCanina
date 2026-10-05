@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Tu Veterinaria Comunidad",
+    "slug": "tu-veterinaria-comunidad",
+    "version": "0.1.0",
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Tu Veterinaria usa tu ubicación solo cuando elegís compartir el lugar de un avistamiento."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Tu Veterinaria usa la cámara solo para adjuntar una foto a un aviso o avistamiento.",
+          "photosPermission": "Tu Veterinaria necesita acceso a tus fotos solo cuando elegís adjuntar una imagen."
+        }
+      ]
+    ],
+    "android": {
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "CAMERA"]
+    }
+  }
+}

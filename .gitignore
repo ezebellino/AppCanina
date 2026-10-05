@@ -16,3 +16,8 @@ Respaldos/
 output/
 .playwright-cli/
 .tmp_excel_sample/
+
+# JavaScript dependencies and local mobile build artifacts
+mobile/node_modules/
+mobile/.expo/
+mobile/.tmp-expo-export/
