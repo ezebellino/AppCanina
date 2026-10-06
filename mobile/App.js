@@ -7,7 +7,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 
-const API = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/extraviados/api/v1";
+const API = process.env.EXPO_PUBLIC_API_URL || "https://appcanina-production.up.railway.app/extraviados/api/v1";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true}),

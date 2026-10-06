@@ -3,6 +3,7 @@
     "name": "Tu Veterinaria Comunidad",
     "slug": "tu-veterinaria-comunidad",
     "version": "0.1.0",
+    "newArchEnabled": false,
     "plugins": [
       [
         "expo-location",
