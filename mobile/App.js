@@ -147,11 +147,11 @@ export default function App() {
       <Text style={styles.subtitle}>Comunidad · animales extraviados</Text>
       {!token ? <View style={styles.stack}>
       {isRegistering ? <Text style={styles.help}>Creá tu cuenta para recibir alertas y compartir avistamientos. Tu acceso será solo comunitario.</Text> : null}
-      {isRegistering ? <TextInput placeholder="Nombre (opcional)" value={firstName} onChangeText={setFirstName} style={styles.input}/> : null}
-      <TextInput placeholder="Usuario" value={username} onChangeText={setUsername} autoCapitalize="none" style={styles.input}/>
-      {isRegistering ? <TextInput placeholder="Correo electrónico (opcional)" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={styles.input}/> : null}
-      <TextInput placeholder="Contraseña" value={password} onChangeText={setPassword} secureTextEntry style={styles.input}/>
-      {isRegistering ? <TextInput placeholder="Repetir contraseña" value={passwordConfirmation} onChangeText={setPasswordConfirmation} secureTextEntry style={styles.input}/> : null}
+      {isRegistering ? <View style={styles.field}><Text style={styles.fieldLabel}>Nombre <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: Sofía" placeholderTextColor="#6c8378" value={firstName} onChangeText={setFirstName} style={styles.input}/></View> : null}
+      <View style={styles.field}><Text style={styles.fieldLabel}>Usuario</Text><TextInput placeholder="Elegí un usuario" placeholderTextColor="#6c8378" value={username} onChangeText={setUsername} autoCapitalize="none" style={styles.input}/></View>
+      {isRegistering ? <View style={styles.field}><Text style={styles.fieldLabel}>Correo electrónico <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="nombre@correo.com" placeholderTextColor="#6c8378" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={styles.input}/></View> : null}
+      <View style={styles.field}><Text style={styles.fieldLabel}>Contraseña</Text><TextInput placeholder="Mínimo 8 caracteres" placeholderTextColor="#6c8378" value={password} onChangeText={setPassword} secureTextEntry style={styles.input}/></View>
+      {isRegistering ? <View style={styles.field}><Text style={styles.fieldLabel}>Repetir contraseña</Text><TextInput placeholder="Repetí tu contraseña" placeholderTextColor="#6c8378" value={passwordConfirmation} onChangeText={setPasswordConfirmation} secureTextEntry style={styles.input}/></View> : null}
       <Button title={isRegistering ? "Crear cuenta" : "Ingresar"} onPress={isRegistering ? register : login}/>
       <Button title={isRegistering ? "Ya tengo una cuenta" : "Crear una cuenta para colaborar"} onPress={() => { setIsRegistering(!isRegistering); setMessage(isRegistering ? "Ingresá para colaborar." : "Completá tus datos para crear una cuenta."); }}/>
     </View> : <View style={styles.stack}>
@@ -182,7 +182,10 @@ const styles = StyleSheet.create({
   title: {fontSize: 26, fontWeight: "700", color: "#1d4334"},
   subtitle: {color: "#557267"},
   stack: {gap: 12},
-  input: {borderWidth: 1, borderColor: "#cbd9d1", backgroundColor: "#fff", borderRadius: 10, padding: 12},
+  field: {gap: 6},
+  fieldLabel: {color: "#1d4334", fontSize: 15, fontWeight: "700"},
+  optional: {color: "#557267", fontWeight: "400"},
+  input: {borderWidth: 1, borderColor: "#cbd9d1", backgroundColor: "#fff", color: "#172d24", borderRadius: 10, padding: 12},
   help: {lineHeight: 20, color: "#466156"},
   message: {lineHeight: 21, color: "#213a30"},
   preview: {width: "100%", height: 220, borderRadius: 12, resizeMode: "cover"},
