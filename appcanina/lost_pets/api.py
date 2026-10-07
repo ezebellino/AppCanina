@@ -9,6 +9,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import CommunityNotification, MobileAccessToken, MobilePushDevice
+from organizations.forms import CommunityCollaboratorForm
+from organizations.roles import ensure_base_roles
 
 
 def token_required(permission):
@@ -48,6 +50,37 @@ def mobile_login(request):
     cache.delete(cache_key)
     raw_token, _ = MobileAccessToken.issue(user, payload.get("device_name", "Dispositivo móvil"))
     return JsonResponse({"token": raw_token, "token_type": "Bearer", "user": {"username": user.username}})
+
+
+@csrf_exempt
+@require_POST
+def mobile_register(request):
+    """Create a strictly limited community account from the mobile app."""
+    ip = request.META.get("REMOTE_ADDR", "unknown")
+    cache_key = f"mobile-register:{ip}"
+    if cache.get(cache_key, 0) >= 3:
+        return JsonResponse({"detail": "Demasiadas cuentas creadas desde esta conexión. Probá nuevamente más tarde."}, status=429)
+    try:
+        payload = json.loads(request.body)
+    except (TypeError, ValueError):
+        return JsonResponse({"detail": "JSON inválido."}, status=400)
+
+    form = CommunityCollaboratorForm({
+        "username": (payload.get("username") or "").strip(),
+        "first_name": (payload.get("first_name") or "").strip(),
+        "email": (payload.get("email") or "").strip(),
+        "password1": payload.get("password") or "",
+        "password2": payload.get("password_confirmation") or "",
+    })
+    if not form.is_valid():
+        messages = [message for errors in form.errors.values() for message in errors]
+        return JsonResponse({"detail": messages[0] if messages else "No se pudo crear la cuenta."}, status=400)
+
+    collaborator = form.save()
+    collaborator.groups.add(ensure_base_roles()["collaborator"])
+    cache.set(cache_key, cache.get(cache_key, 0) + 1, 3600)
+    raw_token, _ = MobileAccessToken.issue(collaborator, payload.get("device_name", "Dispositivo móvil"))
+    return JsonResponse({"token": raw_token, "token_type": "Bearer", "user": {"username": collaborator.username}}, status=201)
 
 
 @csrf_exempt

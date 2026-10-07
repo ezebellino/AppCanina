@@ -16,6 +16,10 @@ Notifications.setNotificationHandler({
 export default function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [email, setEmail] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [token, setToken] = useState("");
   const [message, setMessage] = useState("Ingresá para colaborar.");
   const [photoUri, setPhotoUri] = useState("");
@@ -85,6 +89,31 @@ export default function App() {
     }
   };
 
+  const register = async () => {
+    try {
+      const response = await fetch(`${API}/registro/`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          username,
+          first_name: firstName,
+          email,
+          password,
+          password_confirmation: passwordConfirmation,
+          device_name: "App móvil",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo crear la cuenta.");
+      await SecureStore.setItemAsync("community-token", data.token);
+      setToken(data.token);
+      setMessage(`Cuenta creada. ¡Gracias por colaborar, ${data.user.username}!`);
+      await loadNotifications(data.token);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
   const shareLocation = async () => {
     const permission = await Location.requestForegroundPermissionsAsync();
     if (permission.status !== "granted") {
@@ -117,9 +146,14 @@ export default function App() {
       <Text style={styles.title}>Tu Veterinaria</Text>
       <Text style={styles.subtitle}>Comunidad · animales extraviados</Text>
       {!token ? <View style={styles.stack}>
+      {isRegistering ? <Text style={styles.help}>Creá tu cuenta para recibir alertas y compartir avistamientos. Tu acceso será solo comunitario.</Text> : null}
+      {isRegistering ? <TextInput placeholder="Nombre (opcional)" value={firstName} onChangeText={setFirstName} style={styles.input}/> : null}
       <TextInput placeholder="Usuario" value={username} onChangeText={setUsername} autoCapitalize="none" style={styles.input}/>
+      {isRegistering ? <TextInput placeholder="Correo electrónico (opcional)" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={styles.input}/> : null}
       <TextInput placeholder="Contraseña" value={password} onChangeText={setPassword} secureTextEntry style={styles.input}/>
-      <Button title="Ingresar" onPress={login}/>
+      {isRegistering ? <TextInput placeholder="Repetir contraseña" value={passwordConfirmation} onChangeText={setPasswordConfirmation} secureTextEntry style={styles.input}/> : null}
+      <Button title={isRegistering ? "Crear cuenta" : "Ingresar"} onPress={isRegistering ? register : login}/>
+      <Button title={isRegistering ? "Ya tengo una cuenta" : "Crear una cuenta para colaborar"} onPress={() => { setIsRegistering(!isRegistering); setMessage(isRegistering ? "Ingresá para colaborar." : "Completá tus datos para crear una cuenta."); }}/>
     </View> : <View style={styles.stack}>
       <Text style={styles.help}>Cuando publiques un aviso podrás elegir si querés compartir tu ubicación o una foto. Nada se solicita por adelantado.</Text>
       <Button title="⌖ Compartir mi ubicación" onPress={shareLocation}/>

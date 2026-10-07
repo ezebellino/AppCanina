@@ -122,3 +122,18 @@ class LostPetReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["registered"])
         self.assertTrue(MobilePushDevice.objects.filter(user=collaborator, platform="android").exists())
+
+    def test_mobile_registration_creates_only_a_community_collaborator(self):
+        response = self.client.post(
+            reverse("mobile_register"),
+            data='{"username":"sofia-colabora","first_name":"Sofía","password":"ClaveSegura123","password_confirmation":"ClaveSegura123","device_name":"Android de Sofía"}',
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        collaborator = User.objects.get(username="sofia-colabora")
+        self.assertTrue(collaborator.groups.filter(name="Colaborador comunitario").exists())
+        self.assertTrue(collaborator.has_perm("lost_pets.view_lostpetreport"))
+        self.assertTrue(collaborator.has_perm("lost_pets.add_sighting"))
+        self.assertFalse(collaborator.has_perm("patients.view_patient"))
+        self.assertIn("token", response.json())

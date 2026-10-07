@@ -9,6 +9,7 @@ urlpatterns = [
     path("mapa/", views.map_view, name="lost_pet_map"),
     path("api/v1/mapa/", views.map_data, name="lost_pet_map_data"),
     path("api/v1/sesion/", api.mobile_login, name="mobile_login"),
+    path("api/v1/registro/", api.mobile_register, name="mobile_register"),
     path("api/v1/notificaciones/", api.mobile_notifications, name="mobile_notifications"),
     path("api/v1/dispositivos/push/", api.mobile_push_device_register, name="mobile_push_device_register"),
     path("nuevo/", views.report_create, name="lost_pet_create"),
