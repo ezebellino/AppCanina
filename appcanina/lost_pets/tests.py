@@ -137,3 +137,36 @@ class LostPetReportTests(TestCase):
         self.assertTrue(collaborator.has_perm("lost_pets.add_sighting"))
         self.assertFalse(collaborator.has_perm("patients.view_patient"))
         self.assertIn("token", response.json())
+
+    def test_mobile_dashboard_only_exposes_published_or_resolved_reports(self):
+        roles = ensure_base_roles()
+        collaborator = User.objects.create_user("panel-colabora", password="secret")
+        collaborator.groups.add(roles["collaborator"])
+        raw_token, _ = MobileAccessToken.issue(collaborator, "Prueba")
+        LostPetReport.objects.create(reporter=self.user, name="Luna", species="dog", last_seen_at=timezone.now(), area_label="Centro")
+        LostPetReport.objects.create(reporter=self.user, name="Milo", species="cat", last_seen_at=timezone.now(), area_label="Norte", status=LostPetReport.Status.RESOLVED)
+        LostPetReport.objects.create(reporter=self.user, name="Oculto", species="dog", last_seen_at=timezone.now(), area_label="Sur", status=LostPetReport.Status.HIDDEN)
+
+        active = self.client.get(reverse("mobile_reports"), HTTP_AUTHORIZATION=f"Bearer {raw_token}")
+        found = self.client.get(reverse("mobile_reports"), {"estado": "encontrados"}, HTTP_AUTHORIZATION=f"Bearer {raw_token}")
+
+        self.assertEqual([item["name"] for item in active.json()["reports"]], ["Luna"])
+        self.assertEqual([item["name"] for item in found.json()["reports"]], ["Milo"])
+
+    def test_mobile_search_request_is_hidden_until_staff_publishes_it(self):
+        roles = ensure_base_roles()
+        collaborator = User.objects.create_user("solicita-colabora", password="secret")
+        collaborator.groups.add(roles["collaborator"])
+        raw_token, _ = MobileAccessToken.issue(collaborator, "Prueba")
+
+        response = self.client.post(
+            reverse("mobile_search_request"),
+            data='{"name":"Nube","species":"gato","area":"Parque central","description":"Collar rojo"}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+
+        report = LostPetReport.objects.get(name="Nube")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(report.status, LostPetReport.Status.HIDDEN)
+        self.assertEqual(report.reporter, collaborator)

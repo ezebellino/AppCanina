@@ -24,6 +24,15 @@ export default function App() {
   const [message, setMessage] = useState("Ingresá para colaborar.");
   const [photoUri, setPhotoUri] = useState("");
   const [notifications, setNotifications] = useState([]);
+  const [screen, setScreen] = useState("panel");
+  const [reportState, setReportState] = useState("activos");
+  const [reports, setReports] = useState([]);
+  const [reportQuery, setReportQuery] = useState("");
+  const [requestName, setRequestName] = useState("");
+  const [requestSpecies, setRequestSpecies] = useState("");
+  const [requestBreed, setRequestBreed] = useState("");
+  const [requestArea, setRequestArea] = useState("");
+  const [requestDescription, setRequestDescription] = useState("");
 
   const loadNotifications = async (accessToken = token) => {
     const response = await fetch(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
@@ -31,6 +40,19 @@ export default function App() {
     if (!response.ok) throw Error(data.detail || "No se pudieron consultar las notificaciones.");
     setNotifications(data.notifications);
     setMessage(data.notifications.length ? `${data.notifications.length} notificación${data.notifications.length === 1 ? "" : "es"} pendiente${data.notifications.length === 1 ? "" : "s"}.` : "No hay notificaciones pendientes.");
+  };
+
+  const loadReports = async (accessToken = token, state = reportState, query = reportQuery) => {
+    try {
+      const params = new URLSearchParams({estado: state});
+      if (query.trim()) params.set("q", query.trim());
+      const response = await fetch(`${API}/avisos/?${params.toString()}`, {headers: {Authorization: `Bearer ${accessToken}`}});
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudieron cargar los avisos.");
+      setReports(data.reports);
+    } catch (error) {
+      setMessage(error.message);
+    }
   };
 
   const activatePushNotifications = async () => {
@@ -83,6 +105,7 @@ export default function App() {
       await SecureStore.setItemAsync("community-token", data.token);
       setToken(data.token);
       setMessage(`Sesión iniciada: ${data.user.username}`);
+      await loadReports(data.token);
       await loadNotifications(data.token);
     } catch (error) {
       setMessage(error.message);
@@ -108,6 +131,7 @@ export default function App() {
       await SecureStore.setItemAsync("community-token", data.token);
       setToken(data.token);
       setMessage(`Cuenta creada. ¡Gracias por colaborar, ${data.user.username}!`);
+      await loadReports(data.token);
       await loadNotifications(data.token);
     } catch (error) {
       setMessage(error.message);
@@ -141,6 +165,28 @@ export default function App() {
     }
   };
 
+  const submitSearchRequest = async () => {
+    try {
+      const response = await fetch(`${API}/solicitudes-busqueda/`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`},
+        body: JSON.stringify({name: requestName, species: requestSpecies, breed: requestBreed, area: requestArea, description: requestDescription}),
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo enviar la solicitud.");
+      setRequestName(""); setRequestSpecies(""); setRequestBreed(""); setRequestArea(""); setRequestDescription("");
+      setScreen("panel");
+      setMessage(data.detail);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const changeReportState = async (state) => {
+    setReportState(state);
+    await loadReports(token, state, reportQuery);
+  };
+
   return <SafeAreaView style={styles.screen}>
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Tu Veterinaria</Text>
@@ -155,20 +201,46 @@ export default function App() {
       <Button title={isRegistering ? "Crear cuenta" : "Ingresar"} onPress={isRegistering ? register : login}/>
       <Button title={isRegistering ? "Ya tengo una cuenta" : "Crear una cuenta para colaborar"} onPress={() => { setIsRegistering(!isRegistering); setMessage(isRegistering ? "Ingresá para colaborar." : "Completá tus datos para crear una cuenta."); }}/>
     </View> : <View style={styles.stack}>
-      <Text style={styles.help}>Cuando publiques un aviso podrás elegir si querés compartir tu ubicación o una foto. Nada se solicita por adelantado.</Text>
+      <View style={styles.nav}>
+        <Button title="Panel" onPress={() => setScreen("panel")}/>
+        <Button title="Buscar" onPress={() => setScreen("buscar")}/>
+        <Button title="Pedir búsqueda" onPress={() => setScreen("solicitud")}/>
+      </View>
+      {screen === "panel" ? <View style={styles.stack}>
+        <Text style={styles.sectionTitle}>Animales que necesitan ayuda</Text>
+        <View style={styles.nav}><Button title="Se buscan" onPress={() => changeReportState("activos")}/><Button title="Encontrados" onPress={() => changeReportState("encontrados")}/></View>
+        <Button title="Actualizar panel" onPress={() => loadReports()}/>
+        {reports.length ? reports.map(report => <View key={report.id} style={styles.reportCard}>
+          {report.photo_url ? <Image source={{uri: report.photo_url}} style={styles.reportPhoto}/> : null}
+          <View style={styles.reportContent}><Text style={styles.notificationTitle}>{report.name} · {report.species}</Text><Text style={styles.notificationArea}>⌖ {report.area}</Text><Text style={styles.reportMeta}>{report.status === "resolved" ? "Encontrado" : "Se busca"}</Text><Text>{report.description || "Sin señas particulares cargadas."}</Text></View>
+        </View>) : <Text style={styles.empty}>No hay avisos en esta sección por ahora.</Text>}
+      </View> : null}
+      {screen === "buscar" ? <View style={styles.stack}>
+        <Text style={styles.sectionTitle}>Buscar un animal</Text>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Nombre</Text><TextInput placeholder="Ej.: Luna" placeholderTextColor="#6c8378" value={reportQuery} onChangeText={setReportQuery} style={styles.input}/></View>
+        <Button title="Buscar entre los avisos" onPress={() => loadReports(token, reportState, reportQuery)}/>
+        {reports.map(report => <View key={report.id} style={styles.reportCard}><View style={styles.reportContent}><Text style={styles.notificationTitle}>{report.name} · {report.species}</Text><Text style={styles.notificationArea}>⌖ {report.area}</Text></View></View>)}
+      </View> : null}
+      {screen === "solicitud" ? <View style={styles.stack}>
+        <Text style={styles.sectionTitle}>Solicitar una búsqueda</Text>
+        <Text style={styles.help}>Contanos lo esencial. El equipo revisará la solicitud antes de hacerla pública.</Text>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Nombre del animal</Text><TextInput placeholder="Ej.: Nube" placeholderTextColor="#6c8378" value={requestName} onChangeText={setRequestName} style={styles.input}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Especie</Text><TextInput placeholder="Perro, gato u otro" placeholderTextColor="#6c8378" value={requestSpecies} onChangeText={setRequestSpecies} style={styles.input}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Raza <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: Mestizo" placeholderTextColor="#6c8378" value={requestBreed} onChangeText={setRequestBreed} style={styles.input}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Zona aproximada</Text><TextInput placeholder="Ej.: Barrio Norte" placeholderTextColor="#6c8378" value={requestArea} onChangeText={setRequestArea} style={styles.input}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Señas particulares <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Collar, color, tamaño..." placeholderTextColor="#6c8378" value={requestDescription} onChangeText={setRequestDescription} multiline style={[styles.input, styles.textarea]}/></View>
+        <Button title="Enviar solicitud" onPress={submitSearchRequest}/>
+      </View> : null}
+      <View style={styles.divider}/>
+      <Text style={styles.sectionTitle}>Mi teléfono</Text>
       <Button title="⌖ Compartir mi ubicación" onPress={shareLocation}/>
       <Button title="▣ Usar cámara" onPress={takePhoto}/>
-      <Button title="🔔 Activar alertas en este teléfono" onPress={activatePushNotifications}/>
-      <Button title="Actualizar notificaciones" onPress={() => loadNotifications()}/>
+      <Button title="🔔 Activar alertas" onPress={activatePushNotifications}/>
+      <Button title="Ver mis notificaciones" onPress={() => loadNotifications()}/>
       {photoUri ? <Image source={{uri: photoUri}} style={styles.preview}/> : null}
-      {notifications.map(notification => <View key={notification.id} style={styles.notificationCard}>
+      {notifications.slice(0, 5).map(notification => <View key={notification.id} style={styles.notificationCard}>
         {notification.photo_url ? <Image source={{uri: notification.photo_url}} style={styles.notificationPhoto}/> : null}
-        <View style={styles.notificationContent}>
-          <Text style={styles.notificationTitle}>{notification.title}</Text>
-          <Text style={styles.notificationAnimal}>{notification.animal_name} · {notification.species}</Text>
-          <Text style={styles.notificationArea}>⌖ {notification.area}</Text>
-          <Text>{notification.description || notification.body}</Text>
-        </View>
+        <View style={styles.notificationContent}><Text style={styles.notificationTitle}>{notification.title}</Text><Text style={styles.notificationAnimal}>{notification.animal_name} · {notification.species}</Text><Text style={styles.notificationArea}>⌖ {notification.area}</Text><Text>{notification.description || notification.body}</Text></View>
       </View>)}
     </View>}
       <Text style={styles.message}>{message}</Text>
@@ -186,7 +258,12 @@ const styles = StyleSheet.create({
   fieldLabel: {color: "#1d4334", fontSize: 15, fontWeight: "700"},
   optional: {color: "#557267", fontWeight: "400"},
   input: {borderWidth: 1, borderColor: "#cbd9d1", backgroundColor: "#fff", color: "#172d24", borderRadius: 10, padding: 12},
+  textarea: {minHeight: 90, textAlignVertical: "top"},
   help: {lineHeight: 20, color: "#466156"},
+  sectionTitle: {fontSize: 19, fontWeight: "700", color: "#1d4334", marginTop: 6},
+  nav: {flexDirection: "row", flexWrap: "wrap", gap: 8},
+  divider: {height: 1, backgroundColor: "#dbe7df", marginVertical: 8},
+  empty: {color: "#557267", fontStyle: "italic", paddingVertical: 12},
   message: {lineHeight: 21, color: "#213a30"},
   preview: {width: "100%", height: 220, borderRadius: 12, resizeMode: "cover"},
   notificationCard: {backgroundColor: "#fff", borderWidth: 1, borderColor: "#dbe7df", borderRadius: 14, overflow: "hidden"},
@@ -195,4 +272,8 @@ const styles = StyleSheet.create({
   notificationTitle: {fontSize: 17, fontWeight: "700", color: "#1d4334"},
   notificationAnimal: {fontWeight: "600", color: "#355f4a"},
   notificationArea: {color: "#557267"},
+  reportCard: {backgroundColor: "#fff", borderWidth: 1, borderColor: "#dbe7df", borderRadius: 14, overflow: "hidden"},
+  reportPhoto: {width: "100%", height: 170, resizeMode: "cover"},
+  reportContent: {padding: 14, gap: 4},
+  reportMeta: {color: "#147d59", fontWeight: "700"},
 });
