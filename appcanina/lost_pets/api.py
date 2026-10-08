@@ -1,5 +1,6 @@
 import json
 from functools import wraps
+from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth import authenticate
 from django.core.cache import cache
@@ -10,7 +11,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .forms import photo_without_location_metadata
-from .models import CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice
+from .models import CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
+from .notifications import notify_new_sighting
 from organizations.forms import CommunityCollaboratorForm
 from organizations.roles import ensure_base_roles
 
@@ -118,6 +120,21 @@ def _mobile_payload(request):
     return request.POST
 
 
+def _mobile_coordinates(payload):
+    latitude, longitude = (payload.get("latitude") or "").strip(), (payload.get("longitude") or "").strip()
+    if not latitude and not longitude:
+        return None, None, None
+    if not latitude or not longitude:
+        return None, None, "La ubicación debe incluir latitud y longitud juntas."
+    try:
+        latitude_value, longitude_value = Decimal(latitude), Decimal(longitude)
+    except (InvalidOperation, TypeError):
+        return None, None, "La ubicación no tiene un formato válido."
+    if not Decimal("-90") <= latitude_value <= Decimal("90") or not Decimal("-180") <= longitude_value <= Decimal("180"):
+        return None, None, "La ubicación está fuera del rango permitido."
+    return latitude_value, longitude_value, None
+
+
 @csrf_exempt
 @require_GET
 @token_required("lost_pets.view_lostpetreport")
@@ -128,6 +145,36 @@ def mobile_reports(request):
     if query:
         reports = reports.filter(Q(name__icontains=query) | Q(species__icontains=query) | Q(area_label__icontains=query))
     return JsonResponse({"reports": [_mobile_report_data(request, report) for report in reports[:60]]})
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.add_sighting")
+def mobile_sighting_create(request, report_id):
+    report = LostPetReport.objects.filter(pk=report_id, status=LostPetReport.Status.PUBLISHED).first()
+    if not report:
+        return JsonResponse({"detail": "El aviso ya no está disponible para recibir avistamientos."}, status=404)
+    payload = _mobile_payload(request)
+    if payload is None:
+        return JsonResponse({"detail": "Datos inválidos."}, status=400)
+    area = (payload.get("area") or "").strip()
+    if not area:
+        return JsonResponse({"detail": "Indicá una zona aproximada para el avistamiento."}, status=400)
+    latitude, longitude, coordinate_error = _mobile_coordinates(payload)
+    if coordinate_error:
+        return JsonResponse({"detail": coordinate_error}, status=400)
+    sighting = Sighting.objects.create(
+        report=report,
+        reporter=request.mobile_user,
+        area_label=area[:120],
+        description=(payload.get("description") or "").strip(),
+        latitude=latitude,
+        longitude=longitude,
+        photo=photo_without_location_metadata(request.FILES.get("photo")) if request.FILES.get("photo") else None,
+        status=Sighting.Status.PUBLISHED,
+    )
+    notify_new_sighting(report, sighting)
+    return JsonResponse({"id": sighting.id, "detail": "Avistamiento compartido. El mapa mostrará solo una zona aproximada."}, status=201)
 
 
 @csrf_exempt

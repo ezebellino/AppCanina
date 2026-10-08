@@ -9,7 +9,7 @@ from patients.models import Patient
 
 from .forms import LostPetReportForm, SightingForm
 from .models import LostPetReport, Sighting
-from .notifications import notify_new_report, notify_new_sighting
+from .notifications import notify_new_report, notify_new_sighting, notify_request_review
 from organizations.roles import is_community_collaborator
 
 
@@ -132,5 +132,7 @@ def report_change_status(request, report_id):
         report.save(update_fields=["status", "review_note", "updated_at"])
         if status == LostPetReport.Status.PUBLISHED and not was_published:
             notify_new_report(report)
+        if report.requested_via_mobile and status in {LostPetReport.Status.PUBLISHED, LostPetReport.Status.REJECTED}:
+            notify_request_review(report)
         messages.success(request, f"Aviso marcado como {report.get_status_display().lower()}.")
     return redirect("lost_pet_detail", report_id=report.id)

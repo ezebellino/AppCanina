@@ -132,6 +132,26 @@ class LostPetReportTests(TestCase):
         self.assertTrue(response.json()["registered"])
         self.assertTrue(MobilePushDevice.objects.filter(user=collaborator, platform="android").exists())
 
+    def test_mobile_collaborator_can_publish_sighting_with_photo_and_private_coordinates(self):
+        roles = ensure_base_roles()
+        collaborator = User.objects.create_user("veo-colabora", password="secret")
+        collaborator.groups.add(roles["collaborator"])
+        raw_token, _ = MobileAccessToken.issue(collaborator, "Prueba")
+        report = LostPetReport.objects.create(reporter=self.user, name="Mora", species="dog", last_seen_at=timezone.now(), area_label="Centro")
+
+        response = self.client.post(
+            reverse("mobile_sighting_create", args=[report.id]),
+            data={"area": "Plaza central", "description": "Iba hacia la avenida.", "latitude": "-34.603700", "longitude": "-58.381600", "photo": self.sample_photo()},
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+
+        sighting = Sighting.objects.get(report=report)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(sighting.reporter, collaborator)
+        self.assertEqual(sighting.latitude, Decimal("-34.603700"))
+        self.assertTrue(bool(sighting.photo))
+        self.assertTrue(CommunityNotification.objects.filter(recipient=self.user, sighting=sighting).exists())
+
     def test_mobile_registration_creates_only_a_community_collaborator(self):
         response = self.client.post(
             reverse("mobile_register"),
@@ -227,9 +247,11 @@ class LostPetReportTests(TestCase):
         self.assertRedirects(rejected, reverse("lost_pet_detail", args=[report.id]))
         self.assertEqual(report.status, LostPetReport.Status.REJECTED)
         self.assertEqual(report.review_note, "Necesitamos una foto donde se vea mejor.")
+        self.assertTrue(CommunityNotification.objects.filter(recipient=collaborator, report=report, title__icontains="rechazada").exists())
 
         accepted = self.client.post(reverse("lost_pet_change_status", args=[report.id]), {"status": "published"})
         report.refresh_from_db()
         self.assertRedirects(accepted, reverse("lost_pet_detail", args=[report.id]))
         self.assertEqual(report.status, LostPetReport.Status.PUBLISHED)
         self.assertEqual(report.review_note, "")
+        self.assertTrue(CommunityNotification.objects.filter(recipient=collaborator, report=report, title__icontains="publicada").exists())

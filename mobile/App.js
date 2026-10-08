@@ -36,6 +36,11 @@ export default function App() {
   const [requestPhoto, setRequestPhoto] = useState(null);
   const [myRequests, setMyRequests] = useState([]);
   const [editingRequest, setEditingRequest] = useState(null);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [sightingArea, setSightingArea] = useState("");
+  const [sightingDescription, setSightingDescription] = useState("");
+  const [sightingPhoto, setSightingPhoto] = useState(null);
+  const [sightingLocation, setSightingLocation] = useState(null);
 
   const loadNotifications = async (accessToken = token) => {
     const response = await fetch(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
@@ -185,6 +190,57 @@ export default function App() {
     }
   };
 
+  const chooseSightingPhoto = async (fromCamera = false) => {
+    const permission = fromCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setMessage("No autorizaste la foto. Podés continuar sin adjuntarla.");
+      return;
+    }
+    const result = fromCamera
+      ? await ImagePicker.launchCameraAsync({mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8})
+      : await ImagePicker.launchImageLibraryAsync({mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8});
+    if (!result.canceled) setSightingPhoto(result.assets[0]);
+  };
+
+  const useSightingLocation = async () => {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== "granted") {
+      setMessage("No compartiste ubicación. Indicá la zona manualmente.");
+      return;
+    }
+    const location = await Location.getCurrentPositionAsync({accuracy: Location.Accuracy.Balanced});
+    setSightingLocation({latitude: location.coords.latitude, longitude: location.coords.longitude});
+    setMessage("Ubicación añadida. El aviso público mostrará solo una zona aproximada.");
+  };
+
+  const openReport = (report) => {
+    setSelectedReport(report); setScreen("detalle");
+  };
+
+  const resetSighting = () => {
+    setSightingArea(""); setSightingDescription(""); setSightingPhoto(null); setSightingLocation(null);
+  };
+
+  const submitSighting = async () => {
+    if (!selectedReport) return;
+    try {
+      const form = new FormData();
+      form.append("area", sightingArea); form.append("description", sightingDescription);
+      if (sightingLocation) {
+        form.append("latitude", String(sightingLocation.latitude)); form.append("longitude", String(sightingLocation.longitude));
+      }
+      if (sightingPhoto?.uri) form.append("photo", {uri: sightingPhoto.uri, name: sightingPhoto.fileName || "avistamiento.jpg", type: sightingPhoto.mimeType || "image/jpeg"});
+      const response = await fetch(`${API}/avisos/${selectedReport.id}/avistamientos/`, {method: "POST", headers: {Authorization: `Bearer ${token}`}, body: form});
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo compartir el avistamiento.");
+      resetSighting(); setScreen("panel"); setMessage(data.detail); await loadReports();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
   const loadMySearchRequests = async (accessToken = token) => {
     try {
       const response = await fetch(`${API}/solicitudes-busqueda/mias/`, {headers: {Authorization: `Bearer ${accessToken}`}});
@@ -264,14 +320,33 @@ export default function App() {
         <Button title="Actualizar panel" onPress={() => loadReports()}/>
         {reports.length ? reports.map(report => <View key={report.id} style={styles.reportCard}>
           {report.photo_url ? <Image source={{uri: report.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>{report.species?.toLowerCase().includes("gato") ? "🐱" : report.species?.toLowerCase().includes("perro") ? "🐶" : "🐾"}</Text><Text style={styles.reportPhotoCaption}>Sin foto disponible</Text></View>}
-          <View style={styles.reportContent}><Text style={styles.notificationTitle}>{report.name} · {report.species}</Text><Text style={styles.notificationArea}>⌖ {report.area}</Text><Text style={styles.reportMeta}>{report.status === "resolved" ? "Encontrado" : "Se busca"}</Text><Text>{report.description || "Sin señas particulares cargadas."}</Text></View>
+          <View style={styles.reportContent}><Text style={styles.notificationTitle}>{report.name} · {report.species}</Text><Text style={styles.notificationArea}>⌖ {report.area}</Text><Text style={styles.reportMeta}>{report.status === "resolved" ? "Encontrado" : "Se busca"}</Text><Text>{report.description || "Sin señas particulares cargadas."}</Text><Button title="Ver aviso" onPress={() => openReport(report)}/></View>
         </View>) : <Text style={styles.empty}>No hay avisos en esta sección por ahora.</Text>}
       </View> : null}
       {screen === "buscar" ? <View style={styles.stack}>
         <Text style={styles.sectionTitle}>Buscar un animal</Text>
         <View style={styles.field}><Text style={styles.fieldLabel}>Nombre</Text><TextInput placeholder="Ej.: Luna" placeholderTextColor="#6c8378" value={reportQuery} onChangeText={setReportQuery} style={styles.input}/></View>
         <Button title="Buscar entre los avisos" onPress={() => loadReports(token, reportState, reportQuery)}/>
-        {reports.map(report => <View key={report.id} style={styles.reportCard}>{report.photo_url ? <Image source={{uri: report.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text></View>}<View style={styles.reportContent}><Text style={styles.notificationTitle}>{report.name} · {report.species}</Text><Text style={styles.notificationArea}>⌖ {report.area}</Text></View></View>)}
+        {reports.map(report => <View key={report.id} style={styles.reportCard}>{report.photo_url ? <Image source={{uri: report.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text></View>}<View style={styles.reportContent}><Text style={styles.notificationTitle}>{report.name} · {report.species}</Text><Text style={styles.notificationArea}>⌖ {report.area}</Text><Button title="Ver aviso" onPress={() => openReport(report)}/></View></View>)}
+      </View> : null}
+      {screen === "detalle" && selectedReport ? <View style={styles.stack}>
+        <Button title="← Volver al panel" onPress={() => setScreen("panel")}/>
+        {selectedReport.photo_url ? <Image source={{uri: selectedReport.photo_url}} style={styles.detailPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text></View>}
+        <Text style={styles.sectionTitle}>{selectedReport.name} · {selectedReport.species}</Text>
+        <Text style={styles.reportMeta}>{selectedReport.status === "resolved" ? "Encontrado" : "Se busca"}</Text>
+        <Text style={styles.notificationArea}>⌖ Última zona: {selectedReport.area}</Text>
+        <Text style={styles.help}>{selectedReport.description || "No hay señas particulares cargadas."}</Text>
+        {selectedReport.status === "published" ? <Button title="Vi a este animal" onPress={() => { resetSighting(); setScreen("avistamiento"); }}/> : null}
+      </View> : null}
+      {screen === "avistamiento" && selectedReport ? <View style={styles.stack}>
+        <Button title="← Volver al aviso" onPress={() => setScreen("detalle")}/>
+        <Text style={styles.sectionTitle}>Informar avistamiento de {selectedReport.name}</Text>
+        <Text style={styles.help}>Compartí solo datos reales. La ubicación exacta queda privada y el mapa muestra una zona aproximada.</Text>
+        {sightingPhoto?.uri ? <Image source={{uri: sightingPhoto.uri}} style={styles.requestPhoto}/> : <View style={styles.requestPhotoEmpty}><Text style={styles.reportPhotoIcon}>📷</Text><Text style={styles.help}>Una foto ayuda a confirmar el avistamiento</Text></View>}
+        <View style={styles.nav}><Button title="Usar cámara" onPress={() => chooseSightingPhoto(true)}/><Button title="Elegir foto" onPress={() => chooseSightingPhoto(false)}/><Button title={sightingLocation ? "Ubicación añadida" : "Usar mi ubicación"} onPress={useSightingLocation}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Zona aproximada</Text><TextInput placeholder="Ej.: Plaza del barrio" placeholderTextColor="#6c8378" value={sightingArea} onChangeText={setSightingArea} style={styles.input}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Qué observaste <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Dirección en la que iba, compañía, estado..." placeholderTextColor="#6c8378" value={sightingDescription} onChangeText={setSightingDescription} multiline style={[styles.input, styles.textarea]}/></View>
+        <Button title="Compartir avistamiento" onPress={submitSighting}/>
       </View> : null}
       {screen === "solicitud" ? <View style={styles.stack}>
         <Text style={styles.sectionTitle}>{editingRequest ? "Editar solicitud" : "Solicitar una búsqueda"}</Text>
@@ -344,6 +419,7 @@ const styles = StyleSheet.create({
   reportMeta: {color: "#147d59", fontWeight: "700"},
   requestPhotoBox: {borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: "#cbd9d1", backgroundColor: "#fff"},
   requestPhoto: {width: "100%", height: 280, resizeMode: "cover"},
+  detailPhoto: {width: "100%", height: 340, borderRadius: 16, resizeMode: "cover"},
   requestPhotoEmpty: {height: 180, alignItems: "center", justifyContent: "center", gap: 6, padding: 18},
   reviewNote: {color: "#78481e", backgroundColor: "#fff4df", padding: 10, borderRadius: 8},
 });

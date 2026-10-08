@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/v1/sesion/", api.mobile_login, name="mobile_login"),
     path("api/v1/registro/", api.mobile_register, name="mobile_register"),
     path("api/v1/avisos/", api.mobile_reports, name="mobile_reports"),
+    path("api/v1/avisos/<int:report_id>/avistamientos/", api.mobile_sighting_create, name="mobile_sighting_create"),
     path("api/v1/solicitudes-busqueda/", api.mobile_search_request, name="mobile_search_request"),
     path("api/v1/solicitudes-busqueda/mias/", api.mobile_my_search_requests, name="mobile_my_search_requests"),
     path("api/v1/solicitudes-busqueda/<int:report_id>/editar/", api.mobile_search_request_edit, name="mobile_search_request_edit"),

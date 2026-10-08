@@ -49,3 +49,16 @@ def notify_new_sighting(report, sighting):
     ]
     CommunityNotification.objects.bulk_create(notifications)
     send_expo_push(notifications)
+
+
+def notify_request_review(report):
+    if not report.requested_via_mobile or not report.reporter.is_active:
+        return
+    accepted = report.status == report.Status.PUBLISHED
+    notification = CommunityNotification.objects.create(
+        recipient=report.reporter,
+        report=report,
+        title=f"Tu solicitud para {report.name} fue {'publicada' if accepted else 'rechazada'}",
+        body=_summary(report.review_note, "Ya está visible para la comunidad." if accepted else "Revisá la nota del equipo y podés corregirla desde Mis solicitudes."),
+    )
+    send_expo_push([notification])
