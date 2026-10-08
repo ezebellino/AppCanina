@@ -25,12 +25,15 @@ def report_list(request):
         pass
     elif view_mode == "resolved":
         reports = reports.filter(status=LostPetReport.Status.RESOLVED)
+    elif view_mode == "requests":
+        reports = reports.filter(requested_via_mobile=True, status=LostPetReport.Status.HIDDEN)
     else:
         view_mode = "active"
         reports = reports.filter(status=LostPetReport.Status.PUBLISHED)
     active_count = LostPetReport.objects.filter(status=LostPetReport.Status.PUBLISHED).count()
+    pending_request_count = LostPetReport.objects.filter(requested_via_mobile=True, status=LostPetReport.Status.HIDDEN).count()
     latest_sighting = Sighting.objects.filter(status=Sighting.Status.PUBLISHED).order_by("-seen_at").first()
-    return render(request, "lost_pets/report_list.html", {"reports": reports, "view_mode": view_mode, "active_count": active_count, "latest_sighting": latest_sighting})
+    return render(request, "lost_pets/report_list.html", {"reports": reports, "view_mode": view_mode, "active_count": active_count, "pending_request_count": pending_request_count, "latest_sighting": latest_sighting})
 
 
 @login_required
@@ -116,12 +119,18 @@ def sighting_create(request, report_id):
 @require_POST
 def report_change_status(request, report_id):
     report = get_object_or_404(LostPetReport, pk=report_id)
-    allowed_statuses = {LostPetReport.Status.PUBLISHED, LostPetReport.Status.HIDDEN, LostPetReport.Status.RESOLVED, LostPetReport.Status.ARCHIVED}
+    allowed_statuses = {LostPetReport.Status.PUBLISHED, LostPetReport.Status.HIDDEN, LostPetReport.Status.REJECTED, LostPetReport.Status.RESOLVED, LostPetReport.Status.ARCHIVED}
     status = request.POST.get("status")
     if status not in allowed_statuses:
         messages.error(request, "El estado indicado no es válido.")
+    elif status == LostPetReport.Status.REJECTED and not request.POST.get("review_note", "").strip():
+        messages.error(request, "Indicá un motivo breve para rechazar la solicitud.")
     else:
+        was_published = report.status == LostPetReport.Status.PUBLISHED
         report.status = status
-        report.save(update_fields=["status", "updated_at"])
+        report.review_note = request.POST.get("review_note", "").strip()[:280] if status == LostPetReport.Status.REJECTED else ""
+        report.save(update_fields=["status", "review_note", "updated_at"])
+        if status == LostPetReport.Status.PUBLISHED and not was_published:
+            notify_new_report(report)
         messages.success(request, f"Aviso marcado como {report.get_status_display().lower()}.")
     return redirect("lost_pet_detail", report_id=report.id)

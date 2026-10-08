@@ -3,11 +3,13 @@ from functools import wraps
 
 from django.contrib.auth import authenticate
 from django.core.cache import cache
+from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from .forms import photo_without_location_metadata
 from .models import CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice
 from organizations.forms import CommunityCollaboratorForm
 from organizations.roles import ensure_base_roles
@@ -98,6 +100,24 @@ def _mobile_report_data(request, report):
     }
 
 
+def _mobile_request_data(request, report):
+    data = _mobile_report_data(request, report)
+    data.update({
+        "review_note": report.review_note,
+        "editable": report.status in {LostPetReport.Status.HIDDEN, LostPetReport.Status.REJECTED},
+    })
+    return data
+
+
+def _mobile_payload(request):
+    if request.content_type and request.content_type.startswith("application/json"):
+        try:
+            return json.loads(request.body)
+        except (TypeError, ValueError):
+            return None
+    return request.POST
+
+
 @csrf_exempt
 @require_GET
 @token_required("lost_pets.view_lostpetreport")
@@ -106,7 +126,7 @@ def mobile_reports(request):
     reports = LostPetReport.objects.filter(status=LostPetReport.Status.RESOLVED if state == "encontrados" else LostPetReport.Status.PUBLISHED)
     query = request.GET.get("q", "").strip()
     if query:
-        reports = reports.filter(name__icontains=query)
+        reports = reports.filter(Q(name__icontains=query) | Q(species__icontains=query) | Q(area_label__icontains=query))
     return JsonResponse({"reports": [_mobile_report_data(request, report) for report in reports[:60]]})
 
 
@@ -118,9 +138,8 @@ def mobile_search_request(request):
     cache_key = f"mobile-search-request:{ip}"
     if cache.get(cache_key, 0) >= 3:
         return JsonResponse({"detail": "Ya enviaste varias solicitudes desde esta conexión. Probá nuevamente más tarde."}, status=429)
-    try:
-        payload = json.loads(request.body)
-    except (TypeError, ValueError):
+    payload = _mobile_payload(request)
+    if payload is None:
         return JsonResponse({"detail": "JSON inválido."}, status=400)
 
     species_map = {"perro": "dog", "perros": "dog", "dog": "dog", "gato": "cat", "gatos": "cat", "cat": "cat", "otro": "other", "other": "other"}
@@ -138,9 +157,54 @@ def mobile_search_request(request):
         area_label=area[:120],
         last_seen_at=timezone.now(),
         status=LostPetReport.Status.HIDDEN,
+        requested_via_mobile=True,
+        photo=photo_without_location_metadata(request.FILES.get("photo")) if request.FILES.get("photo") else None,
     )
     cache.set(cache_key, cache.get(cache_key, 0) + 1, 3600)
     return JsonResponse({"id": report.id, "detail": "Recibimos tu solicitud. El equipo la revisará antes de publicarla."}, status=201)
+
+
+@csrf_exempt
+@require_GET
+@token_required("lost_pets.view_lostpetreport")
+def mobile_my_search_requests(request):
+    requests = LostPetReport.objects.filter(reporter=request.mobile_user, requested_via_mobile=True).order_by("-updated_at", "-id")
+    return JsonResponse({"requests": [_mobile_request_data(request, report) for report in requests[:30]]})
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.view_lostpetreport")
+def mobile_search_request_edit(request, report_id):
+    report = LostPetReport.objects.filter(
+        pk=report_id,
+        reporter=request.mobile_user,
+        requested_via_mobile=True,
+    ).first()
+    if not report:
+        return JsonResponse({"detail": "Solicitud no encontrada."}, status=404)
+    if report.status not in {LostPetReport.Status.HIDDEN, LostPetReport.Status.REJECTED}:
+        return JsonResponse({"detail": "Esta solicitud ya fue publicada o cerrada y no se puede editar desde el teléfono."}, status=409)
+    payload = _mobile_payload(request)
+    if payload is None:
+        return JsonResponse({"detail": "Datos inválidos."}, status=400)
+    species_map = {"perro": "dog", "perros": "dog", "dog": "dog", "gato": "cat", "gatos": "cat", "cat": "cat", "otro": "other", "other": "other"}
+    species = species_map.get((payload.get("species") or "").strip().lower())
+    name = (payload.get("name") or "").strip()
+    area = (payload.get("area") or "").strip()
+    if not name or not species or not area:
+        return JsonResponse({"detail": "Indicá nombre del animal, especie (perro, gato u otro) y zona aproximada."}, status=400)
+    report.name = name[:100]
+    report.species = species
+    report.breed = (payload.get("breed") or "").strip()[:100]
+    report.description = (payload.get("description") or "").strip()
+    report.area_label = area[:120]
+    if request.FILES.get("photo"):
+        report.photo = photo_without_location_metadata(request.FILES["photo"])
+    report.status = LostPetReport.Status.HIDDEN
+    report.review_note = ""
+    report.save()
+    return JsonResponse({"request": _mobile_request_data(request, report), "detail": "Solicitud actualizada. El equipo la revisará nuevamente."})
 
 
 @csrf_exempt

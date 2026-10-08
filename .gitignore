@@ -25,3 +25,4 @@ mobile/.codegraph/
 mobile/node_modules/
 mobile/.expo/
 mobile/.tmp-expo-export/
+mobile/dist/

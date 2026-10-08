@@ -33,6 +33,9 @@ export default function App() {
   const [requestBreed, setRequestBreed] = useState("");
   const [requestArea, setRequestArea] = useState("");
   const [requestDescription, setRequestDescription] = useState("");
+  const [requestPhoto, setRequestPhoto] = useState(null);
+  const [myRequests, setMyRequests] = useState([]);
+  const [editingRequest, setEditingRequest] = useState(null);
 
   const loadNotifications = async (accessToken = token) => {
     const response = await fetch(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
@@ -165,18 +168,66 @@ export default function App() {
     }
   };
 
+  const chooseRequestPhoto = async (fromCamera = false) => {
+    const permission = fromCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setMessage(fromCamera ? "No autorizaste la cámara. Podés elegir una foto de tu galería." : "No autorizaste el acceso a tus fotos. Podés usar la cámara.");
+      return;
+    }
+    const result = fromCamera
+      ? await ImagePicker.launchCameraAsync({mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8})
+      : await ImagePicker.launchImageLibraryAsync({mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8});
+    if (!result.canceled) {
+      setRequestPhoto(result.assets[0]);
+      setMessage("Foto del animal lista para enviar con la solicitud.");
+    }
+  };
+
+  const loadMySearchRequests = async (accessToken = token) => {
+    try {
+      const response = await fetch(`${API}/solicitudes-busqueda/mias/`, {headers: {Authorization: `Bearer ${accessToken}`}});
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudieron cargar tus solicitudes.");
+      setMyRequests(data.requests);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const resetSearchRequest = () => {
+    setEditingRequest(null); setRequestName(""); setRequestSpecies(""); setRequestBreed("");
+    setRequestArea(""); setRequestDescription(""); setRequestPhoto(null);
+  };
+
+  const editSearchRequest = (request) => {
+    setEditingRequest(request);
+    setRequestName(request.name || ""); setRequestSpecies(request.species || "");
+    setRequestBreed(request.breed || ""); setRequestArea(request.area || "");
+    setRequestDescription(request.description || ""); setRequestPhoto(null);
+    setScreen("solicitud");
+  };
+
   const submitSearchRequest = async () => {
     try {
-      const response = await fetch(`${API}/solicitudes-busqueda/`, {
+      const form = new FormData();
+      form.append("name", requestName); form.append("species", requestSpecies); form.append("breed", requestBreed);
+      form.append("area", requestArea); form.append("description", requestDescription);
+      if (requestPhoto?.uri) {
+        form.append("photo", {uri: requestPhoto.uri, name: requestPhoto.fileName || "animal.jpg", type: requestPhoto.mimeType || "image/jpeg"});
+      }
+      const response = await fetch(`${API}/solicitudes-busqueda/${editingRequest ? `${editingRequest.id}/editar/` : ""}`, {
         method: "POST",
-        headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`},
-        body: JSON.stringify({name: requestName, species: requestSpecies, breed: requestBreed, area: requestArea, description: requestDescription}),
+        headers: {Authorization: `Bearer ${token}`},
+        body: form,
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo enviar la solicitud.");
-      setRequestName(""); setRequestSpecies(""); setRequestBreed(""); setRequestArea(""); setRequestDescription("");
+      resetSearchRequest();
       setScreen("panel");
       setMessage(data.detail);
+      await loadMySearchRequests();
     } catch (error) {
       setMessage(error.message);
     }
@@ -204,14 +255,15 @@ export default function App() {
       <View style={styles.nav}>
         <Button title="Panel" onPress={() => setScreen("panel")}/>
         <Button title="Buscar" onPress={() => setScreen("buscar")}/>
-        <Button title="Pedir búsqueda" onPress={() => setScreen("solicitud")}/>
+        <Button title="Pedir búsqueda" onPress={() => { resetSearchRequest(); setScreen("solicitud"); }}/>
+        <Button title="Mis solicitudes" onPress={() => { setScreen("mis-solicitudes"); loadMySearchRequests(); }}/>
       </View>
       {screen === "panel" ? <View style={styles.stack}>
         <Text style={styles.sectionTitle}>Animales que necesitan ayuda</Text>
         <View style={styles.nav}><Button title="Se buscan" onPress={() => changeReportState("activos")}/><Button title="Encontrados" onPress={() => changeReportState("encontrados")}/></View>
         <Button title="Actualizar panel" onPress={() => loadReports()}/>
         {reports.length ? reports.map(report => <View key={report.id} style={styles.reportCard}>
-          {report.photo_url ? <Image source={{uri: report.photo_url}} style={styles.reportPhoto}/> : null}
+          {report.photo_url ? <Image source={{uri: report.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>{report.species?.toLowerCase().includes("gato") ? "🐱" : report.species?.toLowerCase().includes("perro") ? "🐶" : "🐾"}</Text><Text style={styles.reportPhotoCaption}>Sin foto disponible</Text></View>}
           <View style={styles.reportContent}><Text style={styles.notificationTitle}>{report.name} · {report.species}</Text><Text style={styles.notificationArea}>⌖ {report.area}</Text><Text style={styles.reportMeta}>{report.status === "resolved" ? "Encontrado" : "Se busca"}</Text><Text>{report.description || "Sin señas particulares cargadas."}</Text></View>
         </View>) : <Text style={styles.empty}>No hay avisos en esta sección por ahora.</Text>}
       </View> : null}
@@ -219,17 +271,28 @@ export default function App() {
         <Text style={styles.sectionTitle}>Buscar un animal</Text>
         <View style={styles.field}><Text style={styles.fieldLabel}>Nombre</Text><TextInput placeholder="Ej.: Luna" placeholderTextColor="#6c8378" value={reportQuery} onChangeText={setReportQuery} style={styles.input}/></View>
         <Button title="Buscar entre los avisos" onPress={() => loadReports(token, reportState, reportQuery)}/>
-        {reports.map(report => <View key={report.id} style={styles.reportCard}><View style={styles.reportContent}><Text style={styles.notificationTitle}>{report.name} · {report.species}</Text><Text style={styles.notificationArea}>⌖ {report.area}</Text></View></View>)}
+        {reports.map(report => <View key={report.id} style={styles.reportCard}>{report.photo_url ? <Image source={{uri: report.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text></View>}<View style={styles.reportContent}><Text style={styles.notificationTitle}>{report.name} · {report.species}</Text><Text style={styles.notificationArea}>⌖ {report.area}</Text></View></View>)}
       </View> : null}
       {screen === "solicitud" ? <View style={styles.stack}>
-        <Text style={styles.sectionTitle}>Solicitar una búsqueda</Text>
-        <Text style={styles.help}>Contanos lo esencial. El equipo revisará la solicitud antes de hacerla pública.</Text>
+        <Text style={styles.sectionTitle}>{editingRequest ? "Editar solicitud" : "Solicitar una búsqueda"}</Text>
+        <Text style={styles.help}>{editingRequest ? "Corregí los datos y el equipo la revisará nuevamente." : "Una foto clara ayuda mucho a reconocerlo en la calle. El equipo revisará la solicitud antes de hacerla pública."}</Text>
+        <View style={styles.requestPhotoBox}>{requestPhoto?.uri ? <Image source={{uri: requestPhoto.uri}} style={styles.requestPhoto}/> : editingRequest?.photo_url ? <Image source={{uri: editingRequest.photo_url}} style={styles.requestPhoto}/> : <View style={styles.requestPhotoEmpty}><Text style={styles.reportPhotoIcon}>🐾</Text><Text style={styles.help}>Sumá una foto clara del animal</Text></View>}</View>
+        <View style={styles.nav}><Button title="Usar cámara" onPress={() => chooseRequestPhoto(true)}/><Button title="Elegir de galería" onPress={() => chooseRequestPhoto(false)}/>{requestPhoto ? <Button title="Quitar foto nueva" onPress={() => setRequestPhoto(null)}/> : null}</View>
         <View style={styles.field}><Text style={styles.fieldLabel}>Nombre del animal</Text><TextInput placeholder="Ej.: Nube" placeholderTextColor="#6c8378" value={requestName} onChangeText={setRequestName} style={styles.input}/></View>
         <View style={styles.field}><Text style={styles.fieldLabel}>Especie</Text><TextInput placeholder="Perro, gato u otro" placeholderTextColor="#6c8378" value={requestSpecies} onChangeText={setRequestSpecies} style={styles.input}/></View>
         <View style={styles.field}><Text style={styles.fieldLabel}>Raza <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: Mestizo" placeholderTextColor="#6c8378" value={requestBreed} onChangeText={setRequestBreed} style={styles.input}/></View>
         <View style={styles.field}><Text style={styles.fieldLabel}>Zona aproximada</Text><TextInput placeholder="Ej.: Barrio Norte" placeholderTextColor="#6c8378" value={requestArea} onChangeText={setRequestArea} style={styles.input}/></View>
         <View style={styles.field}><Text style={styles.fieldLabel}>Señas particulares <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Collar, color, tamaño..." placeholderTextColor="#6c8378" value={requestDescription} onChangeText={setRequestDescription} multiline style={[styles.input, styles.textarea]}/></View>
-        <Button title="Enviar solicitud" onPress={submitSearchRequest}/>
+        <Button title={editingRequest ? "Guardar cambios" : "Enviar solicitud"} onPress={submitSearchRequest}/>
+        {editingRequest ? <Button title="Cancelar edición" onPress={() => { resetSearchRequest(); setScreen("mis-solicitudes"); loadMySearchRequests(); }}/> : null}
+      </View> : null}
+      {screen === "mis-solicitudes" ? <View style={styles.stack}>
+        <Text style={styles.sectionTitle}>Mis solicitudes</Text>
+        <Text style={styles.help}>Podés editar una solicitud mientras está en revisión o si el equipo te pidió una corrección.</Text>
+        {myRequests.length ? myRequests.map(request => <View key={request.id} style={styles.reportCard}>
+          {request.photo_url ? <Image source={{uri: request.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text><Text style={styles.reportPhotoCaption}>Sin foto</Text></View>}
+          <View style={styles.reportContent}><Text style={styles.notificationTitle}>{request.name} · {request.species}</Text><Text style={styles.reportMeta}>{request.status_label}</Text><Text style={styles.notificationArea}>⌖ {request.area}</Text>{request.review_note ? <Text style={styles.reviewNote}>Nota del equipo: {request.review_note}</Text> : null}{request.editable ? <Button title="Editar solicitud" onPress={() => editSearchRequest(request)}/> : <Text style={styles.help}>Esta solicitud ya está publicada o cerrada.</Text>}</View>
+        </View>) : <Text style={styles.empty}>Todavía no enviaste solicitudes.</Text>}
       </View> : null}
       <View style={styles.divider}/>
       <Text style={styles.sectionTitle}>Mi teléfono</Text>
@@ -273,7 +336,14 @@ const styles = StyleSheet.create({
   notificationAnimal: {fontWeight: "600", color: "#355f4a"},
   notificationArea: {color: "#557267"},
   reportCard: {backgroundColor: "#fff", borderWidth: 1, borderColor: "#dbe7df", borderRadius: 14, overflow: "hidden"},
-  reportPhoto: {width: "100%", height: 170, resizeMode: "cover"},
+  reportPhoto: {width: "100%", height: 250, resizeMode: "cover"},
+  reportPhotoPlaceholder: {width: "100%", height: 250, alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#eaf2ed"},
+  reportPhotoIcon: {fontSize: 52},
+  reportPhotoCaption: {color: "#557267"},
   reportContent: {padding: 14, gap: 4},
   reportMeta: {color: "#147d59", fontWeight: "700"},
+  requestPhotoBox: {borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: "#cbd9d1", backgroundColor: "#fff"},
+  requestPhoto: {width: "100%", height: 280, resizeMode: "cover"},
+  requestPhotoEmpty: {height: 180, alignItems: "center", justifyContent: "center", gap: 6, padding: 18},
+  reviewNote: {color: "#78481e", backgroundColor: "#fff4df", padding: 10, borderRadius: 8},
 });

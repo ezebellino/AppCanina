@@ -1,9 +1,12 @@
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib.auth.models import Permission, User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image
 
 from patients.models import Patient
 
@@ -18,6 +21,12 @@ class LostPetReportTests(TestCase):
         self.user.user_permissions.add(*permissions)
         self.patient = Patient.objects.create(name="Toto", species="dog", breed="Mestizo")
         self.client.force_login(self.user)
+
+    def sample_photo(self):
+        image = Image.new("RGB", (24, 24), "navy")
+        content = BytesIO()
+        image.save(content, format="JPEG")
+        return SimpleUploadedFile("nube.jpg", content.getvalue(), content_type="image/jpeg")
 
     def test_report_is_published_immediately_and_can_link_a_patient(self):
         response = self.client.post(reverse("lost_pet_create"), {"patient": self.patient.id, "name": "Toto", "species": "dog", "breed": "Mestizo", "description": "Collar azul", "last_seen_at": timezone.localtime().strftime("%Y-%m-%dT%H:%M"), "area_label": "Barrio Norte", "latitude": "", "longitude": ""})
@@ -161,8 +170,7 @@ class LostPetReportTests(TestCase):
 
         response = self.client.post(
             reverse("mobile_search_request"),
-            data='{"name":"Nube","species":"gato","area":"Parque central","description":"Collar rojo"}',
-            content_type="application/json",
+            data={"name": "Nube", "species": "gato", "area": "Parque central", "description": "Collar rojo", "photo": self.sample_photo()},
             HTTP_AUTHORIZATION=f"Bearer {raw_token}",
         )
 
@@ -170,3 +178,58 @@ class LostPetReportTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(report.status, LostPetReport.Status.HIDDEN)
         self.assertEqual(report.reporter, collaborator)
+        self.assertTrue(report.requested_via_mobile)
+        self.assertTrue(bool(report.photo))
+
+    def test_mobile_request_owner_can_edit_pending_or_rejected_request(self):
+        roles = ensure_base_roles()
+        collaborator = User.objects.create_user("edita-colabora", password="secret")
+        collaborator.groups.add(roles["collaborator"])
+        raw_token, _ = MobileAccessToken.issue(collaborator, "Prueba")
+        report = LostPetReport.objects.create(
+            reporter=collaborator,
+            name="Nube",
+            species="cat",
+            last_seen_at=timezone.now(),
+            area_label="Centro",
+            requested_via_mobile=True,
+            status=LostPetReport.Status.REJECTED,
+            review_note="Necesitamos confirmar la zona.",
+        )
+
+        response = self.client.post(
+            reverse("mobile_search_request_edit", args=[report.id]),
+            data={"name": "Nube", "species": "gato", "area": "Parque central", "description": "Collar rojo", "photo": self.sample_photo()},
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+
+        report.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(report.status, LostPetReport.Status.HIDDEN)
+        self.assertEqual(report.review_note, "")
+        self.assertEqual(report.area_label, "Parque central")
+        self.assertTrue(bool(report.photo))
+
+    def test_staff_can_accept_or_reject_a_mobile_request_with_feedback(self):
+        collaborator = User.objects.create_user("solicita-revision", password="secret")
+        report = LostPetReport.objects.create(
+            reporter=collaborator,
+            name="Mora",
+            species="dog",
+            last_seen_at=timezone.now(),
+            area_label="Centro",
+            requested_via_mobile=True,
+            status=LostPetReport.Status.HIDDEN,
+        )
+
+        rejected = self.client.post(reverse("lost_pet_change_status", args=[report.id]), {"status": "rejected", "review_note": "Necesitamos una foto donde se vea mejor."})
+        report.refresh_from_db()
+        self.assertRedirects(rejected, reverse("lost_pet_detail", args=[report.id]))
+        self.assertEqual(report.status, LostPetReport.Status.REJECTED)
+        self.assertEqual(report.review_note, "Necesitamos una foto donde se vea mejor.")
+
+        accepted = self.client.post(reverse("lost_pet_change_status", args=[report.id]), {"status": "published"})
+        report.refresh_from_db()
+        self.assertRedirects(accepted, reverse("lost_pet_detail", args=[report.id]))
+        self.assertEqual(report.status, LostPetReport.Status.PUBLISHED)
+        self.assertEqual(report.review_note, "")

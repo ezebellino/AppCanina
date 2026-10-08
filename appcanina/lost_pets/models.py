@@ -30,6 +30,7 @@ class LostPetReport(models.Model):
     class Status(models.TextChoices):
         PUBLISHED = "published", "Publicado"
         HIDDEN = "hidden", "Oculto"
+        REJECTED = "rejected", "Rechazado"
         RESOLVED = "resolved", "Resuelto"
         ARCHIVED = "archived", "Archivado"
 
@@ -45,6 +46,8 @@ class LostPetReport(models.Model):
     latitude = models.DecimalField("latitud exacta", max_digits=9, decimal_places=6, null=True, blank=True, validators=[MinValueValidator(Decimal("-90")), MaxValueValidator(Decimal("90"))])
     longitude = models.DecimalField("longitud exacta", max_digits=9, decimal_places=6, null=True, blank=True, validators=[MinValueValidator(Decimal("-180")), MaxValueValidator(Decimal("180"))])
     status = models.CharField("estado", max_length=16, choices=Status.choices, default=Status.PUBLISHED)
+    requested_via_mobile = models.BooleanField("solicitud enviada desde la comunidad", default=False)
+    review_note = models.CharField("nota para la solicitud", max_length=280, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
