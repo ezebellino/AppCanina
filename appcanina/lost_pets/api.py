@@ -9,9 +9,10 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from PIL import UnidentifiedImageError
 
 from .forms import photo_without_location_metadata
-from .models import CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
+from .models import AdoptionPost, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from .notifications import notify_new_sighting
 from organizations.forms import CommunityCollaboratorForm
 from organizations.roles import ensure_base_roles
@@ -111,6 +112,16 @@ def _mobile_request_data(request, report):
     return data
 
 
+def _mobile_adoption_data(request, post):
+    return {
+        "id": post.id, "name": post.name, "species": post.get_species_display(), "breed": post.breed,
+        "age": post.age_label, "description": post.description, "area": post.area_label,
+        "status": post.status, "status_label": post.get_status_display(), "review_note": post.review_note,
+        "photo_url": request.build_absolute_uri(post.photo.url) if post.photo else None,
+        "editable": post.status in {AdoptionPost.Status.PENDING, AdoptionPost.Status.REJECTED},
+    }
+
+
 def _mobile_payload(request):
     if request.content_type and request.content_type.startswith("application/json"):
         try:
@@ -135,6 +146,16 @@ def _mobile_coordinates(payload):
     return latitude_value, longitude_value, None
 
 
+def _mobile_photo(request):
+    uploaded = request.FILES.get("photo")
+    if not uploaded:
+        return None
+    try:
+        return photo_without_location_metadata(uploaded)
+    except (UnidentifiedImageError, OSError, ValueError):
+        raise ValueError("La imagen no pudo procesarse. Probá con una foto JPG o PNG.")
+
+
 @csrf_exempt
 @require_GET
 @token_required("lost_pets.view_lostpetreport")
@@ -145,6 +166,37 @@ def mobile_reports(request):
     if query:
         reports = reports.filter(Q(name__icontains=query) | Q(species__icontains=query) | Q(area_label__icontains=query))
     return JsonResponse({"reports": [_mobile_report_data(request, report) for report in reports[:60]]})
+
+
+@csrf_exempt
+@require_GET
+@token_required("lost_pets.view_lostpetreport")
+def mobile_adoptions(request):
+    posts = AdoptionPost.objects.filter(status=AdoptionPost.Status.PUBLISHED)
+    query = request.GET.get("q", "").strip()
+    if query:
+        posts = posts.filter(Q(name__icontains=query) | Q(species__icontains=query) | Q(area_label__icontains=query))
+    return JsonResponse({"adoptions": [_mobile_adoption_data(request, post) for post in posts[:60]]})
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.view_lostpetreport")
+def mobile_adoption_request(request):
+    payload = _mobile_payload(request)
+    if payload is None:
+        return JsonResponse({"detail": "Datos inválidos."}, status=400)
+    species_map = {"perro": "dog", "perros": "dog", "dog": "dog", "gato": "cat", "gatos": "cat", "cat": "cat", "otro": "other", "other": "other"}
+    name, area = (payload.get("name") or "").strip(), (payload.get("area") or "").strip()
+    species = species_map.get((payload.get("species") or "").strip().lower())
+    if not name or not species or not area:
+        return JsonResponse({"detail": "Indicá nombre, especie y zona aproximada."}, status=400)
+    try:
+        photo = _mobile_photo(request)
+    except ValueError as error:
+        return JsonResponse({"detail": str(error)}, status=400)
+    post = AdoptionPost.objects.create(publisher=request.mobile_user, name=name[:100], species=species, breed=(payload.get("breed") or "").strip()[:100], age_label=(payload.get("age") or "").strip()[:80], description=(payload.get("description") or "").strip(), area_label=area[:120], photo=photo)
+    return JsonResponse({"id": post.id, "detail": "Recibimos la publicación. La veterinaria o refugio responsable la revisará antes de mostrarla."}, status=201)
 
 
 @csrf_exempt
@@ -163,6 +215,10 @@ def mobile_sighting_create(request, report_id):
     latitude, longitude, coordinate_error = _mobile_coordinates(payload)
     if coordinate_error:
         return JsonResponse({"detail": coordinate_error}, status=400)
+    try:
+        photo = _mobile_photo(request)
+    except ValueError as error:
+        return JsonResponse({"detail": str(error)}, status=400)
     sighting = Sighting.objects.create(
         report=report,
         reporter=request.mobile_user,
@@ -170,7 +226,7 @@ def mobile_sighting_create(request, report_id):
         description=(payload.get("description") or "").strip(),
         latitude=latitude,
         longitude=longitude,
-        photo=photo_without_location_metadata(request.FILES.get("photo")) if request.FILES.get("photo") else None,
+        photo=photo,
         status=Sighting.Status.PUBLISHED,
     )
     notify_new_sighting(report, sighting)
@@ -195,6 +251,10 @@ def mobile_search_request(request):
     area = (payload.get("area") or "").strip()
     if not name or not species or not area:
         return JsonResponse({"detail": "Indicá nombre del animal, especie (perro, gato u otro) y zona aproximada."}, status=400)
+    try:
+        photo = _mobile_photo(request)
+    except ValueError as error:
+        return JsonResponse({"detail": str(error)}, status=400)
     report = LostPetReport.objects.create(
         reporter=request.mobile_user,
         name=name[:100],
@@ -205,7 +265,7 @@ def mobile_search_request(request):
         last_seen_at=timezone.now(),
         status=LostPetReport.Status.HIDDEN,
         requested_via_mobile=True,
-        photo=photo_without_location_metadata(request.FILES.get("photo")) if request.FILES.get("photo") else None,
+        photo=photo,
     )
     cache.set(cache_key, cache.get(cache_key, 0) + 1, 3600)
     return JsonResponse({"id": report.id, "detail": "Recibimos tu solicitud. El equipo la revisará antes de publicarla."}, status=201)
@@ -246,8 +306,12 @@ def mobile_search_request_edit(request, report_id):
     report.breed = (payload.get("breed") or "").strip()[:100]
     report.description = (payload.get("description") or "").strip()
     report.area_label = area[:120]
-    if request.FILES.get("photo"):
-        report.photo = photo_without_location_metadata(request.FILES["photo"])
+    try:
+        photo = _mobile_photo(request)
+    except ValueError as error:
+        return JsonResponse({"detail": str(error)}, status=400)
+    if photo:
+        report.photo = photo
     report.status = LostPetReport.Status.HIDDEN
     report.review_note = ""
     report.save()

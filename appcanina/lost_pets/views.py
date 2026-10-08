@@ -8,7 +8,7 @@ from django.views.decorators.http import require_GET, require_POST
 from patients.models import Patient
 
 from .forms import LostPetReportForm, SightingForm
-from .models import LostPetReport, Sighting
+from .models import AdoptionPost, LostPetReport, Sighting
 from .notifications import notify_new_report, notify_new_sighting, notify_request_review
 from organizations.roles import is_community_collaborator
 
@@ -34,6 +34,41 @@ def report_list(request):
     pending_request_count = LostPetReport.objects.filter(requested_via_mobile=True, status=LostPetReport.Status.HIDDEN).count()
     latest_sighting = Sighting.objects.filter(status=Sighting.Status.PUBLISHED).order_by("-seen_at").first()
     return render(request, "lost_pets/report_list.html", {"reports": reports, "view_mode": view_mode, "active_count": active_count, "pending_request_count": pending_request_count, "latest_sighting": latest_sighting})
+
+
+@login_required
+@permission_required("lost_pets.view_adoptionpost", raise_exception=True)
+def adoption_list(request):
+    view_mode = request.GET.get("view", "published")
+    posts = AdoptionPost.objects.select_related("publisher")
+    if view_mode == "review" and request.user.has_perm("lost_pets.change_adoptionpost"):
+        posts = posts.filter(status=AdoptionPost.Status.PENDING)
+    elif view_mode == "all" and request.user.has_perm("lost_pets.change_adoptionpost"):
+        pass
+    else:
+        view_mode = "published"
+        posts = posts.filter(status=AdoptionPost.Status.PUBLISHED)
+    pending_count = AdoptionPost.objects.filter(status=AdoptionPost.Status.PENDING).count()
+    return render(request, "lost_pets/adoption_list.html", {"posts": posts, "view_mode": view_mode, "pending_count": pending_count})
+
+
+@login_required
+@permission_required("lost_pets.change_adoptionpost", raise_exception=True)
+@require_POST
+def adoption_change_status(request, post_id):
+    post = get_object_or_404(AdoptionPost, pk=post_id)
+    status = request.POST.get("status")
+    allowed = {AdoptionPost.Status.PUBLISHED, AdoptionPost.Status.REJECTED, AdoptionPost.Status.ADOPTED, AdoptionPost.Status.ARCHIVED}
+    if status not in allowed:
+        messages.error(request, "El estado indicado no es válido.")
+    elif status == AdoptionPost.Status.REJECTED and not request.POST.get("review_note", "").strip():
+        messages.error(request, "Indicá un motivo breve para rechazar la publicación.")
+    else:
+        post.status = status
+        post.review_note = request.POST.get("review_note", "").strip()[:280] if status == AdoptionPost.Status.REJECTED else ""
+        post.save(update_fields=["status", "review_note", "updated_at"])
+        messages.success(request, f"Publicación marcada como {post.get_status_display().lower()}.")
+    return redirect("adoption_list")
 
 
 @login_required

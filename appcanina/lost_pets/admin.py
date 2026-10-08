@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import LostPetReport, Sighting
+from .models import AdoptionPost, LostPetReport, Sighting
 
 
 class SightingInline(admin.TabularInline):
@@ -15,6 +15,13 @@ class LostPetReportAdmin(admin.ModelAdmin):
     list_filter = ("status", "species")
     search_fields = ("name", "breed", "area_label")
     inlines = [SightingInline]
+
+
+@admin.register(AdoptionPost)
+class AdoptionPostAdmin(admin.ModelAdmin):
+    list_display = ("name", "species", "area_label", "status", "publisher", "created_at")
+    list_filter = ("status", "species")
+    search_fields = ("name", "breed", "area_label")
 
 
 @admin.register(Sighting)

@@ -10,7 +10,7 @@ from PIL import Image
 
 from patients.models import Patient
 
-from .models import CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
+from .models import AdoptionPost, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from organizations.roles import ensure_base_roles
 
 
@@ -255,3 +255,25 @@ class LostPetReportTests(TestCase):
         self.assertEqual(report.status, LostPetReport.Status.PUBLISHED)
         self.assertEqual(report.review_note, "")
         self.assertTrue(CommunityNotification.objects.filter(recipient=collaborator, report=report, title__icontains="publicada").exists())
+
+    def test_community_adoption_needs_staff_approval_before_being_public(self):
+        roles = ensure_base_roles()
+        collaborator = User.objects.create_user("adopta-colabora", password="secret")
+        collaborator.groups.add(roles["collaborator"])
+        raw_token, _ = MobileAccessToken.issue(collaborator, "Prueba")
+        response = self.client.post(
+            reverse("mobile_adoption_request"),
+            data={"name": "Kira", "species": "perro", "area": "Barrio Norte", "age": "2 años", "photo": self.sample_photo()},
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+        post = AdoptionPost.objects.get(name="Kira")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(post.status, AdoptionPost.Status.PENDING)
+        self.assertEqual(self.client.get(reverse("mobile_adoptions"), HTTP_AUTHORIZATION=f"Bearer {raw_token}").json()["adoptions"], [])
+
+        self.user.user_permissions.add(*Permission.objects.filter(codename__in=["view_adoptionpost", "change_adoptionpost"]))
+        approved = self.client.post(reverse("adoption_change_status", args=[post.id]), {"status": "published"})
+        post.refresh_from_db()
+        self.assertRedirects(approved, reverse("adoption_list"))
+        self.assertEqual(post.status, AdoptionPost.Status.PUBLISHED)
+        self.assertEqual([item["name"] for item in self.client.get(reverse("mobile_adoptions"), HTTP_AUTHORIZATION=f"Bearer {raw_token}").json()["adoptions"]], ["Kira"])

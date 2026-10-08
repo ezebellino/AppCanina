@@ -6,12 +6,16 @@ from . import api
 
 urlpatterns = [
     path("", views.report_list, name="lost_pet_list"),
+    path("adopciones/", views.adoption_list, name="adoption_list"),
+    path("adopciones/<int:post_id>/estado/", views.adoption_change_status, name="adoption_change_status"),
     path("mapa/", views.map_view, name="lost_pet_map"),
     path("api/v1/mapa/", views.map_data, name="lost_pet_map_data"),
     path("api/v1/sesion/", api.mobile_login, name="mobile_login"),
     path("api/v1/registro/", api.mobile_register, name="mobile_register"),
     path("api/v1/avisos/", api.mobile_reports, name="mobile_reports"),
     path("api/v1/avisos/<int:report_id>/avistamientos/", api.mobile_sighting_create, name="mobile_sighting_create"),
+    path("api/v1/adopciones/", api.mobile_adoptions, name="mobile_adoptions"),
+    path("api/v1/adopciones/solicitar/", api.mobile_adoption_request, name="mobile_adoption_request"),
     path("api/v1/solicitudes-busqueda/", api.mobile_search_request, name="mobile_search_request"),
     path("api/v1/solicitudes-busqueda/mias/", api.mobile_my_search_requests, name="mobile_my_search_requests"),
     path("api/v1/solicitudes-busqueda/<int:report_id>/editar/", api.mobile_search_request_edit, name="mobile_search_request_edit"),

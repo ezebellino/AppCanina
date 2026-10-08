@@ -93,6 +93,36 @@ class Sighting(models.Model):
         return approximate_coordinates(self.latitude, self.longitude, f"sighting:{self.pk}")
 
 
+class AdoptionPost(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "En revisión"
+        PUBLISHED = "published", "Publicado"
+        REJECTED = "rejected", "Rechazado"
+        ADOPTED = "adopted", "Adoptado"
+        ARCHIVED = "archived", "Archivado"
+
+    publisher = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name="publicado por", on_delete=models.PROTECT, related_name="adoption_posts")
+    name = models.CharField("nombre del animal", max_length=100)
+    species = models.CharField("especie", max_length=12, choices=Patient.Species.choices)
+    breed = models.CharField("raza", max_length=100, blank=True)
+    age_label = models.CharField("edad aproximada", max_length=80, blank=True)
+    description = models.TextField("descripción", blank=True)
+    photo = models.ImageField("foto", upload_to="adoptions/%Y/%m/", blank=True)
+    area_label = models.CharField("zona o barrio", max_length=120)
+    status = models.CharField("estado", max_length=16, choices=Status.choices, default=Status.PENDING)
+    review_note = models.CharField("nota para quien publicó", max_length=280, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["status", "-created_at", "-id"]
+        verbose_name = "publicación de adopción"
+        verbose_name_plural = "publicaciones de adopción"
+
+    def __str__(self):
+        return f"{self.name} · {self.get_status_display()}"
+
+
 class MobileAccessToken(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="mobile_access_tokens")
     label = models.CharField(max_length=80, default="Dispositivo móvil")

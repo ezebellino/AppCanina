@@ -41,6 +41,14 @@ export default function App() {
   const [sightingDescription, setSightingDescription] = useState("");
   const [sightingPhoto, setSightingPhoto] = useState(null);
   const [sightingLocation, setSightingLocation] = useState(null);
+  const [adoptions, setAdoptions] = useState([]);
+  const [adoptionName, setAdoptionName] = useState("");
+  const [adoptionSpecies, setAdoptionSpecies] = useState("");
+  const [adoptionBreed, setAdoptionBreed] = useState("");
+  const [adoptionAge, setAdoptionAge] = useState("");
+  const [adoptionArea, setAdoptionArea] = useState("");
+  const [adoptionDescription, setAdoptionDescription] = useState("");
+  const [adoptionPhoto, setAdoptionPhoto] = useState(null);
 
   const loadNotifications = async (accessToken = token) => {
     const response = await fetch(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
@@ -156,53 +164,35 @@ export default function App() {
     setMessage(`Ubicación obtenida: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}. Al publicar, el mapa mostrará una zona aproximada.`);
   };
 
-  const takePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      setMessage("No autorizaste la cámara. Podés continuar sin foto.");
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.75,
-    });
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
-      setMessage("Foto lista para adjuntar al próximo aviso o avistamiento.");
-    }
-  };
-
-  const chooseRequestPhoto = async (fromCamera = false) => {
-    const permission = fromCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setMessage(fromCamera ? "No autorizaste la cámara. Podés elegir una foto de tu galería." : "No autorizaste el acceso a tus fotos. Podés usar la cámara.");
-      return;
-    }
-    const result = fromCamera
-      ? await ImagePicker.launchCameraAsync({mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8})
-      : await ImagePicker.launchImageLibraryAsync({mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8});
-    if (!result.canceled) {
-      setRequestPhoto(result.assets[0]);
-      setMessage("Foto del animal lista para enviar con la solicitud.");
+  const selectImage = async (fromCamera, onSelected, purpose) => {
+    try {
+      const permission = fromCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setMessage(fromCamera ? "La cámara no está autorizada. Permitila desde Ajustes o elegí una foto de la galería." : "El acceso a fotos no está autorizado. Podés usar la cámara o habilitar Fotos desde Ajustes.");
+        return;
+      }
+      const options = {mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8};
+      const result = fromCamera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+      if (result.canceled) {
+        setMessage("No seleccionaste una foto.");
+        return;
+      }
+      const asset = result.assets?.[0];
+      if (!asset?.uri) throw Error("El teléfono no devolvió una imagen utilizable.");
+      onSelected(asset);
+      setMessage(`Foto lista para ${purpose}. Se adjuntará al guardar.`);
+    } catch (error) {
+      setMessage(`No se pudo abrir ${fromCamera ? "la cámara" : "la galería"}: ${error.message || "revisá los permisos del teléfono."}`);
     }
   };
 
-  const chooseSightingPhoto = async (fromCamera = false) => {
-    const permission = fromCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setMessage("No autorizaste la foto. Podés continuar sin adjuntarla.");
-      return;
-    }
-    const result = fromCamera
-      ? await ImagePicker.launchCameraAsync({mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8})
-      : await ImagePicker.launchImageLibraryAsync({mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8});
-    if (!result.canceled) setSightingPhoto(result.assets[0]);
-  };
+  const takePhoto = () => selectImage(true, asset => setPhotoUri(asset.uri), "la próxima publicación");
+
+  const chooseRequestPhoto = (fromCamera = false) => selectImage(fromCamera, setRequestPhoto, "la solicitud");
+
+  const chooseSightingPhoto = (fromCamera = false) => selectImage(fromCamera, setSightingPhoto, "el avistamiento");
 
   const useSightingLocation = async () => {
     const permission = await Location.requestForegroundPermissionsAsync();
@@ -250,6 +240,29 @@ export default function App() {
     } catch (error) {
       setMessage(error.message);
     }
+  };
+
+  const loadAdoptions = async () => {
+    try {
+      const response = await fetch(`${API}/adopciones/`, {headers: {Authorization: `Bearer ${token}`}});
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudieron cargar las adopciones.");
+      setAdoptions(data.adoptions);
+    } catch (error) { setMessage(error.message); }
+  };
+
+  const submitAdoption = async () => {
+    try {
+      const form = new FormData();
+      form.append("name", adoptionName); form.append("species", adoptionSpecies); form.append("breed", adoptionBreed);
+      form.append("age", adoptionAge); form.append("area", adoptionArea); form.append("description", adoptionDescription);
+      if (adoptionPhoto?.uri) form.append("photo", {uri: adoptionPhoto.uri, name: adoptionPhoto.fileName || "adopcion.jpg", type: adoptionPhoto.mimeType || "image/jpeg"});
+      const response = await fetch(`${API}/adopciones/solicitar/`, {method: "POST", headers: {Authorization: `Bearer ${token}`}, body: form});
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo enviar la publicación.");
+      setAdoptionName(""); setAdoptionSpecies(""); setAdoptionBreed(""); setAdoptionAge(""); setAdoptionArea(""); setAdoptionDescription(""); setAdoptionPhoto(null);
+      setScreen("adopciones"); setMessage(data.detail);
+    } catch (error) { setMessage(error.message); }
   };
 
   const resetSearchRequest = () => {
@@ -313,6 +326,7 @@ export default function App() {
         <Button title="Buscar" onPress={() => setScreen("buscar")}/>
         <Button title="Pedir búsqueda" onPress={() => { resetSearchRequest(); setScreen("solicitud"); }}/>
         <Button title="Mis solicitudes" onPress={() => { setScreen("mis-solicitudes"); loadMySearchRequests(); }}/>
+        <Button title="Adopciones" onPress={() => { setScreen("adopciones"); loadAdoptions(); }}/>
       </View>
       {screen === "panel" ? <View style={styles.stack}>
         <Text style={styles.sectionTitle}>Animales que necesitan ayuda</Text>
@@ -368,6 +382,17 @@ export default function App() {
           {request.photo_url ? <Image source={{uri: request.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text><Text style={styles.reportPhotoCaption}>Sin foto</Text></View>}
           <View style={styles.reportContent}><Text style={styles.notificationTitle}>{request.name} · {request.species}</Text><Text style={styles.reportMeta}>{request.status_label}</Text><Text style={styles.notificationArea}>⌖ {request.area}</Text>{request.review_note ? <Text style={styles.reviewNote}>Nota del equipo: {request.review_note}</Text> : null}{request.editable ? <Button title="Editar solicitud" onPress={() => editSearchRequest(request)}/> : <Text style={styles.help}>Esta solicitud ya está publicada o cerrada.</Text>}</View>
         </View>) : <Text style={styles.empty}>Todavía no enviaste solicitudes.</Text>}
+      </View> : null}
+      {screen === "adopciones" ? <View style={styles.stack}>
+        <Text style={styles.sectionTitle}>Adopciones responsables</Text><Text style={styles.help}>Estas publicaciones fueron revisadas por una veterinaria o refugio.</Text>
+        <Button title="Publicar para adopción" onPress={() => setScreen("nueva-adopcion")}/>
+        {adoptions.length ? adoptions.map(post => <View key={post.id} style={styles.reportCard}>{post.photo_url ? <Image source={{uri: post.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text></View>}<View style={styles.reportContent}><Text style={styles.notificationTitle}>{post.name} · {post.species}</Text><Text style={styles.notificationArea}>⌖ {post.area}</Text><Text>{post.age ? `${post.age} · ` : ""}{post.description || "Sin descripción adicional."}</Text></View></View>) : <Text style={styles.empty}>Todavía no hay animales publicados para adoptar.</Text>}
+      </View> : null}
+      {screen === "nueva-adopcion" ? <View style={styles.stack}>
+        <Button title="← Volver a adopciones" onPress={() => setScreen("adopciones")}/><Text style={styles.sectionTitle}>Publicar para adopción</Text><Text style={styles.help}>Una veterinaria o refugio responsable revisará la publicación antes de mostrarla.</Text>
+        {adoptionPhoto?.uri ? <Image source={{uri: adoptionPhoto.uri}} style={styles.requestPhoto}/> : <View style={styles.requestPhotoEmpty}><Text style={styles.reportPhotoIcon}>🐾</Text><Text style={styles.help}>Agregá una foto clara</Text></View>}
+        <View style={styles.nav}><Button title="Usar cámara" onPress={() => selectImage(true, setAdoptionPhoto, "la publicación de adopción")}/><Button title="Elegir foto" onPress={() => selectImage(false, setAdoptionPhoto, "la publicación de adopción")}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Nombre</Text><TextInput value={adoptionName} onChangeText={setAdoptionName} placeholder="Ej.: Mora" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Especie</Text><TextInput value={adoptionSpecies} onChangeText={setAdoptionSpecies} placeholder="Perro, gato u otro" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Raza y edad aproximada</Text><TextInput value={adoptionBreed} onChangeText={setAdoptionBreed} placeholder="Ej.: Mestiza" placeholderTextColor="#6c8378" style={styles.input}/><TextInput value={adoptionAge} onChangeText={setAdoptionAge} placeholder="Ej.: 2 años" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Zona aproximada</Text><TextInput value={adoptionArea} onChangeText={setAdoptionArea} placeholder="Ej.: Barrio Norte" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Descripción</Text><TextInput value={adoptionDescription} onChangeText={setAdoptionDescription} multiline style={[styles.input, styles.textarea]}/></View><Button title="Enviar para revisión" onPress={submitAdoption}/>
       </View> : null}
       <View style={styles.divider}/>
       <Text style={styles.sectionTitle}>Mi teléfono</Text>
