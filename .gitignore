@@ -17,6 +17,10 @@ output/
 .playwright-cli/
 .tmp_excel_sample/
 
+# Índices locales de CodeGraph
+.codegraph/
+mobile/.codegraph/
+
 # JavaScript dependencies and local mobile build artifacts
 mobile/node_modules/
 mobile/.expo/
