@@ -20,6 +20,12 @@
         }
       ],
       "expo-notifications"
+      ,[
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Tu Veterinaria usa la biometría solo para desbloquear tu sesión guardada en este teléfono."
+        }
+      ]
     ],
     "android": {
       "package": "com.vasco88.tuveterinariacomunidad",

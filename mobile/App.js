@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import {Button, Image, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View} from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as Location from "expo-location";
@@ -6,6 +6,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import * as LocalAuthentication from "expo-local-authentication";
 
 const API = process.env.EXPO_PUBLIC_API_URL || "https://appcanina-production.up.railway.app/extraviados/api/v1";
 
@@ -52,6 +53,9 @@ export default function App() {
   const [selectedAdoption, setSelectedAdoption] = useState(null);
   const [interestMessage, setInterestMessage] = useState("");
   const [adoptionInterests, setAdoptionInterests] = useState([]);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
+  const [pendingBiometricToken, setPendingBiometricToken] = useState("");
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
 
   const loadNotifications = async (accessToken = token) => {
     const response = await fetch(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
@@ -59,6 +63,64 @@ export default function App() {
     if (!response.ok) throw Error(data.detail || "No se pudieron consultar las notificaciones.");
     setNotifications(data.notifications);
     setMessage(data.notifications.length ? `${data.notifications.length} notificación${data.notifications.length === 1 ? "" : "es"} pendiente${data.notifications.length === 1 ? "" : "s"}.` : "No hay notificaciones pendientes.");
+  };
+
+  const activateSession = async (accessToken, successMessage) => {
+    await SecureStore.setItemAsync("community-token", accessToken);
+    setToken(accessToken); setScreen("panel");
+    try {
+      await loadReports(accessToken);
+      await loadNotifications(accessToken);
+      if (successMessage) setMessage(successMessage);
+    } catch (error) {
+      setMessage(error.message || "No se pudo restaurar la sesión.");
+    }
+  };
+
+  const restoreSession = async () => {
+    try {
+      const savedToken = await SecureStore.getItemAsync("community-token");
+      const wantsBiometric = await SecureStore.getItemAsync("community-biometric-enabled");
+      setBiometricEnabled(wantsBiometric === "true");
+      if (!savedToken) return;
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = hasHardware && await LocalAuthentication.isEnrolledAsync();
+      if (wantsBiometric === "true" && isEnrolled) {
+        setPendingBiometricToken(savedToken);
+        setMessage("Confirmá tu identidad para abrir la comunidad.");
+      } else {
+        await activateSession(savedToken, "Sesión restaurada.");
+      }
+    } catch (error) {
+      setMessage("No se pudo restaurar la sesión anterior.");
+    } finally { setIsRestoringSession(false); }
+  };
+
+  useEffect(() => { restoreSession(); }, []);
+
+  const unlockWithBiometrics = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({promptMessage: "Ingresar a Tu Veterinaria Comunidad", cancelLabel: "Cancelar", fallbackLabel: "Usar contraseña"});
+      if (!result.success) { setMessage("No se pudo validar la huella. Podés usar tu usuario y contraseña."); return; }
+      const savedToken = pendingBiometricToken || await SecureStore.getItemAsync("community-token");
+      if (!savedToken) { setPendingBiometricToken(""); return; }
+      setPendingBiometricToken("");
+      await activateSession(savedToken, "Sesión desbloqueada con biometría.");
+    } catch (error) { setMessage("La biometría no está disponible en este teléfono."); }
+  };
+
+  const enableBiometrics = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = hasHardware && await LocalAuthentication.isEnrolledAsync();
+    if (!isEnrolled) { setMessage("No hay huella, rostro o bloqueo biométrico configurado en este teléfono."); return; }
+    const result = await LocalAuthentication.authenticateAsync({promptMessage: "Confirmá para activar el acceso biométrico", cancelLabel: "Cancelar"});
+    if (!result.success) { setMessage("No se activó el acceso biométrico."); return; }
+    await SecureStore.setItemAsync("community-biometric-enabled", "true"); setBiometricEnabled(true); setMessage("Acceso con huella activado para este teléfono.");
+  };
+
+  const logout = async () => {
+    await SecureStore.deleteItemAsync("community-token"); await SecureStore.deleteItemAsync("community-biometric-enabled");
+    setToken(""); setPendingBiometricToken(""); setBiometricEnabled(false); setReports([]); setNotifications([]); setMessage("Sesión cerrada en este teléfono.");
   };
 
   const loadReports = async (accessToken = token, state = reportState, query = reportQuery) => {
@@ -121,11 +183,7 @@ export default function App() {
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo iniciar sesión.");
-      await SecureStore.setItemAsync("community-token", data.token);
-      setToken(data.token);
-      setMessage(`Sesión iniciada: ${data.user.username}`);
-      await loadReports(data.token);
-      await loadNotifications(data.token);
+      await activateSession(data.token, `Sesión iniciada: ${data.user.username}`);
     } catch (error) {
       setMessage(error.message);
     }
@@ -147,11 +205,7 @@ export default function App() {
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo crear la cuenta.");
-      await SecureStore.setItemAsync("community-token", data.token);
-      setToken(data.token);
-      setMessage(`Cuenta creada. ¡Gracias por colaborar, ${data.user.username}!`);
-      await loadReports(data.token);
-      await loadNotifications(data.token);
+      await activateSession(data.token, `Cuenta creada. ¡Gracias por colaborar, ${data.user.username}!`);
     } catch (error) {
       setMessage(error.message);
     }
@@ -333,7 +387,7 @@ export default function App() {
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Tu Veterinaria</Text>
       <Text style={styles.subtitle}>Comunidad · animales extraviados</Text>
-      {!token ? <View style={styles.stack}>
+      {!token ? isRestoringSession ? <View style={styles.stack}><Text style={styles.help}>Preparando tu sesión segura…</Text></View> : pendingBiometricToken ? <View style={styles.stack}><Text style={styles.sectionTitle}>Volvé a ingresar</Text><Text style={styles.help}>Tu sesión está guardada en este teléfono y protegida con biometría.</Text><Button title="Ingresar con huella" onPress={unlockWithBiometrics}/><Button title="Usar otra cuenta" onPress={() => setPendingBiometricToken("")}/></View> : <View style={styles.stack}>
       {isRegistering ? <Text style={styles.help}>Creá tu cuenta para recibir alertas y compartir avistamientos. Tu acceso será solo comunitario.</Text> : null}
       {isRegistering ? <View style={styles.field}><Text style={styles.fieldLabel}>Nombre <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: Sofía" placeholderTextColor="#6c8378" value={firstName} onChangeText={setFirstName} style={styles.input}/></View> : null}
       <View style={styles.field}><Text style={styles.fieldLabel}>Usuario</Text><TextInput placeholder="Elegí un usuario" placeholderTextColor="#6c8378" value={username} onChangeText={setUsername} autoCapitalize="none" style={styles.input}/></View>
@@ -350,6 +404,8 @@ export default function App() {
         <Button title="Mis solicitudes" onPress={() => { setScreen("mis-solicitudes"); loadMySearchRequests(); }}/>
         <Button title="Adopciones" onPress={() => { setScreen("adopciones"); loadAdoptions(); }}/>
         <Button title="Mi actividad" onPress={() => { setScreen("mi-actividad"); loadAdoptionInterests(); }}/>
+        <Button title={biometricEnabled ? "Huella activada" : "Activar huella"} onPress={enableBiometrics}/>
+        <Button title="Cerrar sesión" onPress={logout}/>
       </View>
       {screen === "panel" ? <View style={styles.stack}>
         <Text style={styles.sectionTitle}>Animales que necesitan ayuda</Text>
