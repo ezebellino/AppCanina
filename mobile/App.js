@@ -49,6 +49,9 @@ export default function App() {
   const [adoptionArea, setAdoptionArea] = useState("");
   const [adoptionDescription, setAdoptionDescription] = useState("");
   const [adoptionPhoto, setAdoptionPhoto] = useState(null);
+  const [selectedAdoption, setSelectedAdoption] = useState(null);
+  const [interestMessage, setInterestMessage] = useState("");
+  const [adoptionInterests, setAdoptionInterests] = useState([]);
 
   const loadNotifications = async (accessToken = token) => {
     const response = await fetch(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
@@ -265,6 +268,25 @@ export default function App() {
     } catch (error) { setMessage(error.message); }
   };
 
+  const loadAdoptionInterests = async () => {
+    try {
+      const response = await fetch(`${API}/adopciones/mis-intereses/`, {headers: {Authorization: `Bearer ${token}`}});
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo cargar tu actividad.");
+      setAdoptionInterests(data.interests);
+    } catch (error) { setMessage(error.message); }
+  };
+
+  const submitAdoptionInterest = async () => {
+    if (!selectedAdoption) return;
+    try {
+      const response = await fetch(`${API}/adopciones/${selectedAdoption.id}/intereses/`, {method: "POST", headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`}, body: JSON.stringify({message: interestMessage})});
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo enviar tu interés.");
+      setInterestMessage(""); setScreen("mi-actividad"); setMessage(data.detail); await loadAdoptionInterests();
+    } catch (error) { setMessage(error.message); }
+  };
+
   const resetSearchRequest = () => {
     setEditingRequest(null); setRequestName(""); setRequestSpecies(""); setRequestBreed("");
     setRequestArea(""); setRequestDescription(""); setRequestPhoto(null);
@@ -327,6 +349,7 @@ export default function App() {
         <Button title="Pedir búsqueda" onPress={() => { resetSearchRequest(); setScreen("solicitud"); }}/>
         <Button title="Mis solicitudes" onPress={() => { setScreen("mis-solicitudes"); loadMySearchRequests(); }}/>
         <Button title="Adopciones" onPress={() => { setScreen("adopciones"); loadAdoptions(); }}/>
+        <Button title="Mi actividad" onPress={() => { setScreen("mi-actividad"); loadAdoptionInterests(); }}/>
       </View>
       {screen === "panel" ? <View style={styles.stack}>
         <Text style={styles.sectionTitle}>Animales que necesitan ayuda</Text>
@@ -386,8 +409,10 @@ export default function App() {
       {screen === "adopciones" ? <View style={styles.stack}>
         <Text style={styles.sectionTitle}>Adopciones responsables</Text><Text style={styles.help}>Estas publicaciones fueron revisadas por una veterinaria o refugio.</Text>
         <Button title="Publicar para adopción" onPress={() => setScreen("nueva-adopcion")}/>
-        {adoptions.length ? adoptions.map(post => <View key={post.id} style={styles.reportCard}>{post.photo_url ? <Image source={{uri: post.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text></View>}<View style={styles.reportContent}><Text style={styles.notificationTitle}>{post.name} · {post.species}</Text><Text style={styles.notificationArea}>⌖ {post.area}</Text><Text>{post.age ? `${post.age} · ` : ""}{post.description || "Sin descripción adicional."}</Text></View></View>) : <Text style={styles.empty}>Todavía no hay animales publicados para adoptar.</Text>}
+        {adoptions.length ? adoptions.map(post => <View key={post.id} style={styles.reportCard}>{post.photo_url ? <Image source={{uri: post.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text></View>}<View style={styles.reportContent}><Text style={styles.notificationTitle}>{post.name} · {post.species}</Text><Text style={styles.notificationArea}>⌖ {post.area}</Text><Text>{post.age ? `${post.age} · ` : ""}{post.description || "Sin descripción adicional."}</Text><Button title="Me interesa adoptar" onPress={() => { setSelectedAdoption(post); setInterestMessage(""); setScreen("interes-adopcion"); }}/></View></View>) : <Text style={styles.empty}>Todavía no hay animales publicados para adoptar.</Text>}
       </View> : null}
+      {screen === "interes-adopcion" && selectedAdoption ? <View style={styles.stack}><Button title="← Volver a adopciones" onPress={() => setScreen("adopciones")}/><Text style={styles.sectionTitle}>Me interesa adoptar a {selectedAdoption.name}</Text><Text style={styles.help}>Tu mensaje llegará solo a la veterinaria o refugio responsable. Tus datos no se publicarán.</Text><View style={styles.field}><Text style={styles.fieldLabel}>Contanos por qué te interesa</Text><TextInput value={interestMessage} onChangeText={setInterestMessage} multiline placeholder="Ej.: Tengo experiencia, vivo en una casa con patio..." placeholderTextColor="#6c8378" style={[styles.input, styles.textarea]}/></View><Button title="Enviar interés privado" onPress={submitAdoptionInterest}/></View> : null}
+      {screen === "mi-actividad" ? <View style={styles.stack}><Text style={styles.sectionTitle}>Mi actividad de adopción</Text><Text style={styles.help}>Seguimiento de tus intereses sin exponer información personal.</Text>{adoptionInterests.length ? adoptionInterests.map(interest => <View key={interest.id} style={styles.reportCard}><View style={styles.reportContent}><Text style={styles.notificationTitle}>{interest.animal_name} · {interest.species}</Text><Text style={styles.reportMeta}>{interest.status_label}</Text><Text>{interest.message}</Text>{interest.staff_note ? <Text style={styles.reviewNote}>Mensaje del equipo: {interest.staff_note}</Text> : null}</View></View>) : <Text style={styles.empty}>Todavía no enviaste intereses de adopción.</Text>}</View> : null}
       {screen === "nueva-adopcion" ? <View style={styles.stack}>
         <Button title="← Volver a adopciones" onPress={() => setScreen("adopciones")}/><Text style={styles.sectionTitle}>Publicar para adopción</Text><Text style={styles.help}>Una veterinaria o refugio responsable revisará la publicación antes de mostrarla.</Text>
         {adoptionPhoto?.uri ? <Image source={{uri: adoptionPhoto.uri}} style={styles.requestPhoto}/> : <View style={styles.requestPhotoEmpty}><Text style={styles.reportPhotoIcon}>🐾</Text><Text style={styles.help}>Agregá una foto clara</Text></View>}

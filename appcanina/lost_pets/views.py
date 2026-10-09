@@ -8,7 +8,7 @@ from django.views.decorators.http import require_GET, require_POST
 from patients.models import Patient
 
 from .forms import LostPetReportForm, SightingForm
-from .models import AdoptionPost, LostPetReport, Sighting
+from .models import AdoptionInterest, AdoptionPost, LostPetReport, Sighting
 from .notifications import notify_new_report, notify_new_sighting, notify_request_review
 from organizations.roles import is_community_collaborator
 
@@ -69,6 +69,29 @@ def adoption_change_status(request, post_id):
         post.save(update_fields=["status", "review_note", "updated_at"])
         messages.success(request, f"Publicación marcada como {post.get_status_display().lower()}.")
     return redirect("adoption_list")
+
+
+@login_required
+@permission_required("lost_pets.change_adoptioninterest", raise_exception=True)
+def adoption_interest_list(request):
+    interests = AdoptionInterest.objects.select_related("post", "applicant")
+    return render(request, "lost_pets/adoption_interest_list.html", {"interests": interests, "status_choices": AdoptionInterest.Status.choices})
+
+
+@login_required
+@permission_required("lost_pets.change_adoptioninterest", raise_exception=True)
+@require_POST
+def adoption_interest_change_status(request, interest_id):
+    interest = get_object_or_404(AdoptionInterest, pk=interest_id)
+    status = request.POST.get("status")
+    if status not in AdoptionInterest.Status.values:
+        messages.error(request, "El estado indicado no es válido.")
+    else:
+        interest.status = status
+        interest.staff_note = request.POST.get("staff_note", "").strip()[:280]
+        interest.save(update_fields=["status", "staff_note", "updated_at"])
+        messages.success(request, "Estado del interés actualizado.")
+    return redirect("adoption_interest_list")
 
 
 @login_required

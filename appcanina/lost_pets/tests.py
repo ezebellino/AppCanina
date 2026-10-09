@@ -10,7 +10,7 @@ from PIL import Image
 
 from patients.models import Patient
 
-from .models import AdoptionPost, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
+from .models import AdoptionInterest, AdoptionPost, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from organizations.roles import ensure_base_roles
 
 
@@ -277,3 +277,20 @@ class LostPetReportTests(TestCase):
         self.assertRedirects(approved, reverse("adoption_list"))
         self.assertEqual(post.status, AdoptionPost.Status.PUBLISHED)
         self.assertEqual([item["name"] for item in self.client.get(reverse("mobile_adoptions"), HTTP_AUTHORIZATION=f"Bearer {raw_token}").json()["adoptions"]], ["Kira"])
+
+    def test_adoption_interest_is_private_and_requires_staff_management(self):
+        roles = ensure_base_roles()
+        collaborator = User.objects.create_user("quiere-adoptar", password="secret")
+        collaborator.groups.add(roles["collaborator"])
+        raw_token, _ = MobileAccessToken.issue(collaborator, "Prueba")
+        post = AdoptionPost.objects.create(publisher=self.user, name="Kira", species="dog", area_label="Centro", status=AdoptionPost.Status.PUBLISHED)
+
+        response = self.client.post(reverse("mobile_adoption_interest", args=[post.id]), data='{"message":"Tengo experiencia y un hogar preparado para recibirla."}', content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {raw_token}")
+        interest = AdoptionInterest.objects.get(post=post, applicant=collaborator)
+        duplicate = self.client.post(reverse("mobile_adoption_interest", args=[post.id]), data='{"message":"Quiero adoptar a Kira."}', content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {raw_token}")
+        activity = self.client.get(reverse("mobile_my_adoption_interests"), HTTP_AUTHORIZATION=f"Bearer {raw_token}")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(interest.status, AdoptionInterest.Status.RECEIVED)
+        self.assertEqual(duplicate.status_code, 409)
+        self.assertEqual(activity.json()["interests"][0]["animal_name"], "Kira")

@@ -12,7 +12,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from PIL import UnidentifiedImageError
 
 from .forms import photo_without_location_metadata
-from .models import AdoptionPost, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
+from .models import AdoptionInterest, AdoptionPost, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from .notifications import notify_new_sighting
 from organizations.forms import CommunityCollaboratorForm
 from organizations.roles import ensure_base_roles
@@ -122,6 +122,10 @@ def _mobile_adoption_data(request, post):
     }
 
 
+def _mobile_interest_data(interest):
+    return {"id": interest.id, "post_id": interest.post_id, "animal_name": interest.post.name, "species": interest.post.get_species_display(), "status": interest.status, "status_label": interest.get_status_display(), "staff_note": interest.staff_note, "message": interest.message, "updated_at": interest.updated_at.isoformat()}
+
+
 def _mobile_payload(request):
     if request.content_type and request.content_type.startswith("application/json"):
         try:
@@ -197,6 +201,33 @@ def mobile_adoption_request(request):
         return JsonResponse({"detail": str(error)}, status=400)
     post = AdoptionPost.objects.create(publisher=request.mobile_user, name=name[:100], species=species, breed=(payload.get("breed") or "").strip()[:100], age_label=(payload.get("age") or "").strip()[:80], description=(payload.get("description") or "").strip(), area_label=area[:120], photo=photo)
     return JsonResponse({"id": post.id, "detail": "Recibimos la publicación. La veterinaria o refugio responsable la revisará antes de mostrarla."}, status=201)
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.view_lostpetreport")
+def mobile_adoption_interest(request, post_id):
+    post = AdoptionPost.objects.filter(pk=post_id, status=AdoptionPost.Status.PUBLISHED).first()
+    if not post:
+        return JsonResponse({"detail": "Esta publicación ya no está disponible."}, status=404)
+    payload = _mobile_payload(request)
+    if payload is None:
+        return JsonResponse({"detail": "Datos inválidos."}, status=400)
+    message = (payload.get("message") or "").strip()
+    if len(message) < 10:
+        return JsonResponse({"detail": "Contanos brevemente por qué te interesa adoptar (al menos 10 caracteres)."}, status=400)
+    interest, created = AdoptionInterest.objects.get_or_create(post=post, applicant=request.mobile_user, defaults={"message": message[:700]})
+    if not created:
+        return JsonResponse({"detail": "Ya enviaste un interés por este animal. Podés seguir su estado en Mi actividad."}, status=409)
+    return JsonResponse({"interest": _mobile_interest_data(interest), "detail": "Interés enviado. La veterinaria o refugio revisará tu mensaje de forma privada."}, status=201)
+
+
+@csrf_exempt
+@require_GET
+@token_required("lost_pets.view_lostpetreport")
+def mobile_my_adoption_interests(request):
+    interests = AdoptionInterest.objects.filter(applicant=request.mobile_user).select_related("post")
+    return JsonResponse({"interests": [_mobile_interest_data(interest) for interest in interests[:50]]})
 
 
 @csrf_exempt

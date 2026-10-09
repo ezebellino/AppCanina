@@ -123,6 +123,29 @@ class AdoptionPost(models.Model):
         return f"{self.name} · {self.get_status_display()}"
 
 
+class AdoptionInterest(models.Model):
+    class Status(models.TextChoices):
+        RECEIVED = "received", "Recibido"
+        CONTACT = "contact", "En conversación"
+        INTERVIEW = "interview", "En evaluación"
+        COMPLETED = "completed", "Adopción concretada"
+        CLOSED = "closed", "No continuó"
+
+    post = models.ForeignKey(AdoptionPost, verbose_name="publicación", on_delete=models.CASCADE, related_name="interests")
+    applicant = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name="persona interesada", on_delete=models.PROTECT, related_name="adoption_interests")
+    message = models.TextField("mensaje", max_length=700)
+    status = models.CharField("estado", max_length=16, choices=Status.choices, default=Status.RECEIVED)
+    staff_note = models.CharField("nota visible para la persona", max_length=280, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+        constraints = [models.UniqueConstraint(fields=["post", "applicant"], name="unique_adoption_interest_per_person")]
+        verbose_name = "interés de adopción"
+        verbose_name_plural = "intereses de adopción"
+
+
 class MobileAccessToken(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="mobile_access_tokens")
     label = models.CharField(max_length=80, default="Dispositivo móvil")
