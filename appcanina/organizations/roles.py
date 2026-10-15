@@ -43,5 +43,7 @@ def is_community_collaborator(user):
     return (
         user.is_authenticated
         and user.groups.filter(name=COMMUNITY_COLLABORATOR_GROUP).exists()
-        and not user.has_perm("lost_pets.change_lostpetreport")
+        and not user.is_staff
+        and not user.is_superuser
+        and not user.groups.filter(name="Administrador").exists()
     )
