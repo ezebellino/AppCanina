@@ -195,11 +195,14 @@ def brand_create(request):
 
 
 @login_required
-@permission_required("auth.add_user", raise_exception=True)
 def business_profile(request):
     profile = Organization.objects.filter(is_business_profile=True).first()
     form = BusinessProfileForm(request.POST or None, request.FILES or None, instance=profile)
-    can_edit = request.user.has_perm("organizations.change_organization") or request.user.has_perm("organizations.add_organization")
+    can_edit = (
+        request.user.has_perm("organizations.change_organization")
+        or request.user.has_perm("organizations.add_organization")
+        or request.user.has_perm("auth.add_user")
+    )
     if request.method == "POST":
         if not can_edit:
             messages.error(request, "No tenés permiso para modificar el perfil del negocio.")

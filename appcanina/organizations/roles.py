@@ -39,4 +39,9 @@ def ensure_base_roles():
 
 
 def is_community_collaborator(user):
-    return user.is_authenticated and user.groups.filter(name=COMMUNITY_COLLABORATOR_GROUP).exists()
+    """True only for community-only accounts, never for an administrator who also collaborates."""
+    return (
+        user.is_authenticated
+        and user.groups.filter(name=COMMUNITY_COLLABORATOR_GROUP).exists()
+        and not user.has_perm("lost_pets.change_lostpetreport")
+    )

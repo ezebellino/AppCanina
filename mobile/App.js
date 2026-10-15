@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import {Button, Image, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View} from "react-native";
+import {Image, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View} from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -13,6 +13,25 @@ const API = process.env.EXPO_PUBLIC_API_URL || "https://appcanina-production.up.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true}),
 });
+
+function Button({title, onPress, variant = "primary", disabled = false}) {
+  return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({pressed}) => [styles.button, styles[`button${variant[0].toUpperCase()}${variant.slice(1)}`], pressed && !disabled && styles.pressed, disabled && styles.buttonDisabled]}>
+    <Text style={[styles.buttonText, styles[`buttonText${variant[0].toUpperCase()}${variant.slice(1)}`]]}>{title}</Text>
+  </Pressable>;
+}
+
+function MenuItem({active, icon, label, onPress, danger = false}) {
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({pressed}) => [styles.menuItem, active && styles.menuItemActive, pressed && styles.pressed]}>
+    <Text style={[styles.menuIcon, (active || danger) && styles.menuItemActiveText, danger && styles.menuDangerText]}>{icon}</Text>
+    <Text style={[styles.menuLabel, active && styles.menuItemActiveText, danger && styles.menuDangerText]}>{label}</Text>
+  </Pressable>;
+}
+
+function FilterPill({active, label, onPress}) {
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({pressed}) => [styles.filterPill, active && styles.filterPillActive, pressed && styles.pressed]}>
+    <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>{label}</Text>
+  </Pressable>;
+}
 
 export default function App() {
   const [username, setUsername] = useState("");
@@ -56,6 +75,7 @@ export default function App() {
   const [isRestoringSession, setIsRestoringSession] = useState(true);
   const [pendingBiometricToken, setPendingBiometricToken] = useState("");
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const loadNotifications = async (accessToken = token) => {
     const response = await fetch(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
@@ -383,10 +403,15 @@ export default function App() {
     await loadReports(token, state, reportQuery);
   };
 
+  const navigate = (nextScreen, load) => {
+    setScreen(nextScreen);
+    setMenuOpen(false);
+    load?.();
+  };
+
   return <SafeAreaView style={styles.screen}>
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Tu Veterinaria</Text>
-      <Text style={styles.subtitle}>Comunidad · animales extraviados</Text>
+      {!token ? <><Text style={styles.title}>Tu Veterinaria</Text><Text style={styles.subtitle}>Comunidad · animales extraviados</Text></> : null}
       {!token ? isRestoringSession ? <View style={styles.stack}><Text style={styles.help}>Preparando tu sesión segura…</Text></View> : pendingBiometricToken ? <View style={styles.stack}><Text style={styles.sectionTitle}>Volvé a ingresar</Text><Text style={styles.help}>Tu sesión está guardada en este teléfono y protegida con biometría.</Text><Button title="Ingresar con huella" onPress={unlockWithBiometrics}/><Button title="Usar otra cuenta" onPress={() => setPendingBiometricToken("")}/></View> : <View style={styles.stack}>
       {isRegistering ? <Text style={styles.help}>Creá tu cuenta para recibir alertas y compartir avistamientos. Tu acceso será solo comunitario.</Text> : null}
       {isRegistering ? <View style={styles.field}><Text style={styles.fieldLabel}>Nombre <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: Sofía" placeholderTextColor="#6c8378" value={firstName} onChangeText={setFirstName} style={styles.input}/></View> : null}
@@ -397,20 +422,25 @@ export default function App() {
       <Button title={isRegistering ? "Crear cuenta" : "Ingresar"} onPress={isRegistering ? register : login}/>
       <Button title={isRegistering ? "Ya tengo una cuenta" : "Crear una cuenta para colaborar"} onPress={() => { setIsRegistering(!isRegistering); setMessage(isRegistering ? "Ingresá para colaborar." : "Completá tus datos para crear una cuenta."); }}/>
     </View> : <View style={styles.stack}>
-      <View style={styles.nav}>
-        <Button title="Panel" onPress={() => setScreen("panel")}/>
-        <Button title="Buscar" onPress={() => setScreen("buscar")}/>
-        <Button title="Pedir búsqueda" onPress={() => { resetSearchRequest(); setScreen("solicitud"); }}/>
-        <Button title="Mis solicitudes" onPress={() => { setScreen("mis-solicitudes"); loadMySearchRequests(); }}/>
-        <Button title="Adopciones" onPress={() => { setScreen("adopciones"); loadAdoptions(); }}/>
-        <Button title="Mi actividad" onPress={() => { setScreen("mi-actividad"); loadAdoptionInterests(); }}/>
-        <Button title={biometricEnabled ? "Huella activada" : "Activar huella"} onPress={enableBiometrics}/>
-        <Button title="Cerrar sesión" onPress={logout}/>
+      <View style={styles.appHeader}>
+        <View style={styles.brandGroup}><View style={styles.brandMark}><Text style={styles.brandMarkText}>✚</Text></View><View><Text style={styles.appBrand}>Tu Veterinaria</Text><Text style={styles.appContext}>Comunidad</Text></View></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Abrir menú" onPress={() => setMenuOpen(true)} style={({pressed}) => [styles.menuTrigger, pressed && styles.pressed]}><Text style={styles.menuTriggerText}>☰</Text></Pressable>
       </View>
+      <Modal visible={menuOpen} transparent animationType="slide" onRequestClose={() => setMenuOpen(false)}>
+        <View style={styles.modalScrim}><Pressable style={styles.scrimTouch} onPress={() => setMenuOpen(false)}/><View style={styles.menuSheet}>
+          <View style={styles.sheetHandle}/><View style={styles.sheetHeading}><View><Text style={styles.menuHeading}>Comunidad</Text><Text style={styles.menuSubheading}>Todo lo importante, a un toque.</Text></View><Pressable accessibilityRole="button" onPress={() => setMenuOpen(false)} style={styles.closeButton}><Text style={styles.closeButtonText}>×</Text></Pressable></View>
+          <MenuItem active={screen === "panel"} icon="⌂" label="Panel" onPress={() => navigate("panel")}/>
+          <MenuItem active={screen === "buscar"} icon="⌕" label="Buscar animales" onPress={() => navigate("buscar")}/>
+          <MenuItem icon="＋" label="Pedir una búsqueda" onPress={() => { resetSearchRequest(); navigate("solicitud"); }}/>
+          <MenuItem active={screen === "mis-solicitudes"} icon="▤" label="Mis solicitudes" onPress={() => navigate("mis-solicitudes", loadMySearchRequests)}/>
+          <MenuItem active={screen === "adopciones"} icon="♡" label="Adopciones" onPress={() => navigate("adopciones", loadAdoptions)}/>
+          <MenuItem active={screen === "mi-actividad"} icon="◷" label="Mi actividad" onPress={() => navigate("mi-actividad", loadAdoptionInterests)}/>
+          <View style={styles.menuDivider}/><MenuItem active={screen === "ajustes"} icon="⚙" label="Mi teléfono y alertas" onPress={() => navigate("ajustes")}/><MenuItem danger icon="↪" label="Cerrar sesión" onPress={logout}/>
+        </View></View>
+      </Modal>
       {screen === "panel" ? <View style={styles.stack}>
-        <Text style={styles.sectionTitle}>Animales que necesitan ayuda</Text>
-        <View style={styles.nav}><Button title="Se buscan" onPress={() => changeReportState("activos")}/><Button title="Encontrados" onPress={() => changeReportState("encontrados")}/></View>
-        <Button title="Actualizar panel" onPress={() => loadReports()}/>
+        <View style={styles.panelIntro}><Text style={styles.sectionKicker}>COMUNIDAD ACTIVA</Text><Text style={styles.sectionTitle}>Animales que necesitan ayuda</Text><Text style={styles.help}>Revisá avisos reales y colaborá solo si contás con información segura.</Text></View>
+        <View style={styles.filterRow}><FilterPill active={reportState === "activos"} label="Se buscan" onPress={() => changeReportState("activos")}/><FilterPill active={reportState === "encontrados"} label="Encontrados" onPress={() => changeReportState("encontrados")}/><FilterPill label="Actualizar" onPress={() => loadReports()}/></View>
         {reports.length ? reports.map(report => <View key={report.id} style={styles.reportCard}>
           {report.photo_url ? <Image source={{uri: report.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>{report.species?.toLowerCase().includes("gato") ? "🐱" : report.species?.toLowerCase().includes("perro") ? "🐶" : "🐾"}</Text><Text style={styles.reportPhotoCaption}>Sin foto disponible</Text></View>}
           <View style={styles.reportContent}><Text style={styles.notificationTitle}>{report.name} · {report.species}</Text><Text style={styles.notificationArea}>⌖ {report.area}</Text><Text style={styles.reportMeta}>{report.status === "resolved" ? "Encontrado" : "Se busca"}</Text><Text>{report.description || "Sin señas particulares cargadas."}</Text><Button title="Ver aviso" onPress={() => openReport(report)}/></View>
@@ -475,14 +505,14 @@ export default function App() {
         <View style={styles.nav}><Button title="Usar cámara" onPress={() => selectImage(true, setAdoptionPhoto, "la publicación de adopción")}/><Button title="Elegir foto" onPress={() => selectImage(false, setAdoptionPhoto, "la publicación de adopción")}/></View>
         <View style={styles.field}><Text style={styles.fieldLabel}>Nombre</Text><TextInput value={adoptionName} onChangeText={setAdoptionName} placeholder="Ej.: Mora" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Especie</Text><TextInput value={adoptionSpecies} onChangeText={setAdoptionSpecies} placeholder="Perro, gato u otro" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Raza y edad aproximada</Text><TextInput value={adoptionBreed} onChangeText={setAdoptionBreed} placeholder="Ej.: Mestiza" placeholderTextColor="#6c8378" style={styles.input}/><TextInput value={adoptionAge} onChangeText={setAdoptionAge} placeholder="Ej.: 2 años" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Zona aproximada</Text><TextInput value={adoptionArea} onChangeText={setAdoptionArea} placeholder="Ej.: Barrio Norte" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Descripción</Text><TextInput value={adoptionDescription} onChangeText={setAdoptionDescription} multiline style={[styles.input, styles.textarea]}/></View><Button title="Enviar para revisión" onPress={submitAdoption}/>
       </View> : null}
-      <View style={styles.divider}/>
-      <Text style={styles.sectionTitle}>Mi teléfono</Text>
-      <Button title="⌖ Compartir mi ubicación" onPress={shareLocation}/>
-      <Button title="▣ Usar cámara" onPress={takePhoto}/>
-      <Button title="🔔 Activar alertas" onPress={activatePushNotifications}/>
-      <Button title="Ver mis notificaciones" onPress={() => loadNotifications()}/>
-      {photoUri ? <Image source={{uri: photoUri}} style={styles.preview}/> : null}
-      {notifications.slice(0, 5).map(notification => <View key={notification.id} style={styles.notificationCard}>
+      {screen === "ajustes" ? <View style={styles.stack}>
+        <View style={styles.panelIntro}><Text style={styles.sectionKicker}>TU DISPOSITIVO</Text><Text style={styles.sectionTitle}>Mi teléfono y alertas</Text><Text style={styles.help}>Los permisos aparecen solo cuando los necesitás.</Text></View>
+        <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Privacidad y accesos</Text><Text style={styles.help}>La ubicación exacta nunca se publica: el mapa compartido muestra una zona aproximada.</Text><Button title="Compartir mi ubicación" onPress={shareLocation}/><Button title="Probar cámara" onPress={takePhoto} variant="outline"/></View>
+        <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Notificaciones</Text><Text style={styles.help}>Recibí novedades de los avisos y solicitudes que seguís.</Text><Button title="Activar alertas en este teléfono" onPress={activatePushNotifications}/><Button title="Actualizar notificaciones" onPress={() => loadNotifications()} variant="outline"/></View>
+        <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Acceso protegido</Text><Text style={styles.help}>{biometricEnabled ? "La huella ya está activa en este teléfono." : "Podés activar la huella para proteger tu sesión."}</Text>{!biometricEnabled ? <Button title="Activar huella" onPress={enableBiometrics} variant="outline"/> : null}</View>
+        {photoUri ? <Image source={{uri: photoUri}} style={styles.preview}/> : null}
+      </View> : null}
+      {screen === "ajustes" && notifications.slice(0, 5).map(notification => <View key={notification.id} style={styles.notificationCard}>
         {notification.photo_url ? <Image source={{uri: notification.photo_url}} style={styles.notificationPhoto}/> : null}
         <View style={styles.notificationContent}><Text style={styles.notificationTitle}>{notification.title}</Text><Text style={styles.notificationAnimal}>{notification.animal_name} · {notification.species}</Text><Text style={styles.notificationArea}>⌖ {notification.area}</Text><Text>{notification.description || notification.body}</Text></View>
       </View>)}
@@ -493,19 +523,58 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  screen: {flex: 1, backgroundColor: "#f7faf8"},
-  content: {padding: 24, gap: 12},
-  title: {fontSize: 26, fontWeight: "700", color: "#1d4334"},
-  subtitle: {color: "#557267"},
-  stack: {gap: 12},
+  screen: {flex: 1, backgroundColor: "#f1fcf8"},
+  content: {padding: 16, gap: 16, paddingBottom: 36},
+  title: {fontSize: 28, fontWeight: "800", color: "#0d4d42", letterSpacing: -0.6},
+  subtitle: {color: "#556864", marginTop: -10},
+  stack: {gap: 16},
   field: {gap: 6},
   fieldLabel: {color: "#1d4334", fontSize: 15, fontWeight: "700"},
   optional: {color: "#557267", fontWeight: "400"},
-  input: {borderWidth: 1, borderColor: "#cbd9d1", backgroundColor: "#fff", color: "#172d24", borderRadius: 10, padding: 12},
+  input: {minHeight: 48, borderWidth: 1, borderColor: "#bfc9c5", backgroundColor: "#f0f4f2", color: "#172d24", borderRadius: 12, padding: 12},
   textarea: {minHeight: 90, textAlignVertical: "top"},
   help: {lineHeight: 20, color: "#466156"},
-  sectionTitle: {fontSize: 19, fontWeight: "700", color: "#1d4334", marginTop: 6},
+  sectionTitle: {fontSize: 22, fontWeight: "800", color: "#143f36", marginTop: 1, letterSpacing: -0.35},
+  sectionKicker: {fontSize: 11, fontWeight: "800", color: "#0d4d42", letterSpacing: 1.25},
   nav: {flexDirection: "row", flexWrap: "wrap", gap: 8},
+  appHeader: {minHeight: 70, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 18, backgroundColor: "#0d4d42", flexDirection: "row", alignItems: "center", justifyContent: "space-between", shadowColor: "#00352c", shadowOpacity: 0.16, shadowRadius: 14, elevation: 3},
+  brandGroup: {flexDirection: "row", alignItems: "center", gap: 10},
+  brandMark: {width: 38, height: 38, borderRadius: 12, backgroundColor: "#b3eedf", alignItems: "center", justifyContent: "center"},
+  brandMarkText: {color: "#00352c", fontSize: 21, fontWeight: "900"},
+  appBrand: {fontSize: 17, fontWeight: "800", color: "#ffffff"},
+  appContext: {fontSize: 11, fontWeight: "800", color: "#b3eedf", textTransform: "uppercase", letterSpacing: 1},
+  menuTrigger: {width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "#e5f0ed"},
+  menuTriggerText: {fontSize: 24, lineHeight: 25, color: "#0d4d42", fontWeight: "700"},
+  modalScrim: {flex: 1, backgroundColor: "rgba(20, 34, 31, 0.42)", justifyContent: "flex-end"},
+  scrimTouch: {flex: 1},
+  menuSheet: {backgroundColor: "#ffffff", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 18, paddingBottom: 28, paddingTop: 10, gap: 3},
+  sheetHandle: {alignSelf: "center", width: 42, height: 4, borderRadius: 3, backgroundColor: "#bfc9c5", marginBottom: 8},
+  sheetHeading: {flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 7},
+  menuHeading: {fontSize: 18, fontWeight: "800", color: "#143f36"},
+  menuSubheading: {fontSize: 13, color: "#556864", marginTop: 2},
+  closeButton: {width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#e5f0ed"},
+  closeButtonText: {fontSize: 24, lineHeight: 25, color: "#0d4d42"},
+  menuItem: {minHeight: 50, borderRadius: 13, flexDirection: "row", alignItems: "center", gap: 13, paddingHorizontal: 13},
+  menuItemActive: {backgroundColor: "#e5f0ed"},
+  menuIcon: {width: 21, color: "#0d4d42", fontSize: 20, fontWeight: "700", textAlign: "center"},
+  menuLabel: {color: "#1b3832", fontSize: 15, fontWeight: "700"},
+  menuItemActiveText: {color: "#00352c"},
+  menuDangerText: {color: "#93000a"},
+  menuDivider: {height: 1, backgroundColor: "#e2ece8", marginVertical: 6},
+  pressed: {opacity: 0.72, transform: [{scale: 0.985}]},
+  panelIntro: {gap: 4},
+  filterRow: {flexDirection: "row", flexWrap: "wrap", gap: 8},
+  filterPill: {minHeight: 40, paddingHorizontal: 15, borderRadius: 22, justifyContent: "center", borderWidth: 1.5, borderColor: "#0d4d42", backgroundColor: "#ffffff"},
+  filterPillActive: {backgroundColor: "#0d4d42", borderColor: "#0d4d42"},
+  filterPillText: {fontSize: 13, fontWeight: "800", color: "#0d4d42"},
+  filterPillTextActive: {color: "#ffffff"},
+  button: {minHeight: 48, paddingHorizontal: 18, paddingVertical: 12, alignItems: "center", justifyContent: "center", borderRadius: 24, borderWidth: 1.5},
+  buttonPrimary: {backgroundColor: "#0d4d42", borderColor: "#0d4d42"},
+  buttonOutline: {backgroundColor: "#ffffff", borderColor: "#0d4d42"},
+  buttonDisabled: {opacity: 0.5},
+  buttonText: {fontSize: 14, fontWeight: "800"},
+  buttonTextPrimary: {color: "#ffffff"},
+  buttonTextOutline: {color: "#0d4d42"},
   divider: {height: 1, backgroundColor: "#dbe7df", marginVertical: 8},
   empty: {color: "#557267", fontStyle: "italic", paddingVertical: 12},
   message: {lineHeight: 21, color: "#213a30"},
@@ -516,16 +585,18 @@ const styles = StyleSheet.create({
   notificationTitle: {fontSize: 17, fontWeight: "700", color: "#1d4334"},
   notificationAnimal: {fontWeight: "600", color: "#355f4a"},
   notificationArea: {color: "#557267"},
-  reportCard: {backgroundColor: "#fff", borderWidth: 1, borderColor: "#dbe7df", borderRadius: 14, overflow: "hidden"},
-  reportPhoto: {width: "100%", height: 250, resizeMode: "cover"},
-  reportPhotoPlaceholder: {width: "100%", height: 250, alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#eaf2ed"},
+  reportCard: {backgroundColor: "#fff", borderWidth: 1, borderColor: "#d9e5e1", borderRadius: 18, overflow: "hidden", shadowColor: "#0d4d42", shadowOpacity: 0.06, shadowRadius: 12, elevation: 2},
+  reportPhoto: {width: "100%", height: 280, resizeMode: "cover"},
+  reportPhotoPlaceholder: {width: "100%", height: 280, alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#e5f0ed"},
   reportPhotoIcon: {fontSize: 52},
   reportPhotoCaption: {color: "#557267"},
-  reportContent: {padding: 14, gap: 4},
+  reportContent: {padding: 16, gap: 7},
   reportMeta: {color: "#147d59", fontWeight: "700"},
   requestPhotoBox: {borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: "#cbd9d1", backgroundColor: "#fff"},
   requestPhoto: {width: "100%", height: 280, resizeMode: "cover"},
   detailPhoto: {width: "100%", height: 340, borderRadius: 16, resizeMode: "cover"},
   requestPhotoEmpty: {height: 180, alignItems: "center", justifyContent: "center", gap: 6, padding: 18},
-  reviewNote: {color: "#78481e", backgroundColor: "#fff4df", padding: 10, borderRadius: 8},
+  reviewNote: {color: "#78481e", backgroundColor: "#fff4df", padding: 10, borderRadius: 10},
+  settingsCard: {backgroundColor: "#ffffff", borderWidth: 1, borderColor: "#d9e5e1", borderRadius: 16, padding: 16, gap: 11},
+  settingsTitle: {fontSize: 16, fontWeight: "800", color: "#143f36"},
 });

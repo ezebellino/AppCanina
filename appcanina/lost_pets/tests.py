@@ -79,6 +79,23 @@ class LostPetReportTests(TestCase):
         self.assertRedirects(response, reverse("lost_pet_detail", args=[published.id]))
         self.assertEqual(Sighting.objects.latest("id").reporter, collaborator)
 
+    def test_administrator_who_also_collaborates_can_open_resolved_report(self):
+        roles = ensure_base_roles()
+        administrator = User.objects.create_user("admin-colabora", password="secret")
+        administrator.groups.add(roles["admin"], roles["collaborator"])
+        resolved = LostPetReport.objects.create(
+            reporter=self.user,
+            name="Hilario",
+            species="cat",
+            last_seen_at=timezone.now(),
+            area_label="Avellaneda",
+            status=LostPetReport.Status.RESOLVED,
+        )
+
+        self.client.force_login(administrator)
+
+        self.assertEqual(self.client.get(reverse("lost_pet_detail", args=[resolved.id])).status_code, 200)
+
     def test_community_user_receives_report_notification_with_animal_details(self):
         roles = ensure_base_roles()
         collaborator = User.objects.create_user("luz-colabora", password="secret")
