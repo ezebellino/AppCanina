@@ -182,6 +182,28 @@ class MobilePushDevice(models.Model):
         verbose_name_plural = "dispositivos con notificaciones"
 
 
+class CommunityDevicePermission(models.Model):
+    class PermissionStatus(models.TextChoices):
+        UNKNOWN = "unknown", "Sin definir"
+        GRANTED = "granted", "Permitido"
+        DENIED = "denied", "No permitido"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="community_device_permissions")
+    device_key = models.CharField(max_length=120)
+    device_name = models.CharField(max_length=80, default="Dispositivo móvil")
+    platform = models.CharField(max_length=16, blank=True)
+    camera = models.CharField(max_length=12, choices=PermissionStatus.choices, default=PermissionStatus.UNKNOWN)
+    location = models.CharField(max_length=12, choices=PermissionStatus.choices, default=PermissionStatus.UNKNOWN)
+    notifications = models.CharField(max_length=12, choices=PermissionStatus.choices, default=PermissionStatus.UNKNOWN)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "device_key"], name="unique_community_device_permission")]
+        verbose_name = "permisos de dispositivo comunitario"
+        verbose_name_plural = "permisos de dispositivos comunitarios"
+
+
 class CommunityNotification(models.Model):
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="community_notifications")
     report = models.ForeignKey(LostPetReport, on_delete=models.CASCADE, related_name="notifications")

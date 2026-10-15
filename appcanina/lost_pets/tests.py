@@ -10,7 +10,7 @@ from PIL import Image
 
 from patients.models import Patient
 
-from .models import AdoptionInterest, AdoptionPost, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
+from .models import AdoptionInterest, AdoptionPost, CommunityDevicePermission, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from organizations.roles import ensure_base_roles
 
 
@@ -148,6 +148,24 @@ class LostPetReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["registered"])
         self.assertTrue(MobilePushDevice.objects.filter(user=collaborator, platform="android").exists())
+
+    def test_mobile_permissions_are_private_per_account_and_device(self):
+        roles = ensure_base_roles()
+        collaborator = User.objects.create_user("permisos-colabora", password="secret")
+        collaborator.groups.add(roles["collaborator"])
+        raw_token, _ = MobileAccessToken.issue(collaborator, "Android de prueba")
+
+        response = self.client.post(
+            reverse("mobile_device_permissions"),
+            data='{"device_key":"telefono-prueba","device_name":"Mi Android","platform":"android","camera":"granted","location":"denied","notifications":"unknown"}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["device"]["camera"], "granted")
+        self.assertEqual(response.json()["device"]["location"], "denied")
+        self.assertTrue(CommunityDevicePermission.objects.filter(user=collaborator, device_key="telefono-prueba").exists())
 
     def test_mobile_collaborator_can_publish_sighting_with_photo_and_private_coordinates(self):
         roles = ensure_base_roles()

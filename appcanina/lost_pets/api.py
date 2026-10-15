@@ -12,7 +12,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from PIL import UnidentifiedImageError
 
 from .forms import photo_without_location_metadata
-from .models import AdoptionInterest, AdoptionPost, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
+from .models import AdoptionInterest, AdoptionPost, CommunityDevicePermission, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from .notifications import notify_new_sighting
 from organizations.forms import CommunityCollaboratorForm
 from organizations.roles import ensure_base_roles
@@ -393,3 +393,36 @@ def mobile_push_device_register(request):
         defaults={"user": request.mobile_user, "platform": platform, "active": True},
     )
     return JsonResponse({"id": device.id, "registered": created})
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+@token_required("lost_pets.view_lostpetreport")
+def mobile_device_permissions(request):
+    if request.method == "GET":
+        device_key = request.GET.get("device_key", "").strip()
+        if not device_key:
+            return JsonResponse({"detail": "Identificador de dispositivo requerido."}, status=400)
+        device = CommunityDevicePermission.objects.filter(user=request.mobile_user, device_key=device_key).first()
+        return JsonResponse({"device": _device_permission_data(device) if device else None})
+
+    payload = _mobile_payload(request)
+    if payload is None:
+        return JsonResponse({"detail": "JSON inválido."}, status=400)
+    device_key = (payload.get("device_key") or "").strip()[:120]
+    if not device_key:
+        return JsonResponse({"detail": "Identificador de dispositivo requerido."}, status=400)
+    statuses = {choice for choice, _ in CommunityDevicePermission.PermissionStatus.choices}
+    values = {name: (payload.get(name) or CommunityDevicePermission.PermissionStatus.UNKNOWN).lower() for name in ("camera", "location", "notifications")}
+    if any(value not in statuses for value in values.values()):
+        return JsonResponse({"detail": "Estado de permiso inválido."}, status=400)
+    device, _ = CommunityDevicePermission.objects.update_or_create(
+        user=request.mobile_user,
+        device_key=device_key,
+        defaults={"device_name": (payload.get("device_name") or "Dispositivo móvil")[:80], "platform": (payload.get("platform") or "")[:16], **values},
+    )
+    return JsonResponse({"device": _device_permission_data(device)})
+
+
+def _device_permission_data(device):
+    return {"id": device.id, "device_name": device.device_name, "platform": device.platform, "camera": device.camera, "location": device.location, "notifications": device.notifications, "updated_at": device.updated_at.isoformat()}

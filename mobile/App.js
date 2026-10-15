@@ -33,6 +33,11 @@ function FilterPill({active, label, onPress}) {
   </Pressable>;
 }
 
+function PermissionRow({icon, label, status}) {
+  const labelByStatus = {granted: "Permitido", denied: "No permitido", unknown: "Sin definir"};
+  return <View style={styles.permissionRow}><Text style={styles.permissionIcon}>{icon}</Text><Text style={styles.permissionLabel}>{label}</Text><Text style={[styles.permissionStatus, status === "granted" && styles.permissionGranted, status === "denied" && styles.permissionDenied]}>{labelByStatus[status] || labelByStatus.unknown}</Text></View>;
+}
+
 export default function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -76,6 +81,7 @@ export default function App() {
   const [pendingBiometricToken, setPendingBiometricToken] = useState("");
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [devicePermissions, setDevicePermissions] = useState({camera: "unknown", location: "unknown", notifications: "unknown"});
 
   const loadNotifications = async (accessToken = token) => {
     const response = await fetch(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
@@ -85,12 +91,46 @@ export default function App() {
     setMessage(data.notifications.length ? `${data.notifications.length} notificación${data.notifications.length === 1 ? "" : "es"} pendiente${data.notifications.length === 1 ? "" : "s"}.` : "No hay notificaciones pendientes.");
   };
 
+  const getDeviceKey = async () => {
+    let deviceKey = await SecureStore.getItemAsync("community-device-key");
+    if (!deviceKey) {
+      deviceKey = `device-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+      await SecureStore.setItemAsync("community-device-key", deviceKey);
+    }
+    return deviceKey;
+  };
+
+  const permissionStatus = (permission) => permission?.granted ? "granted" : permission?.status === "denied" ? "denied" : "unknown";
+
+  const syncDevicePermissions = async (accessToken = token) => {
+    if (!accessToken) return;
+    try {
+      const [camera, location, notifications, deviceKey] = await Promise.all([
+        ImagePicker.getCameraPermissionsAsync(),
+        Location.getForegroundPermissionsAsync(),
+        Notifications.getPermissionsAsync(),
+        getDeviceKey(),
+      ]);
+      const response = await fetch(`${API}/dispositivos/permisos/`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json", Authorization: `Bearer ${accessToken}`},
+        body: JSON.stringify({device_key: deviceKey, device_name: Device.modelName || "Dispositivo móvil", platform: Platform.OS, camera: permissionStatus(camera), location: permissionStatus(location), notifications: permissionStatus(notifications)}),
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudieron actualizar los permisos.");
+      setDevicePermissions(data.device);
+    } catch (error) {
+      setMessage(error.message || "No se pudo consultar el estado de permisos.");
+    }
+  };
+
   const activateSession = async (accessToken, successMessage) => {
     await SecureStore.setItemAsync("community-token", accessToken);
     setToken(accessToken); setScreen("panel");
     try {
       await loadReports(accessToken);
       await loadNotifications(accessToken);
+      await syncDevicePermissions(accessToken);
       if (successMessage) setMessage(successMessage);
     } catch (error) {
       setMessage(error.message || "No se pudo restaurar la sesión.");
@@ -188,6 +228,7 @@ export default function App() {
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo registrar este dispositivo.");
+      await syncDevicePermissions();
       setMessage("Alertas activadas en este teléfono.");
     } catch (error) {
       setMessage(error.message);
@@ -507,6 +548,7 @@ export default function App() {
       </View> : null}
       {screen === "ajustes" ? <View style={styles.stack}>
         <View style={styles.panelIntro}><Text style={styles.sectionKicker}>TU DISPOSITIVO</Text><Text style={styles.sectionTitle}>Mi teléfono y alertas</Text><Text style={styles.help}>Los permisos aparecen solo cuando los necesitás.</Text></View>
+        <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Permisos de este dispositivo</Text><Text style={styles.help}>Este estado pertenece a este teléfono y a tu cuenta. Activar un permiso no comparte datos por sí mismo.</Text><PermissionRow icon="⌖" label="Ubicación GPS" status={devicePermissions.location}/><PermissionRow icon="▣" label="Cámara" status={devicePermissions.camera}/><PermissionRow icon="◉" label="Alertas" status={devicePermissions.notifications}/><Button title="Actualizar estado de permisos" onPress={() => syncDevicePermissions()} variant="outline"/></View>
         <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Privacidad y accesos</Text><Text style={styles.help}>La ubicación exacta nunca se publica: el mapa compartido muestra una zona aproximada.</Text><Button title="Compartir mi ubicación" onPress={shareLocation}/><Button title="Probar cámara" onPress={takePhoto} variant="outline"/></View>
         <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Notificaciones</Text><Text style={styles.help}>Recibí novedades de los avisos y solicitudes que seguís.</Text><Button title="Activar alertas en este teléfono" onPress={activatePushNotifications}/><Button title="Actualizar notificaciones" onPress={() => loadNotifications()} variant="outline"/></View>
         <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Acceso protegido</Text><Text style={styles.help}>{biometricEnabled ? "La huella ya está activa en este teléfono." : "Podés activar la huella para proteger tu sesión."}</Text>{!biometricEnabled ? <Button title="Activar huella" onPress={enableBiometrics} variant="outline"/> : null}</View>
@@ -599,4 +641,10 @@ const styles = StyleSheet.create({
   reviewNote: {color: "#78481e", backgroundColor: "#fff4df", padding: 10, borderRadius: 10},
   settingsCard: {backgroundColor: "#ffffff", borderWidth: 1, borderColor: "#d9e5e1", borderRadius: 16, padding: 16, gap: 11},
   settingsTitle: {fontSize: 16, fontWeight: "800", color: "#143f36"},
+  permissionRow: {minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: "#edf3f1"},
+  permissionIcon: {width: 22, textAlign: "center", fontSize: 18, color: "#0d4d42"},
+  permissionLabel: {flex: 1, fontSize: 14, fontWeight: "700", color: "#29463f"},
+  permissionStatus: {paddingHorizontal: 9, paddingVertical: 4, borderRadius: 12, overflow: "hidden", fontSize: 11, fontWeight: "800", color: "#556864", backgroundColor: "#edf3f1"},
+  permissionGranted: {color: "#00352c", backgroundColor: "#b3eedf"},
+  permissionDenied: {color: "#93000a", backgroundColor: "#ffdad6"},
 });
