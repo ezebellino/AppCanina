@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
-from patients.models import ClinicalRecord, Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent
+from patients.models import ClinicalRecord, Contact, OwnerAccountLink, Patient, PatientContact, PatientFamilyAccess, PatientSharingConsent
 
 from .models import AdoptionInterest, AdoptionPost, CommunityDevicePermission, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from organizations.roles import ensure_base_roles
@@ -293,6 +293,46 @@ class LostPetReportTests(TestCase):
         self.assertTrue(OwnerAccountLink.objects.filter(user=owner, contact__patientcontact__patient=patient).exists())
         listing = self.client.get(reverse("mobile_my_animals"), HTTP_AUTHORIZATION=f"Bearer {raw_token}")
         self.assertEqual([animal["name"] for animal in listing.json()["animals"]], ["Mora"])
+
+    def test_mobile_family_code_links_one_patient_without_duplication_and_can_be_revoked(self):
+        roles = ensure_base_roles()
+        owner = User.objects.create_user("titular-familia", password="secret")
+        relative = User.objects.create_user("familiar-familia", password="secret", first_name="Nico")
+        owner.groups.add(roles["collaborator"])
+        relative.groups.add(roles["collaborator"])
+        contact = Contact.objects.create(full_name="Titular")
+        patient = Patient.objects.create(name="Kira", species="dog")
+        PatientContact.objects.create(patient=patient, contact=contact, role="responsible", is_primary=True)
+        OwnerAccountLink.objects.create(contact=contact, user=owner)
+        owner_token, _ = MobileAccessToken.issue(owner, "Titular")
+        relative_token, _ = MobileAccessToken.issue(relative, "Familiar")
+
+        invitation = self.client.post(
+            reverse("mobile_family_invite_create", args=[patient.id]),
+            HTTP_AUTHORIZATION=f"Bearer {owner_token}",
+        )
+        self.assertEqual(invitation.status_code, 201)
+        code = invitation.json()["code"]
+
+        accepted = self.client.post(
+            reverse("mobile_family_invite_accept"),
+            data=f'{{"code":"{code}"}}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {relative_token}",
+        )
+        self.assertEqual(accepted.status_code, 201)
+        self.assertEqual(Patient.objects.filter(name="Kira").count(), 1)
+        access = PatientFamilyAccess.objects.get(patient=patient, user=relative)
+        listing = self.client.get(reverse("mobile_my_animals"), HTTP_AUTHORIZATION=f"Bearer {relative_token}")
+        self.assertEqual([animal["name"] for animal in listing.json()["animals"]], ["Kira"])
+
+        revoked = self.client.post(
+            reverse("mobile_family_access_revoke", args=[patient.id, access.id]),
+            HTTP_AUTHORIZATION=f"Bearer {owner_token}",
+        )
+        self.assertEqual(revoked.status_code, 200)
+        listing = self.client.get(reverse("mobile_my_animals"), HTTP_AUTHORIZATION=f"Bearer {relative_token}")
+        self.assertEqual(listing.json()["animals"], [])
 
     def test_mobile_owner_can_issue_a_temporary_travel_credential(self):
         roles = ensure_base_roles()

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ClinicalRecord, Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent, TravelCredential
+from .models import ClinicalRecord, Contact, OwnerAccountLink, Patient, PatientContact, PatientFamilyAccess, PatientFamilyInvite, PatientSharingConsent, TravelCredential
 
 
 class PatientContactInline(admin.TabularInline):
@@ -19,3 +19,5 @@ admin.site.register(ClinicalRecord)
 admin.site.register(OwnerAccountLink)
 admin.site.register(PatientSharingConsent)
 admin.site.register(TravelCredential)
+admin.site.register(PatientFamilyInvite)
+admin.site.register(PatientFamilyAccess)

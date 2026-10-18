@@ -1,3 +1,4 @@
+import hashlib
 import json
 from datetime import timedelta
 from functools import wraps
@@ -20,7 +21,7 @@ from .notifications import notify_new_sighting
 from organizations.forms import CommunityCollaboratorForm
 from organizations.models import Organization, OrganizationMembership
 from organizations.roles import ensure_base_roles
-from patients.models import Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent, TravelCredential
+from patients.models import Contact, OwnerAccountLink, Patient, PatientContact, PatientFamilyAccess, PatientFamilyInvite, PatientSharingConsent, TravelCredential
 
 
 def token_required(permission):
@@ -187,6 +188,10 @@ def _mobile_interest_data(interest):
 
 def _mobile_patient_data(request, patient):
     contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+    can_share = patient.patientcontact_set.filter(
+        contact_id__in=contact_ids,
+        role=PatientContact.Role.RESPONSIBLE,
+    ).exists()
     sharing_enabled = PatientSharingConsent.objects.filter(
         patient=patient,
         contact_id__in=contact_ids,
@@ -202,6 +207,16 @@ def _mobile_patient_data(request, patient):
         "allergies": patient.allergies,
         "photo_url": request.build_absolute_uri(patient.photo.url) if patient.photo else None,
         "sharing_enabled": sharing_enabled,
+        "can_share_with_family": can_share,
+        "family_members": [
+            {
+                "access_id": access.id,
+                "username": access.user.username,
+                "name": access.user.get_full_name() or access.user.username,
+                "joined_at": access.created_at.isoformat(),
+            }
+            for access in patient.family_accesses.filter(revoked_at__isnull=True).select_related("user")
+        ] if can_share else [],
         "clinical_records": [
             {
                 "date": record.occurred_on.isoformat(),
@@ -216,7 +231,29 @@ def _mobile_patient_data(request, patient):
 
 def _mobile_owned_patient(request, patient_id):
     contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
-    return Patient.objects.filter(pk=patient_id, active=True, patientcontact__contact_id__in=contact_ids).distinct().first()
+    return Patient.objects.filter(pk=patient_id, active=True).filter(
+        Q(
+            patientcontact__contact_id__in=contact_ids,
+            patientcontact__role__in=[PatientContact.Role.RESPONSIBLE, PatientContact.Role.ADOPTER],
+        ) | Q(family_accesses__user=request.mobile_user, family_accesses__revoked_at__isnull=True)
+    ).distinct().first()
+
+
+def _mobile_user_contact(user):
+    link = OwnerAccountLink.objects.filter(user=user).select_related("contact").first()
+    if link:
+        return link.contact
+    contact = Contact.objects.create(full_name=user.get_full_name().strip() or user.username)
+    OwnerAccountLink.objects.create(user=user, contact=contact)
+    return contact
+
+
+def _mobile_can_share_with_family(request, patient):
+    contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+    return patient.patientcontact_set.filter(
+        contact_id__in=contact_ids,
+        role=PatientContact.Role.RESPONSIBLE,
+    ).exists()
 
 
 def _mobile_payload(request):
@@ -292,13 +329,7 @@ def mobile_my_animals(request):
             return JsonResponse({"detail": str(error)}, status=400)
 
         with transaction.atomic():
-            contact = OwnerAccountLink.objects.filter(user=request.mobile_user).select_related("contact").first()
-            if contact:
-                contact = contact.contact
-            else:
-                full_name = request.mobile_user.get_full_name().strip() or request.mobile_user.username
-                contact = Contact.objects.create(full_name=full_name)
-                OwnerAccountLink.objects.create(user=request.mobile_user, contact=contact)
+            contact = _mobile_user_contact(request.mobile_user)
             patient = Patient.objects.create(
                 name=name[:100],
                 species=species,
@@ -321,7 +352,12 @@ def mobile_my_animals(request):
 
     contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
     patients = (
-        Patient.objects.filter(active=True, patientcontact__contact_id__in=contact_ids)
+        Patient.objects.filter(active=True).filter(
+            Q(
+                patientcontact__contact_id__in=contact_ids,
+                patientcontact__role__in=[PatientContact.Role.RESPONSIBLE, PatientContact.Role.ADOPTER],
+            ) | Q(family_accesses__user=request.mobile_user, family_accesses__revoked_at__isnull=True)
+        )
         .distinct()
         .prefetch_related("clinical_records__professional")
         .order_by("name")
@@ -338,6 +374,8 @@ def mobile_my_animal_detail(request, patient_id):
         return JsonResponse({"detail": "Animal no encontrado o no vinculado a tu cuenta."}, status=404)
 
     if request.method == "POST":
+        if not _mobile_can_share_with_family(request, patient):
+            return JsonResponse({"detail": "Solo el responsable principal puede modificar esta preferencia."}, status=403)
         payload = _mobile_payload(request)
         if payload is None or "sharing_enabled" not in payload:
             return JsonResponse({"detail": "Indicá la preferencia de historial compartido."}, status=400)
@@ -355,10 +393,102 @@ def mobile_my_animal_detail(request, patient_id):
 @csrf_exempt
 @require_POST
 @token_required("lost_pets.view_lostpetreport")
+def mobile_family_invite_create(request, patient_id):
+    patient = _mobile_owned_patient(request, patient_id)
+    if not patient:
+        return JsonResponse({"detail": "Animal no encontrado o no vinculado a tu cuenta."}, status=404)
+    if not _mobile_can_share_with_family(request, patient):
+        return JsonResponse({"detail": "Solo el responsable principal puede compartir esta ficha."}, status=403)
+    active_invites = PatientFamilyInvite.objects.filter(
+        patient=patient,
+        invited_by=request.mobile_user,
+        accepted_at__isnull=True,
+        revoked_at__isnull=True,
+        expires_at__gt=timezone.now(),
+    )
+    if active_invites.count() >= 3:
+        return JsonResponse({"detail": "Ya hay tres códigos familiares activos. Esperá a que venzan o compartí uno de ellos."}, status=429)
+    code, invitation = PatientFamilyInvite.issue(
+        patient=patient,
+        invited_by=request.mobile_user,
+        expires_at=timezone.now() + timedelta(minutes=15),
+    )
+    return JsonResponse({
+        "code": code,
+        "expires_at": invitation.expires_at.isoformat(),
+        "detail": "Código familiar creado. Compartilo solo con una persona de confianza; vence en 15 minutos y se usa una sola vez.",
+    }, status=201)
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.view_lostpetreport")
+def mobile_family_invite_accept(request):
+    payload = _mobile_payload(request)
+    if payload is None:
+        return JsonResponse({"detail": "JSON inválido."}, status=400)
+    raw_code = (payload.get("code") or "").strip()
+    if not raw_code:
+        return JsonResponse({"detail": "Ingresá el código familiar."}, status=400)
+    digest = hashlib.sha256(raw_code.encode()).hexdigest()
+    with transaction.atomic():
+        invitation = PatientFamilyInvite.objects.select_for_update().select_related("patient", "invited_by").filter(digest=digest).first()
+        if not invitation or not invitation.is_active:
+            return JsonResponse({"detail": "El código no es válido, ya fue utilizado o venció."}, status=400)
+        if invitation.invited_by_id == request.mobile_user.id:
+            return JsonResponse({"detail": "No podés usar tu propio código familiar."}, status=400)
+        contact = _mobile_user_contact(request.mobile_user)
+        PatientContact.objects.get_or_create(
+            patient=invitation.patient,
+            contact=contact,
+            role=PatientContact.Role.CUSTODIAN,
+            defaults={"is_primary": False},
+        )
+        PatientFamilyAccess.objects.update_or_create(
+            patient=invitation.patient,
+            user=request.mobile_user,
+            defaults={
+                "contact": contact,
+                "granted_by": invitation.invited_by,
+                "invitation": invitation,
+                "revoked_at": None,
+            },
+        )
+        invitation.accepted_by = request.mobile_user
+        invitation.accepted_at = timezone.now()
+        invitation.save(update_fields=["accepted_by", "accepted_at"])
+    return JsonResponse({
+        "detail": f"{invitation.patient.name} ya está vinculada a tu cuenta familiar.",
+        "animal": _mobile_patient_data(request, invitation.patient),
+    }, status=201)
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.view_lostpetreport")
+def mobile_family_access_revoke(request, patient_id, access_id):
+    patient = _mobile_owned_patient(request, patient_id)
+    if not patient:
+        return JsonResponse({"detail": "Animal no encontrado o no vinculado a tu cuenta."}, status=404)
+    if not _mobile_can_share_with_family(request, patient):
+        return JsonResponse({"detail": "Solo el responsable principal puede revocar accesos familiares."}, status=403)
+    access = PatientFamilyAccess.objects.filter(pk=access_id, patient=patient, revoked_at__isnull=True).first()
+    if not access:
+        return JsonResponse({"detail": "El acceso familiar ya no está disponible."}, status=404)
+    access.revoked_at = timezone.now()
+    access.save(update_fields=["revoked_at"])
+    return JsonResponse({"detail": "Acceso familiar revocado."})
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.view_lostpetreport")
 def mobile_my_animal_credential(request, patient_id):
     patient = _mobile_owned_patient(request, patient_id)
     if not patient:
         return JsonResponse({"detail": "Animal no encontrado o no vinculado a tu cuenta."}, status=404)
+    if not _mobile_can_share_with_family(request, patient):
+        return JsonResponse({"detail": "Solo el responsable principal puede crear una credencial de viaje."}, status=403)
     contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
     contact = patient.patientcontact_set.filter(contact_id__in=contact_ids).select_related("contact").first().contact
     code, credential = TravelCredential.issue(patient, contact, timezone.now() + timedelta(days=7))

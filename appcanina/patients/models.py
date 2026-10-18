@@ -72,6 +72,47 @@ class OwnerAccountLink(models.Model):
         constraints = [models.UniqueConstraint(fields=["contact", "user"], name="unique_owner_account_link")]
 
 
+class PatientFamilyInvite(models.Model):
+    """One-time invitation to link another household account to the same patient."""
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="family_invites")
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="issued_patient_family_invites")
+    digest = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    accepted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="accepted_patient_family_invites")
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @classmethod
+    def issue(cls, patient, invited_by, expires_at):
+        raw_code = f"FAM-{secrets.token_urlsafe(9).upper()}"
+        invitation = cls.objects.create(
+            patient=patient,
+            invited_by=invited_by,
+            expires_at=expires_at,
+            digest=hashlib.sha256(raw_code.encode()).hexdigest(),
+        )
+        return raw_code, invitation
+
+    @property
+    def is_active(self):
+        return not self.accepted_at and not self.revoked_at and self.expires_at > timezone.now()
+
+
+class PatientFamilyAccess(models.Model):
+    """Revocable household access to an existing patient record."""
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="family_accesses")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="family_patient_accesses")
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="family_patient_accesses")
+    granted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="granted_family_patient_accesses")
+    invitation = models.ForeignKey(PatientFamilyInvite, on_delete=models.SET_NULL, null=True, blank=True, related_name="accesses")
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["patient", "user"], name="unique_patient_family_access")]
+
+
 class PatientSharingConsent(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="sharing_consents")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="sharing_consents")

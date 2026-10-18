@@ -85,6 +85,8 @@ export default function App() {
   const [adoptionInterests, setAdoptionInterests] = useState([]);
   const [myAnimals, setMyAnimals] = useState([]);
   const [selectedAnimal, setSelectedAnimal] = useState(null);
+  const [familyInvite, setFamilyInvite] = useState(null);
+  const [familyCode, setFamilyCode] = useState("");
   const [newAnimalName, setNewAnimalName] = useState("");
   const [newAnimalSpecies, setNewAnimalSpecies] = useState("dog");
   const [newAnimalBreed, setNewAnimalBreed] = useState("");
@@ -475,6 +477,46 @@ export default function App() {
     } catch (error) { setMessage(error.message); }
   };
 
+  const createFamilyInvite = async () => {
+    if (!selectedAnimal) return;
+    try {
+      const response = await fetch(`${API}/mis-animales/${selectedAnimal.id}/invitaciones-familiares/`, {
+        method: "POST", headers: {Authorization: `Bearer ${token}`},
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo crear el código familiar.");
+      setFamilyInvite(data); setMessage(data.detail);
+    } catch (error) { setMessage(error.message); }
+  };
+
+  const acceptFamilyInvite = async () => {
+    try {
+      const response = await fetch(`${API}/familia/aceptar-invitacion/`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`},
+        body: JSON.stringify({code: familyCode.trim()}),
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo vincular el animal.");
+      setFamilyCode(""); setMyAnimals(current => [...current.filter(animal => animal.id !== data.animal.id), data.animal].sort((a, b) => a.name.localeCompare(b.name)));
+      setSelectedAnimal(data.animal); setScreen("mi-animal"); setMessage(data.detail);
+    } catch (error) { setMessage(error.message); }
+  };
+
+  const revokeFamilyAccess = async (accessId, memberName) => {
+    if (!selectedAnimal) return;
+    try {
+      const response = await fetch(`${API}/mis-animales/${selectedAnimal.id}/familia/${accessId}/revocar/`, {
+        method: "POST", headers: {Authorization: `Bearer ${token}`},
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo revocar el acceso.");
+      const updated = {...selectedAnimal, family_members: selectedAnimal.family_members.filter(member => member.access_id !== accessId)};
+      setSelectedAnimal(updated); setMyAnimals(current => current.map(animal => animal.id === updated.id ? updated : animal));
+      setMessage(`${memberName}: ${data.detail}`);
+    } catch (error) { setMessage(error.message); }
+  };
+
   const submitAdoptionInterest = async () => {
     if (!selectedAdoption) return;
     try {
@@ -561,6 +603,7 @@ export default function App() {
           <MenuItem active={screen === "adopciones"} icon="♡" label="Adopciones" onPress={() => navigate("adopciones", loadAdoptions)}/>
           <MenuItem active={screen === "mi-actividad"} icon="◷" label="Mi actividad" onPress={() => navigate("mi-actividad", loadAdoptionInterests)}/>
           <MenuItem active={screen === "mis-animales" || screen === "mi-animal"} icon="🐾" label="Mis animales" onPress={() => navigate("mis-animales", loadMyAnimals)}/>
+          <MenuItem active={screen === "vincular-familia"} icon="⌘" label="Vincular mascota familiar" onPress={() => { setFamilyCode(""); navigate("vincular-familia"); }}/>
           <View style={styles.menuDivider}/><MenuItem active={screen === "ajustes"} icon="⚙" label="Mi teléfono y alertas" onPress={() => navigate("ajustes")}/><MenuItem danger icon="↪" label="Cerrar sesión" onPress={logout}/>
         </View></View>
       </Modal>
@@ -634,6 +677,7 @@ export default function App() {
       {screen === "mis-animales" ? <View style={styles.stack}>
         <View style={styles.panelIntro}><Text style={styles.sectionKicker}>TU FAMILIA</Text><Text style={styles.sectionTitle}>Mis animales</Text><Text style={styles.help}>Agregá a tus animales o consultá las fichas que ya están vinculadas a tu cuenta.</Text></View>
         <Button title="＋ Agregar mi animal" onPress={() => { resetNewAnimal(); setScreen("nuevo-animal"); }}/>
+        <Button title="⌘ Vincular mascota de mi familia" onPress={() => { setFamilyCode(""); setScreen("vincular-familia"); }} variant="outline"/>
         <Button title="Actualizar mis animales" onPress={() => loadMyAnimals()} variant="outline"/>
         {myAnimals.length ? myAnimals.map(animal => <Pressable key={animal.id} accessibilityRole="button" onPress={() => openAnimal(animal)} style={({pressed}) => [styles.animalCard, pressed && styles.pressed]}>
           {animal.photo_url ? <Image source={{uri: animal.photo_url}} style={styles.animalAvatar}/> : <View style={styles.animalAvatarPlaceholder}><Text style={styles.animalAvatarText}>{animal.species?.toLowerCase().includes("gato") ? "🐱" : animal.species?.toLowerCase().includes("perro") ? "🐶" : "🐾"}</Text></View>}
@@ -654,6 +698,13 @@ export default function App() {
         <View style={styles.field}><Text style={styles.fieldLabel}>Alergias <Text style={styles.optional}>(opcional)</Text></Text><TextInput value={newAnimalAllergies} onChangeText={setNewAnimalAllergies} placeholder="Ej.: Polen, penicilina..." placeholderTextColor="#6c8378" multiline style={[styles.input, styles.textarea]}/></View>
         <Button title="Guardar mi animal" onPress={submitNewAnimal}/>
       </View> : null}
+      {screen === "vincular-familia" ? <View style={styles.stack}>
+        <Button title="← Volver a mis animales" onPress={() => setScreen("mis-animales")} variant="outline"/>
+        <Text style={styles.sectionTitle}>Vincular mascota familiar</Text>
+        <Text style={styles.help}>Pedile al responsable de la mascota que genere un código familiar desde su ficha. El código es personal, vence rápido y no crea una mascota duplicada.</Text>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Código familiar</Text><TextInput value={familyCode} onChangeText={setFamilyCode} placeholder="Ej.: FAM-ABC..." placeholderTextColor="#6c8378" autoCapitalize="characters" style={styles.input}/></View>
+        <Button title="Vincular a mi cuenta" onPress={acceptFamilyInvite}/>
+      </View> : null}
       {screen === "mi-animal" && selectedAnimal ? <View style={styles.stack}>
         <Button title="← Volver a mis animales" onPress={() => { setScreen("mis-animales"); loadMyAnimals(); }} variant="outline"/>
         {selectedAnimal.photo_url ? <Image source={{uri: selectedAnimal.photo_url}} style={styles.detailPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>{selectedAnimal.species?.toLowerCase().includes("gato") ? "🐱" : selectedAnimal.species?.toLowerCase().includes("perro") ? "🐶" : "🐾"}</Text></View>}
@@ -661,6 +712,7 @@ export default function App() {
         {selectedAnimal.allergies ? <View style={styles.warningCard}><Text style={styles.warningTitle}>Alergias registradas</Text><Text style={styles.help}>{selectedAnimal.allergies}</Text></View> : null}
         <View style={styles.consentCard}><Text style={styles.settingsTitle}>Historial compartido durante un viaje</Text><Text style={styles.help}>{selectedAnimal.sharing_enabled ? "Está autorizado. Una veterinaria necesita además tu credencial temporal y localidad coincidente." : "Está desactivado. Ninguna veterinaria puede solicitar el historial temporal hasta que lo autorices."}</Text><Button title={selectedAnimal.sharing_enabled ? "Desactivar historial compartido" : "Autorizar historial compartido"} onPress={() => updateSharingConsent(!selectedAnimal.sharing_enabled)} variant="outline"/></View>
         <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Credencial de viaje</Text><Text style={styles.help}>Genera un código válido por 7 días. Presentalo voluntariamente en la veterinaria de destino; tu GPS nunca abre el historial de forma automática.</Text><Button title="Crear credencial temporal" onPress={createTravelCredential}/>{travelCredential ? <View style={styles.credentialCard}><Text style={styles.credentialLabel}>CÓDIGO TEMPORAL</Text><Text selectable style={styles.credentialCode}>{travelCredential.code}</Text><Text style={styles.help}>Válida hasta {new Date(travelCredential.expires_at).toLocaleString()}</Text></View> : null}</View>
+        {selectedAnimal.can_share_with_family ? <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Compartir con mi familia</Text><Text style={styles.help}>Creá un código temporal para que otra persona de confianza vea la misma ficha, sin duplicar datos ni historial.</Text><Button title="Crear código familiar" onPress={createFamilyInvite}/>{familyInvite ? <View style={styles.credentialCard}><Text style={styles.credentialLabel}>CÓDIGO FAMILIAR · UN SOLO USO</Text><Text selectable style={styles.credentialCode}>{familyInvite.code}</Text><Text style={styles.help}>Vence {new Date(familyInvite.expires_at).toLocaleString()}. No lo compartas públicamente.</Text></View> : null}{selectedAnimal.family_members?.length ? <View style={styles.familyList}>{selectedAnimal.family_members.map(member => <View key={member.access_id} style={styles.familyMember}><View><Text style={styles.settingsTitle}>{member.name}</Text><Text style={styles.help}>Acceso familiar activo</Text></View><Button title="Revocar" variant="outline" onPress={() => revokeFamilyAccess(member.access_id, member.name)}/></View>)}</View> : <Text style={styles.help}>Todavía no vinculaste a nadie de tu familia.</Text>}</View> : <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Acceso familiar</Text><Text style={styles.help}>Esta ficha fue compartida contigo por su responsable. Podés verla junto con su historial, pero solo el titular administra accesos y credenciales.</Text></View>}
         <Text style={styles.sectionTitle}>Historial clínico</Text>{selectedAnimal.clinical_records?.length ? selectedAnimal.clinical_records.map((record, index) => <View key={`${record.date}-${index}`} style={styles.recordCard}><Text style={styles.recordDate}>{new Date(`${record.date}T12:00:00`).toLocaleDateString()}</Text><Text style={styles.settingsTitle}>{record.reason}</Text><Text style={styles.help}>{record.notes}</Text><Text style={styles.recordProfessional}>Registrado por {record.professional}</Text></View>) : <Text style={styles.empty}>Todavía no hay registros clínicos cargados.</Text>}
       </View> : null}
       {screen === "ajustes" ? <View style={styles.stack}>
@@ -774,6 +826,8 @@ const styles = StyleSheet.create({
   credentialCard: {backgroundColor: "#e5f0ed", borderRadius: 13, padding: 14, gap: 5, alignItems: "center"},
   credentialLabel: {fontSize: 11, fontWeight: "900", letterSpacing: 1.2, color: "#326c55"},
   credentialCode: {fontSize: 19, fontWeight: "900", color: "#00352c", letterSpacing: 1.4, textAlign: "center"},
+  familyList: {gap: 8, marginTop: 2},
+  familyMember: {paddingTop: 10, borderTopWidth: 1, borderTopColor: "#dbe7df", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12},
   recordCard: {backgroundColor: "#ffffff", borderWidth: 1, borderColor: "#d9e5e1", borderRadius: 15, padding: 15, gap: 6},
   recordDate: {fontSize: 12, fontWeight: "800", color: "#326c55", textTransform: "uppercase"},
   recordProfessional: {fontSize: 12, color: "#557267", marginTop: 2},
