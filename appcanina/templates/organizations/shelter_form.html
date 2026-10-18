@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Comunidad</p><h1>{{ title }}</h1><p>Los datos se mostrarán solamente en las publicaciones de este refugio.</p></div><div class="page-actions"><a class="button button-ghost" href="{% url 'shelter_list' %}">← Volver a refugios</a></div></div>
+<form method="post" enctype="multipart/form-data" class="card form-grid">{% csrf_token %}{% for field in form %}<div class="form-field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>{% endfor %}<div class="form-actions"><button class="button" type="submit">Crear perfil de refugio</button></div></form>
+{% endblock %}

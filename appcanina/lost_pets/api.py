@@ -15,6 +15,7 @@ from .forms import photo_without_location_metadata
 from .models import AdoptionInterest, AdoptionPost, CommunityDevicePermission, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from .notifications import notify_new_sighting
 from organizations.forms import CommunityCollaboratorForm
+from organizations.models import Organization, OrganizationMembership
 from organizations.roles import ensure_base_roles
 
 
@@ -113,12 +114,26 @@ def _mobile_request_data(request, report):
 
 
 def _mobile_adoption_data(request, post):
+    organization = post.organization
+    donation_message = ""
+    if organization and organization.donation_alias:
+        donation_message = organization.donation_message or (
+            f"Si querés colaborar con {organization.name}, podés transferirnos a {organization.donation_alias}. "
+            "Por más mínimo que sea, nos ayudás muchísimo."
+        )
     return {
         "id": post.id, "name": post.name, "species": post.get_species_display(), "breed": post.breed,
         "age": post.age_label, "description": post.description, "area": post.area_label,
         "status": post.status, "status_label": post.get_status_display(), "review_note": post.review_note,
         "photo_url": request.build_absolute_uri(post.photo.url) if post.photo else None,
         "editable": post.status in {AdoptionPost.Status.PENDING, AdoptionPost.Status.REJECTED},
+        "organization": {
+            "id": organization.id,
+            "name": organization.name,
+            "logo_url": request.build_absolute_uri(organization.logo.url) if organization and organization.logo else None,
+            "donation_alias": organization.donation_alias,
+            "donation_message": donation_message,
+        } if organization else None,
     }
 
 
@@ -176,7 +191,7 @@ def mobile_reports(request):
 @require_GET
 @token_required("lost_pets.view_lostpetreport")
 def mobile_adoptions(request):
-    posts = AdoptionPost.objects.filter(status=AdoptionPost.Status.PUBLISHED)
+    posts = AdoptionPost.objects.filter(status=AdoptionPost.Status.PUBLISHED).select_related("organization")
     query = request.GET.get("q", "").strip()
     if query:
         posts = posts.filter(Q(name__icontains=query) | Q(species__icontains=query) | Q(area_label__icontains=query))
@@ -199,7 +214,16 @@ def mobile_adoption_request(request):
         photo = _mobile_photo(request)
     except ValueError as error:
         return JsonResponse({"detail": str(error)}, status=400)
-    post = AdoptionPost.objects.create(publisher=request.mobile_user, name=name[:100], species=species, breed=(payload.get("breed") or "").strip()[:100], age_label=(payload.get("age") or "").strip()[:80], description=(payload.get("description") or "").strip(), area_label=area[:120], photo=photo)
+    organization_id = payload.get("organization_id")
+    membership_query = OrganizationMembership.objects.filter(user=request.mobile_user).select_related("organization")
+    membership = membership_query.filter(organization_id=organization_id).first() if organization_id else membership_query.first()
+    organization = membership.organization if membership else Organization.objects.filter(is_business_profile=True).first()
+    post = AdoptionPost.objects.create(
+        publisher=request.mobile_user, organization=organization, name=name[:100], species=species,
+        breed=(payload.get("breed") or "").strip()[:100], age_label=(payload.get("age") or "").strip()[:80],
+        description=(payload.get("description") or "").strip(), area_label=area[:120], photo=photo,
+        status=AdoptionPost.Status.PUBLISHED if membership else AdoptionPost.Status.PENDING,
+    )
     return JsonResponse({"id": post.id, "detail": "Recibimos la publicación. La veterinaria o refugio responsable la revisará antes de mostrarla."}, status=201)
 
 

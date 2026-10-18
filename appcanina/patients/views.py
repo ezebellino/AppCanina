@@ -1,14 +1,17 @@
 import logging
+from datetime import timedelta
+from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import DatabaseError, transaction
 from django.db.models import F, Q, Sum
+from django.http import HttpResponse
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from .forms import CareReminderForm, ClinicalRecordForm, ContactForm, ExistingPatientContactForm, PatientContactForm, PatientForm
-from .models import CareReminder, ClinicalRecord, Contact, Patient, PatientContact
+from .forms import CareReminderForm, ClinicalRecordForm, ContactForm, ExistingPatientContactForm, OwnerAccountLinkForm, PatientContactForm, PatientForm
+from .models import CareReminder, ClinicalRecord, Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent, TravelCredential
 from sales.models import Sale
 from inventory.models import Product
 from grooming.models import GroomingAppointment
@@ -16,6 +19,67 @@ from visits.models import HomeVisit
 
 
 logger = logging.getLogger(__name__)
+
+
+def _owned_patient_or_404(user, patient_id):
+    contact_ids = OwnerAccountLink.objects.filter(user=user).values_list("contact_id", flat=True)
+    return get_object_or_404(Patient.objects.prefetch_related("clinical_records__professional"), pk=patient_id, patientcontact__contact_id__in=contact_ids)
+
+
+@login_required
+def my_animals(request):
+    contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
+    patients = Patient.objects.filter(patientcontact__contact_id__in=contact_ids, active=True).distinct().prefetch_related("patientcontact_set__contact")
+    return render(request, "patients/my_animals.html", {"patients": patients})
+
+
+@login_required
+def my_animal_history(request, patient_id):
+    patient = _owned_patient_or_404(request.user, patient_id)
+    contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
+    sharing_enabled = PatientSharingConsent.objects.filter(patient=patient, contact_id__in=contact_ids, enabled=True).exists()
+    return render(request, "patients/my_animal_history.html", {"patient": patient, "sharing_enabled": sharing_enabled})
+
+
+@login_required
+@require_POST
+def my_animal_sharing(request, patient_id):
+    patient = _owned_patient_or_404(request.user, patient_id)
+    contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
+    relation = patient.patientcontact_set.filter(contact_id__in=contact_ids).select_related("contact").first()
+    consent, _ = PatientSharingConsent.objects.update_or_create(patient=patient, contact=relation.contact, defaults={"enabled": request.POST.get("enabled") == "on"})
+    messages.success(request, "Preferencia de historial compartido actualizada." if consent.enabled else "El acceso compartido fue desactivado.")
+    return redirect("my_animal_history", patient_id=patient.id)
+
+
+@login_required
+def my_animal_credential(request, patient_id):
+    patient = _owned_patient_or_404(request.user, patient_id)
+    contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
+    relation = patient.patientcontact_set.filter(contact_id__in=contact_ids).select_related("contact").first()
+    code, credential = TravelCredential.issue(patient, relation.contact, timezone.now() + timedelta(days=7))
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    buffer = BytesIO(); pdf = canvas.Canvas(buffer, pagesize=A4); width, height = A4
+    pdf.setTitle(f"Credencial de viaje - {patient.name}"); pdf.setFont("Helvetica-Bold", 18); pdf.drawString(54, height - 64, "Credencial veterinaria de viaje")
+    pdf.setFont("Helvetica", 11); lines = [f"Animal: {patient.name}", f"Especie: {patient.get_species_display()}", f"Raza: {patient.breed or 'No informada'}", f"Identificación: {patient.microchip or 'No informada'}", f"Responsable: {relation.contact.full_name}", f"Válida hasta: {credential.expires_at.astimezone().strftime('%d/%m/%Y %H:%M')}", f"Código temporal: {code}", "Presentala voluntariamente en una veterinaria. No habilita acceso automático por GPS."]
+    y = height - 112
+    for line in lines: pdf.drawString(54, y, line); y -= 24
+    pdf.setFont("Helvetica-Oblique", 9); pdf.drawString(54, 58, "AppCanina - Información clínica bajo consentimiento del responsable."); pdf.save()
+    response = HttpResponse(buffer.getvalue(), content_type="application/pdf"); response["Content-Disposition"] = f'attachment; filename="credencial-{patient.name.lower()}.pdf"'; return response
+
+
+@login_required
+@permission_required("patients.change_patientcontact", raise_exception=True)
+def patient_owner_account_link(request, patient_id):
+    patient = get_object_or_404(Patient.objects.prefetch_related("patientcontact_set__contact"), pk=patient_id)
+    form = OwnerAccountLinkForm(request.POST or None)
+    relation = patient.patientcontact_set.select_related("contact").filter(role__in=[PatientContact.Role.RESPONSIBLE, PatientContact.Role.ADOPTER]).first()
+    if request.method == "POST" and relation and form.is_valid():
+        OwnerAccountLink.objects.get_or_create(contact=relation.contact, user=form.cleaned_data["user"])
+        messages.success(request, "Cuenta vinculada. La persona ya puede consultar sus animales desde Mis animales.")
+        return redirect("patient_detail", patient_id=patient.id)
+    return render(request, "patients/owner_account_link.html", {"patient": patient, "relation": relation, "form": form})
 
 
 @login_required

@@ -3,10 +3,15 @@ from . import views
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    path("mis-animales/", views.my_animals, name="my_animals"),
+    path("mis-animales/<int:patient_id>/", views.my_animal_history, name="my_animal_history"),
+    path("mis-animales/<int:patient_id>/compartir/", views.my_animal_sharing, name="my_animal_sharing"),
+    path("mis-animales/<int:patient_id>/credencial.pdf", views.my_animal_credential, name="my_animal_credential"),
     path("pacientes/", views.patient_list, name="patient_list"),
     path("buscar/", views.global_search, name="global_search"),
     path("pacientes/nuevo/", views.patient_create, name="patient_create"),
     path("pacientes/<int:patient_id>/contactos/nuevo/", views.patient_contact_create, name="patient_contact_create"),
+    path("pacientes/<int:patient_id>/vincular-cuenta/", views.patient_owner_account_link, name="patient_owner_account_link"),
     path("pacientes/<int:patient_id>/contactos/<int:relation_id>/editar/", views.patient_contact_edit, name="patient_contact_edit"),
     path("pacientes/<int:patient_id>/contactos/<int:relation_id>/quitar/", views.patient_contact_remove, name="patient_contact_remove"),
     path("pacientes/<int:patient_id>/historial/nuevo/", views.clinical_record_create, name="clinical_record_create"),

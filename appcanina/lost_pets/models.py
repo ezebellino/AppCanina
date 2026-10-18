@@ -102,6 +102,10 @@ class AdoptionPost(models.Model):
         ARCHIVED = "archived", "Archivado"
 
     publisher = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name="publicado por", on_delete=models.PROTECT, related_name="adoption_posts")
+    organization = models.ForeignKey(
+        "organizations.Organization", verbose_name="organización responsable", on_delete=models.PROTECT,
+        related_name="adoption_posts", null=True, blank=True,
+    )
     name = models.CharField("nombre del animal", max_length=100)
     species = models.CharField("especie", max_length=12, choices=Patient.Species.choices)
     breed = models.CharField("raza", max_length=100, blank=True)

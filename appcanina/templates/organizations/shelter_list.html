@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Refugios{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Comunidad</p><h1>Refugios y adopciones</h1><p>Cada refugio tiene identidad propia, equipo y publicaciones independientes.</p></div><div class="page-actions"><a class="button" href="{% url 'shelter_create' %}">＋ Crear refugio</a></div></div>
+<section class="visit-grid">{% for shelter in shelters %}<article class="card visit-card"><div class="inline-actions">{% if shelter.logo %}<img class="brand-logo" src="{{ shelter.logo.url }}" alt="">{% else %}<span class="brand-mark">♧</span>{% endif %}<div><p class="eyebrow">Refugio</p><h2>{{ shelter.name }}</h2></div></div><p>{% if shelter.address %}{{ shelter.address }}{% else %}Sin dirección pública cargada{% endif %}</p>{% if shelter.donation_alias %}<p><strong>Alias solidario:</strong> {{ shelter.donation_alias }}</p>{% endif %}<p class="muted">{{ shelter.memberships.count }} integrante{{ shelter.memberships.count|pluralize:"s" }}</p><a class="button button-ghost" href="{% url 'shelter_detail' shelter.id %}">Ver perfil</a></article>{% empty %}<div class="empty card"><h2>Todavía no hay refugios</h2><p>Creá el primero para publicar sus animales con identidad y alias propios.</p></div>{% endfor %}</section>
+{% endblock %}

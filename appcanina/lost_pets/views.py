@@ -10,7 +10,7 @@ from patients.models import Patient
 from .forms import LostPetReportForm, SightingForm
 from .models import AdoptionInterest, AdoptionPost, LostPetReport, Sighting
 from .notifications import notify_new_report, notify_new_sighting, notify_request_review
-from organizations.roles import is_community_collaborator
+from organizations.roles import can_manage_organization, is_community_collaborator, organizations_managed_by
 
 
 @login_required
@@ -40,15 +40,16 @@ def report_list(request):
 @permission_required("lost_pets.view_adoptionpost", raise_exception=True)
 def adoption_list(request):
     view_mode = request.GET.get("view", "published")
-    posts = AdoptionPost.objects.select_related("publisher")
+    posts = AdoptionPost.objects.select_related("publisher", "organization")
+    managed_organizations = organizations_managed_by(request.user)
     if view_mode == "review" and request.user.has_perm("lost_pets.change_adoptionpost"):
-        posts = posts.filter(status=AdoptionPost.Status.PENDING)
+        posts = posts.filter(status=AdoptionPost.Status.PENDING, organization__in=managed_organizations)
     elif view_mode == "all" and request.user.has_perm("lost_pets.change_adoptionpost"):
-        pass
+        posts = posts.filter(organization__in=managed_organizations)
     else:
         view_mode = "published"
         posts = posts.filter(status=AdoptionPost.Status.PUBLISHED)
-    pending_count = AdoptionPost.objects.filter(status=AdoptionPost.Status.PENDING).count()
+    pending_count = AdoptionPost.objects.filter(status=AdoptionPost.Status.PENDING, organization__in=managed_organizations).count()
     return render(request, "lost_pets/adoption_list.html", {"posts": posts, "view_mode": view_mode, "pending_count": pending_count})
 
 
@@ -57,6 +58,9 @@ def adoption_list(request):
 @require_POST
 def adoption_change_status(request, post_id):
     post = get_object_or_404(AdoptionPost, pk=post_id)
+    if post.organization and not can_manage_organization(request.user, post.organization):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
     status = request.POST.get("status")
     allowed = {AdoptionPost.Status.PUBLISHED, AdoptionPost.Status.REJECTED, AdoptionPost.Status.ADOPTED, AdoptionPost.Status.ARCHIVED}
     if status not in allowed:
@@ -74,7 +78,7 @@ def adoption_change_status(request, post_id):
 @login_required
 @permission_required("lost_pets.change_adoptioninterest", raise_exception=True)
 def adoption_interest_list(request):
-    interests = AdoptionInterest.objects.select_related("post", "applicant")
+    interests = AdoptionInterest.objects.select_related("post", "post__organization", "applicant").filter(post__organization__in=organizations_managed_by(request.user))
     return render(request, "lost_pets/adoption_interest_list.html", {"interests": interests, "status_choices": AdoptionInterest.Status.choices})
 
 
@@ -83,6 +87,9 @@ def adoption_interest_list(request):
 @require_POST
 def adoption_interest_change_status(request, interest_id):
     interest = get_object_or_404(AdoptionInterest, pk=interest_id)
+    if interest.post.organization and not can_manage_organization(request.user, interest.post.organization):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
     status = request.POST.get("status")
     if status not in AdoptionInterest.Status.values:
         messages.error(request, "El estado indicado no es válido.")

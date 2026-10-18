@@ -3,6 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
 from .models import Organization
+from .models import OrganizationMembership
 
 
 class BusinessProfileForm(forms.ModelForm):
@@ -16,6 +17,29 @@ class BusinessProfileForm(forms.ModelForm):
         help_texts = {
             "logo": "Opcional. Se verá en el perfil y junto al nombre del negocio.",
         }
+
+
+class ShelterProfileForm(forms.ModelForm):
+    class Meta:
+        model = Organization
+        fields = ["name", "logo", "phone", "email", "address", "donation_alias", "donation_message"]
+        labels = {
+            "name": "Nombre del refugio",
+            "donation_alias": "Alias para recibir colaboraciones",
+            "donation_message": "Mensaje debajo de cada animal",
+        }
+        help_texts = {
+            "logo": "Opcional. Se verá junto al nombre del refugio y en sus publicaciones.",
+            "donation_alias": "Ej.: refugio.patitas. Se mostrará solo si decidís completarlo.",
+            "donation_message": "Opcional. Si lo dejás vacío, usaremos un mensaje amable predeterminado.",
+        }
+
+
+class OrganizationMembershipForm(forms.ModelForm):
+    class Meta:
+        model = OrganizationMembership
+        fields = ["user", "role"]
+        labels = {"user": "Usuario existente", "role": "Rol dentro del refugio"}
 
 
 class CommunityCollaboratorForm(UserCreationForm):

@@ -1,5 +1,7 @@
 from django.contrib.auth.models import Group, Permission
 
+from .models import Organization
+
 
 COMMUNITY_COLLABORATOR_GROUP = "Colaborador comunitario"
 
@@ -47,3 +49,24 @@ def is_community_collaborator(user):
         and not user.is_superuser
         and not user.groups.filter(name="Administrador").exists()
     )
+
+
+def organizations_managed_by(user):
+    """Organizations whose adoption workflow the user can operate.
+
+    Existing administrator accounts keep access to the main business profile
+    until they are explicitly linked to a refuge. Superusers can oversee all
+    organizations.
+    """
+    if not user.is_authenticated:
+        return Organization.objects.none()
+    if user.is_superuser:
+        return Organization.objects.all()
+    organizations = Organization.objects.filter(memberships__user=user).distinct()
+    if organizations.exists() or not user.has_perm("lost_pets.change_adoptionpost"):
+        return organizations
+    return Organization.objects.filter(is_business_profile=True)
+
+
+def can_manage_organization(user, organization):
+    return organizations_managed_by(user).filter(pk=organization.pk).exists()

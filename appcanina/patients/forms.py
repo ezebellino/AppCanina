@@ -1,5 +1,6 @@
 from django import forms
-from .models import CareReminder, ClinicalRecord, Contact, Patient, PatientContact
+from django.contrib.auth.models import User
+from .models import CareReminder, ClinicalRecord, Contact, OwnerAccountLink, Patient, PatientContact
 
 
 class PatientForm(forms.ModelForm):
@@ -25,6 +26,14 @@ class ExistingPatientContactForm(forms.Form):
     contact = forms.ModelChoiceField(label="Responsable o institución existente", queryset=Contact.objects.order_by("full_name"), empty_label="Seleccioná un contacto")
     role = forms.ChoiceField(label="Vínculo", choices=PatientContact.Role.choices)
     is_primary = forms.BooleanField(label="Es el contacto principal", required=False)
+
+
+class OwnerAccountLinkForm(forms.ModelForm):
+    user = forms.ModelChoiceField(label="Cuenta de la persona", queryset=User.objects.order_by("username"), help_text="Vinculá solo la cuenta confirmada por el responsable.")
+
+    class Meta:
+        model = OwnerAccountLink
+        fields = ["user"]
 
 
 class ClinicalRecordForm(forms.ModelForm):

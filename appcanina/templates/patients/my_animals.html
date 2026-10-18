@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Mis animales{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Mi familia animal</p><h1>Mis animales</h1><p>Consultá las fichas que tu veterinaria vinculó a tu cuenta.</p></div></div>
+<section class="visit-grid">{% for patient in patients %}<article class="card visit-card">{% if patient.photo %}<img class="form-photo-preview" src="{{ patient.photo.url }}" alt="{{ patient.name }}">{% endif %}<div><h2>{{ patient.name }}</h2><p>{{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}</p><a class="button" href="{% url 'my_animal_history' patient.id %}">Ver historial</a></div></article>{% empty %}<div class="empty card"><h2>Aún no hay animales vinculados</h2><p>Pedile a tu veterinaria que vincule tu cuenta con la ficha de tu animal.</p></div>{% endfor %}</section>
+{% endblock %}

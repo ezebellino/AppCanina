@@ -1,3 +1,6 @@
+import hashlib
+import secrets
+
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -57,6 +60,41 @@ class PatientContact(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["patient", "contact", "role"], name="unique_patient_contact_role")]
+
+
+class OwnerAccountLink(models.Model):
+    """Explicitly links a real system account to a contact record."""
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name="account_links")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="owner_contact_links")
+    verified_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["contact", "user"], name="unique_owner_account_link")]
+
+
+class PatientSharingConsent(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="sharing_consents")
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="sharing_consents")
+    enabled = models.BooleanField("autoriza compartir historial clínico", default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["patient", "contact"], name="unique_patient_sharing_consent")]
+
+
+class TravelCredential(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="travel_credentials")
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="travel_credentials")
+    digest = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @classmethod
+    def issue(cls, patient, contact, expires_at):
+        raw_token = secrets.token_urlsafe(18)
+        credential = cls.objects.create(patient=patient, contact=contact, expires_at=expires_at, digest=hashlib.sha256(raw_token.encode()).hexdigest())
+        return raw_token, credential
 
 
 class ClinicalRecord(models.Model):

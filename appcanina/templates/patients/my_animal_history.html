@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Historial de {{ patient.name }}{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Historial compartido</p><h1>{{ patient.name }}</h1><p>Este es el historial clínico de tu animal.</p></div><div class="page-actions"><a class="button button-ghost" href="{% url 'my_animals' %}">← Mis animales</a><a class="button" href="{% url 'my_animal_credential' patient.id %}">Descargar credencial PDF</a></div></div>
+<section class="card"><h2>Privacidad durante viajes</h2><p>Podés autorizar historial compartido para que una veterinaria registrada pueda solicitar acceso cuando estés de viaje. La ubicación GPS nunca habilita el acceso por sí sola.</p><form method="post" action="{% url 'my_animal_sharing' patient.id %}">{% csrf_token %}<label><input type="checkbox" name="enabled" {% if sharing_enabled %}checked{% endif %}> Autorizar historial compartido bajo solicitud y consentimiento</label><button class="button button-ghost" type="submit">Guardar preferencia</button></form></section>
+<section class="stack">{% for record in patient.clinical_records.all %}<article class="card"><p class="eyebrow">{{ record.occurred_on|date:"d/m/Y" }}</p><h2>{{ record.reason }}</h2><p>{{ record.notes }}</p><p class="muted">Registrado por {{ record.professional.get_full_name|default:record.professional.username }}</p></article>{% empty %}<div class="empty card"><h2>Sin registros clínicos</h2></div>{% endfor %}</section>
+{% endblock %}
