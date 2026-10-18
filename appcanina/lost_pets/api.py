@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from functools import wraps
 from decimal import Decimal, InvalidOperation
 
@@ -17,6 +18,7 @@ from .notifications import notify_new_sighting
 from organizations.forms import CommunityCollaboratorForm
 from organizations.models import Organization, OrganizationMembership
 from organizations.roles import ensure_base_roles
+from patients.models import OwnerAccountLink, Patient, PatientSharingConsent, TravelCredential
 
 
 def token_required(permission):
@@ -141,6 +143,40 @@ def _mobile_interest_data(interest):
     return {"id": interest.id, "post_id": interest.post_id, "animal_name": interest.post.name, "species": interest.post.get_species_display(), "status": interest.status, "status_label": interest.get_status_display(), "staff_note": interest.staff_note, "message": interest.message, "updated_at": interest.updated_at.isoformat()}
 
 
+def _mobile_patient_data(request, patient):
+    contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+    sharing_enabled = PatientSharingConsent.objects.filter(
+        patient=patient,
+        contact_id__in=contact_ids,
+        enabled=True,
+    ).exists()
+    return {
+        "id": patient.id,
+        "name": patient.name,
+        "species": patient.get_species_display(),
+        "breed": patient.breed,
+        "birth_date": patient.birth_date.isoformat() if patient.birth_date else None,
+        "microchip": patient.microchip,
+        "allergies": patient.allergies,
+        "photo_url": request.build_absolute_uri(patient.photo.url) if patient.photo else None,
+        "sharing_enabled": sharing_enabled,
+        "clinical_records": [
+            {
+                "date": record.occurred_on.isoformat(),
+                "reason": record.reason,
+                "notes": record.notes,
+                "professional": record.professional.get_full_name() or record.professional.username,
+            }
+            for record in patient.clinical_records.select_related("professional").all()
+        ],
+    }
+
+
+def _mobile_owned_patient(request, patient_id):
+    contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+    return Patient.objects.filter(pk=patient_id, active=True, patientcontact__contact_id__in=contact_ids).distinct().first()
+
+
 def _mobile_payload(request):
     if request.content_type and request.content_type.startswith("application/json"):
         try:
@@ -185,6 +221,61 @@ def mobile_reports(request):
     if query:
         reports = reports.filter(Q(name__icontains=query) | Q(species__icontains=query) | Q(area_label__icontains=query))
     return JsonResponse({"reports": [_mobile_report_data(request, report) for report in reports[:60]]})
+
+
+@csrf_exempt
+@require_GET
+@token_required("lost_pets.view_lostpetreport")
+def mobile_my_animals(request):
+    """Expose only animals explicitly linked to the authenticated responsible."""
+    contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+    patients = (
+        Patient.objects.filter(active=True, patientcontact__contact_id__in=contact_ids)
+        .distinct()
+        .prefetch_related("clinical_records__professional")
+        .order_by("name")
+    )
+    return JsonResponse({"animals": [_mobile_patient_data(request, patient) for patient in patients]})
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+@token_required("lost_pets.view_lostpetreport")
+def mobile_my_animal_detail(request, patient_id):
+    patient = _mobile_owned_patient(request, patient_id)
+    if not patient:
+        return JsonResponse({"detail": "Animal no encontrado o no vinculado a tu cuenta."}, status=404)
+
+    if request.method == "POST":
+        payload = _mobile_payload(request)
+        if payload is None or "sharing_enabled" not in payload:
+            return JsonResponse({"detail": "Indicá la preferencia de historial compartido."}, status=400)
+        enabled = payload["sharing_enabled"] is True or str(payload["sharing_enabled"]).lower() in {"true", "1", "on"}
+        contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+        contact_id = patient.patientcontact_set.filter(contact_id__in=contact_ids).values_list("contact_id", flat=True).first()
+        PatientSharingConsent.objects.update_or_create(
+            patient=patient,
+            contact_id=contact_id,
+            defaults={"enabled": enabled},
+        )
+    return JsonResponse({"animal": _mobile_patient_data(request, patient)})
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.view_lostpetreport")
+def mobile_my_animal_credential(request, patient_id):
+    patient = _mobile_owned_patient(request, patient_id)
+    if not patient:
+        return JsonResponse({"detail": "Animal no encontrado o no vinculado a tu cuenta."}, status=404)
+    contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+    contact = patient.patientcontact_set.filter(contact_id__in=contact_ids).select_related("contact").first().contact
+    code, credential = TravelCredential.issue(patient, contact, timezone.now() + timedelta(days=7))
+    return JsonResponse({
+        "code": code,
+        "expires_at": credential.expires_at.isoformat(),
+        "detail": "Credencial temporal creada. Mostrá este código voluntariamente en la veterinaria de destino.",
+    }, status=201)
 
 
 @csrf_exempt

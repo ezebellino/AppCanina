@@ -1,4 +1,5 @@
 import logging
+import hashlib
 from datetime import timedelta
 from io import BytesIO
 
@@ -10,8 +11,9 @@ from django.http import HttpResponse
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from .forms import CareReminderForm, ClinicalRecordForm, ContactForm, ExistingPatientContactForm, OwnerAccountLinkForm, PatientContactForm, PatientForm
-from .models import CareReminder, ClinicalRecord, Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent, TravelCredential
+from .forms import CareReminderForm, ClinicalRecordForm, ContactForm, ExistingPatientContactForm, OwnerAccountLinkForm, PatientContactForm, PatientForm, TravelAccessRequestForm
+from .models import CareReminder, ClinicalHistoryAccessLog, Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent, TravelAccessRequest, TravelCredential
+from organizations.roles import organizations_managed_by
 from sales.models import Sale
 from inventory.models import Product
 from grooming.models import GroomingAppointment
@@ -80,6 +82,45 @@ def patient_owner_account_link(request, patient_id):
         messages.success(request, "Cuenta vinculada. La persona ya puede consultar sus animales desde Mis animales.")
         return redirect("patient_detail", patient_id=patient.id)
     return render(request, "patients/owner_account_link.html", {"patient": patient, "relation": relation, "form": form})
+
+
+@login_required
+@permission_required("patients.view_clinicalrecord", raise_exception=True)
+def travel_access_request(request):
+    form = TravelAccessRequestForm(request.POST or None)
+    organizations = organizations_managed_by(request.user).filter(kind="veterinary")
+    organization = organizations.first()
+    if request.method == "POST" and form.is_valid():
+        code = form.cleaned_data["credential_code"].strip()
+        credential = TravelCredential.objects.select_related("patient", "contact").filter(digest=hashlib.sha256(code.encode()).hexdigest(), revoked_at__isnull=True).first()
+        locality = form.cleaned_data["locality"].strip()
+        allowed = bool(credential and organization and credential.expires_at > timezone.now() and organization.locality.strip().casefold() == locality.casefold() and PatientSharingConsent.objects.filter(patient=credential.patient, contact=credential.contact, enabled=True).exists())
+        request_entry = TravelAccessRequest.objects.create(patient=credential.patient if credential else Patient.objects.none().first(), credential=credential, organization=organization, requester=request.user, locality=locality, purpose=form.cleaned_data["purpose"], status=TravelAccessRequest.Status.APPROVED if allowed else TravelAccessRequest.Status.DENIED, expires_at=min(credential.expires_at, timezone.now() + timedelta(hours=24)) if allowed else None) if credential and organization else None
+        if not request_entry:
+            messages.error(request, "No se pudo validar la credencial o la veterinaria solicitante.")
+        elif request_entry.is_active:
+            return redirect("travel_access_history", request_id=request_entry.id)
+        else:
+            messages.error(request, "Acceso no autorizado: verificá la credencial, el consentimiento y la localidad declarada.")
+    return render(request, "patients/travel_access_request.html", {"form": form, "organization": organization})
+
+
+@login_required
+@permission_required("patients.view_clinicalrecord", raise_exception=True)
+def travel_access_history(request, request_id):
+    access = get_object_or_404(TravelAccessRequest.objects.select_related("patient", "organization"), pk=request_id, requester=request.user)
+    if not access.is_active:
+        messages.error(request, "Esta autorización ya no está vigente.")
+        return redirect("travel_access_request")
+    # One audit entry per approved request keeps the record meaningful while
+    # allowing the professional to revisit the page during the same consultation.
+    ClinicalHistoryAccessLog.objects.get_or_create(
+        patient=access.patient,
+        organization=access.organization,
+        user=request.user,
+        travel_request=access,
+    )
+    return render(request, "patients/travel_access_history.html", {"access": access, "patient": access.patient})
 
 
 @login_required

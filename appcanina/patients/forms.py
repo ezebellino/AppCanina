@@ -36,6 +36,12 @@ class OwnerAccountLinkForm(forms.ModelForm):
         fields = ["user"]
 
 
+class TravelAccessRequestForm(forms.Form):
+    credential_code = forms.CharField(label="Código de la credencial", max_length=100)
+    locality = forms.CharField(label="Localidad actual", max_length=120)
+    purpose = forms.CharField(label="Motivo de la consulta", max_length=280, widget=forms.Textarea(attrs={"rows": 3}))
+
+
 class ClinicalRecordForm(forms.ModelForm):
     class Meta:
         model = ClinicalRecord

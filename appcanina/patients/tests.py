@@ -1,15 +1,29 @@
 from io import BytesIO
+from datetime import timedelta
 
 from django.contrib.auth.models import Group, Permission, User
 from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from inventory.models import Brand, Product, Supplier
 from PIL import Image
 from unittest.mock import patch
 from django.db import OperationalError
-from .models import CareReminder, ClinicalRecord, Contact, Patient, PatientContact
+from .models import (
+    CareReminder,
+    ClinicalHistoryAccessLog,
+    ClinicalRecord,
+    Contact,
+    OwnerAccountLink,
+    Patient,
+    PatientContact,
+    PatientSharingConsent,
+    TravelAccessRequest,
+    TravelCredential,
+)
+from organizations.models import Organization, OrganizationMembership
 from sales.models import Sale
 
 
@@ -322,3 +336,72 @@ class CareReminderTests(TestCase):
         user = self.user_with("view_patient")
         self.client.force_login(user)
         self.assertEqual(self.client.get(reverse("clinical_record_create", args=[patient.id])).status_code, 403)
+
+
+class TravelClinicalAccessTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user("responsable", password="secret")
+        self.contact = Contact.objects.create(full_name="Ana Pérez")
+        self.patient = Patient.objects.create(name="Luna", species="cat", microchip="CHIP-123")
+        PatientContact.objects.create(
+            patient=self.patient,
+            contact=self.contact,
+            role=PatientContact.Role.RESPONSIBLE,
+            is_primary=True,
+        )
+        OwnerAccountLink.objects.create(contact=self.contact, user=self.owner)
+        self.organization = Organization.objects.create(
+            name="Veterinaria Capital",
+            kind=Organization.Kind.VETERINARY,
+            locality="Capital Federal",
+        )
+        self.professional = User.objects.create_user("veterinaria", password="secret")
+        self.professional.user_permissions.add(Permission.objects.get(codename="view_clinicalrecord"))
+        OrganizationMembership.objects.create(organization=self.organization, user=self.professional)
+        ClinicalRecord.objects.create(
+            patient=self.patient,
+            professional=self.professional,
+            reason="Control preventivo",
+            notes="Paciente en buen estado.",
+        )
+
+    def test_owner_can_issue_a_portable_credential_only_for_linked_patient(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.get(reverse("my_animal_credential", args=[self.patient.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertEqual(TravelCredential.objects.filter(patient=self.patient, contact=self.contact).count(), 1)
+
+    def test_verified_veterinary_gets_audited_temporary_access_after_consent(self):
+        PatientSharingConsent.objects.create(patient=self.patient, contact=self.contact, enabled=True)
+        code, credential = TravelCredential.issue(self.patient, self.contact, expires_at=timezone.now() + timedelta(days=1))
+        self.client.force_login(self.professional)
+
+        response = self.client.post(
+            reverse("travel_access_request"),
+            {"credential_code": code, "locality": "capital federal", "purpose": "Control durante viaje"},
+        )
+
+        access = TravelAccessRequest.objects.get(credential=credential)
+        self.assertTrue(access.is_active)
+        self.assertRedirects(response, reverse("travel_access_history", args=[access.id]))
+
+        response = self.client.get(reverse("travel_access_history", args=[access.id]))
+
+        self.assertContains(response, "Control preventivo")
+        self.assertEqual(ClinicalHistoryAccessLog.objects.filter(travel_request=access).count(), 1)
+
+    def test_access_is_denied_without_explicit_sharing_consent(self):
+        code, credential = TravelCredential.issue(self.patient, self.contact, expires_at=timezone.now() + timedelta(days=1))
+        self.client.force_login(self.professional)
+
+        response = self.client.post(
+            reverse("travel_access_request"),
+            {"credential_code": code, "locality": "Capital Federal", "purpose": "Control durante viaje"},
+        )
+
+        access = TravelAccessRequest.objects.get(credential=credential)
+        self.assertFalse(access.is_active)
+        self.assertContains(response, "Acceso no autorizado")

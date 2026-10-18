@@ -97,6 +97,42 @@ class TravelCredential(models.Model):
         return raw_token, credential
 
 
+class TravelAccessRequest(models.Model):
+    class Status(models.TextChoices):
+        APPROVED = "approved", "Autorizado"
+        DENIED = "denied", "Denegado"
+
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="travel_access_requests")
+    credential = models.ForeignKey(TravelCredential, on_delete=models.PROTECT, related_name="access_requests")
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="travel_access_requests")
+    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="travel_access_requests")
+    locality = models.CharField(max_length=120)
+    purpose = models.CharField(max_length=280)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DENIED)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_active(self):
+        return self.status == self.Status.APPROVED and self.expires_at and self.expires_at > timezone.now()
+
+
+class ClinicalHistoryAccessLog(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="clinical_access_logs")
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="clinical_access_logs")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="clinical_access_logs")
+    travel_request = models.ForeignKey(TravelAccessRequest, on_delete=models.PROTECT, related_name="access_logs")
+    accessed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["travel_request"],
+                name="unique_clinical_history_access_request",
+            )
+        ]
+
+
 class ClinicalRecord(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="clinical_records")
     occurred_on = models.DateField("fecha", default=timezone.localdate)

@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
-from patients.models import Patient
+from patients.models import ClinicalRecord, Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent
 
 from .models import AdoptionInterest, AdoptionPost, CommunityDevicePermission, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from organizations.roles import ensure_base_roles
@@ -216,6 +216,56 @@ class LostPetReportTests(TestCase):
 
         self.assertEqual([item["name"] for item in active.json()["reports"]], ["Luna"])
         self.assertEqual([item["name"] for item in found.json()["reports"]], ["Milo"])
+
+    def test_mobile_my_animals_only_exposes_linked_history_and_can_manage_consent(self):
+        roles = ensure_base_roles()
+        owner = User.objects.create_user("responsable-movil", password="secret", first_name="Ana")
+        owner.groups.add(roles["collaborator"])
+        contact = Contact.objects.create(full_name="Ana Responsable")
+        linked_patient = Patient.objects.create(name="Luna", species="cat", allergies="Polen")
+        other_patient = Patient.objects.create(name="Privado", species="dog")
+        PatientContact.objects.create(patient=linked_patient, contact=contact, role="responsible", is_primary=True)
+        OwnerAccountLink.objects.create(contact=contact, user=owner)
+        ClinicalRecord.objects.create(patient=linked_patient, professional=self.user, reason="Control", notes="Sin novedades")
+        raw_token, _ = MobileAccessToken.issue(owner, "Prueba")
+
+        response = self.client.get(reverse("mobile_my_animals"), HTTP_AUTHORIZATION=f"Bearer {raw_token}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([animal["name"] for animal in response.json()["animals"]], ["Luna"])
+        self.assertEqual(response.json()["animals"][0]["clinical_records"][0]["reason"], "Control")
+
+        response = self.client.post(
+            reverse("mobile_my_animal_detail", args=[linked_patient.id]),
+            data='{"sharing_enabled": true}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["animal"]["sharing_enabled"])
+        self.assertTrue(PatientSharingConsent.objects.get(patient=linked_patient, contact=contact).enabled)
+        forbidden = self.client.get(reverse("mobile_my_animal_detail", args=[other_patient.id]), HTTP_AUTHORIZATION=f"Bearer {raw_token}")
+        self.assertEqual(forbidden.status_code, 404)
+
+    def test_mobile_owner_can_issue_a_temporary_travel_credential(self):
+        roles = ensure_base_roles()
+        owner = User.objects.create_user("viaje-movil", password="secret")
+        owner.groups.add(roles["collaborator"])
+        contact = Contact.objects.create(full_name="Nora Responsable")
+        patient = Patient.objects.create(name="Mora", species="dog")
+        PatientContact.objects.create(patient=patient, contact=contact, role="responsible", is_primary=True)
+        OwnerAccountLink.objects.create(contact=contact, user=owner)
+        raw_token, _ = MobileAccessToken.issue(owner, "Prueba")
+
+        response = self.client.post(
+            reverse("mobile_my_animal_credential", args=[patient.id]),
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.json()["code"])
+        self.assertIn("expires_at", response.json())
 
     def test_mobile_search_request_is_hidden_until_staff_publishes_it(self):
         roles = ensure_base_roles()

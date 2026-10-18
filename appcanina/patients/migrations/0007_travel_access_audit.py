@@ -1,0 +1,11 @@
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+    dependencies = [("organizations", "0004_organization_locality"), ("patients", "0006_owner_access_and_travel_credential"), migrations.swappable_dependency(settings.AUTH_USER_MODEL)]
+    operations = [
+        migrations.CreateModel(name="TravelAccessRequest", fields=[("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")), ("locality", models.CharField(max_length=120)), ("purpose", models.CharField(max_length=280)), ("status", models.CharField(choices=[("approved", "Autorizado"), ("denied", "Denegado")], default="denied", max_length=12)), ("expires_at", models.DateTimeField(blank=True, null=True)), ("created_at", models.DateTimeField(auto_now_add=True)), ("credential", models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="access_requests", to="patients.travelcredential")), ("organization", models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="travel_access_requests", to="organizations.organization")), ("patient", models.ForeignKey(on_delete=models.deletion.CASCADE, related_name="travel_access_requests", to="patients.patient")), ("requester", models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="travel_access_requests", to=settings.AUTH_USER_MODEL))]),
+        migrations.CreateModel(name="ClinicalHistoryAccessLog", fields=[("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")), ("accessed_at", models.DateTimeField(auto_now_add=True)), ("organization", models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="clinical_access_logs", to="organizations.organization")), ("patient", models.ForeignKey(on_delete=models.deletion.CASCADE, related_name="clinical_access_logs", to="patients.patient")), ("travel_request", models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="access_logs", to="patients.travelaccessrequest")), ("user", models.ForeignKey(on_delete=models.deletion.PROTECT, related_name="clinical_access_logs", to=settings.AUTH_USER_MODEL))]),
+        migrations.AddConstraint(model_name="clinicalhistoryaccesslog", constraint=models.UniqueConstraint(fields=("travel_request",), name="unique_clinical_history_access_request")),
+    ]

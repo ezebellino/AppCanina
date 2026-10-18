@@ -77,6 +77,9 @@ export default function App() {
   const [selectedAdoption, setSelectedAdoption] = useState(null);
   const [interestMessage, setInterestMessage] = useState("");
   const [adoptionInterests, setAdoptionInterests] = useState([]);
+  const [myAnimals, setMyAnimals] = useState([]);
+  const [selectedAnimal, setSelectedAnimal] = useState(null);
+  const [travelCredential, setTravelCredential] = useState(null);
   const [isRestoringSession, setIsRestoringSession] = useState(true);
   const [pendingBiometricToken, setPendingBiometricToken] = useState("");
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -392,6 +395,47 @@ export default function App() {
     } catch (error) { setMessage(error.message); }
   };
 
+  const loadMyAnimals = async (accessToken = token) => {
+    try {
+      const response = await fetch(`${API}/mis-animales/`, {headers: {Authorization: `Bearer ${accessToken}`}});
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudieron cargar tus animales.");
+      setMyAnimals(data.animals);
+    } catch (error) { setMessage(error.message); }
+  };
+
+  const openAnimal = (animal) => {
+    setSelectedAnimal(animal); setTravelCredential(null); setScreen("mi-animal");
+  };
+
+  const updateSharingConsent = async (sharingEnabled) => {
+    if (!selectedAnimal) return;
+    try {
+      const response = await fetch(`${API}/mis-animales/${selectedAnimal.id}/`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`},
+        body: JSON.stringify({sharing_enabled: sharingEnabled}),
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo actualizar la preferencia.");
+      setSelectedAnimal(data.animal);
+      setMyAnimals(current => current.map(animal => animal.id === data.animal.id ? data.animal : animal));
+      setMessage(sharingEnabled ? "Autorizaste el historial compartido para atención temporal." : "Desactivaste el historial compartido.");
+    } catch (error) { setMessage(error.message); }
+  };
+
+  const createTravelCredential = async () => {
+    if (!selectedAnimal) return;
+    try {
+      const response = await fetch(`${API}/mis-animales/${selectedAnimal.id}/credencial/`, {
+        method: "POST", headers: {Authorization: `Bearer ${token}`},
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo crear la credencial.");
+      setTravelCredential(data); setMessage(data.detail);
+    } catch (error) { setMessage(error.message); }
+  };
+
   const submitAdoptionInterest = async () => {
     if (!selectedAdoption) return;
     try {
@@ -476,6 +520,7 @@ export default function App() {
           <MenuItem active={screen === "mis-solicitudes"} icon="▤" label="Mis solicitudes" onPress={() => navigate("mis-solicitudes", loadMySearchRequests)}/>
           <MenuItem active={screen === "adopciones"} icon="♡" label="Adopciones" onPress={() => navigate("adopciones", loadAdoptions)}/>
           <MenuItem active={screen === "mi-actividad"} icon="◷" label="Mi actividad" onPress={() => navigate("mi-actividad", loadAdoptionInterests)}/>
+          <MenuItem active={screen === "mis-animales" || screen === "mi-animal"} icon="🐾" label="Mis animales" onPress={() => navigate("mis-animales", loadMyAnimals)}/>
           <View style={styles.menuDivider}/><MenuItem active={screen === "ajustes"} icon="⚙" label="Mi teléfono y alertas" onPress={() => navigate("ajustes")}/><MenuItem danger icon="↪" label="Cerrar sesión" onPress={logout}/>
         </View></View>
       </Modal>
@@ -545,6 +590,23 @@ export default function App() {
         {adoptionPhoto?.uri ? <Image source={{uri: adoptionPhoto.uri}} style={styles.requestPhoto}/> : <View style={styles.requestPhotoEmpty}><Text style={styles.reportPhotoIcon}>🐾</Text><Text style={styles.help}>Agregá una foto clara</Text></View>}
         <View style={styles.nav}><Button title="Usar cámara" onPress={() => selectImage(true, setAdoptionPhoto, "la publicación de adopción")}/><Button title="Elegir foto" onPress={() => selectImage(false, setAdoptionPhoto, "la publicación de adopción")}/></View>
         <View style={styles.field}><Text style={styles.fieldLabel}>Nombre</Text><TextInput value={adoptionName} onChangeText={setAdoptionName} placeholder="Ej.: Mora" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Especie</Text><TextInput value={adoptionSpecies} onChangeText={setAdoptionSpecies} placeholder="Perro, gato u otro" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Raza y edad aproximada</Text><TextInput value={adoptionBreed} onChangeText={setAdoptionBreed} placeholder="Ej.: Mestiza" placeholderTextColor="#6c8378" style={styles.input}/><TextInput value={adoptionAge} onChangeText={setAdoptionAge} placeholder="Ej.: 2 años" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Zona aproximada</Text><TextInput value={adoptionArea} onChangeText={setAdoptionArea} placeholder="Ej.: Barrio Norte" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Descripción</Text><TextInput value={adoptionDescription} onChangeText={setAdoptionDescription} multiline style={[styles.input, styles.textarea]}/></View><Button title="Enviar para revisión" onPress={submitAdoption}/>
+      </View> : null}
+      {screen === "mis-animales" ? <View style={styles.stack}>
+        <View style={styles.panelIntro}><Text style={styles.sectionKicker}>TU FAMILIA</Text><Text style={styles.sectionTitle}>Mis animales</Text><Text style={styles.help}>Solo vos podés ver las fichas que una veterinaria vinculó a tu cuenta.</Text></View>
+        <Button title="Actualizar mis animales" onPress={() => loadMyAnimals()} variant="outline"/>
+        {myAnimals.length ? myAnimals.map(animal => <Pressable key={animal.id} accessibilityRole="button" onPress={() => openAnimal(animal)} style={({pressed}) => [styles.animalCard, pressed && styles.pressed]}>
+          {animal.photo_url ? <Image source={{uri: animal.photo_url}} style={styles.animalAvatar}/> : <View style={styles.animalAvatarPlaceholder}><Text style={styles.animalAvatarText}>{animal.species?.toLowerCase().includes("gato") ? "🐱" : animal.species?.toLowerCase().includes("perro") ? "🐶" : "🐾"}</Text></View>}
+          <View style={styles.animalCardContent}><Text style={styles.notificationTitle}>{animal.name}</Text><Text style={styles.notificationArea}>{animal.species}{animal.breed ? ` · ${animal.breed}` : ""}</Text><Text style={styles.animalLink}>Ver ficha e historial →</Text></View>
+        </Pressable>) : <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Todavía no hay animales vinculados</Text><Text style={styles.help}>Pedile a la veterinaria que vincule tu cuenta con la ficha del animal. La información no se busca por nombre ni por GPS.</Text></View>}
+      </View> : null}
+      {screen === "mi-animal" && selectedAnimal ? <View style={styles.stack}>
+        <Button title="← Volver a mis animales" onPress={() => { setScreen("mis-animales"); loadMyAnimals(); }} variant="outline"/>
+        {selectedAnimal.photo_url ? <Image source={{uri: selectedAnimal.photo_url}} style={styles.detailPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>{selectedAnimal.species?.toLowerCase().includes("gato") ? "🐱" : selectedAnimal.species?.toLowerCase().includes("perro") ? "🐶" : "🐾"}</Text></View>}
+        <Text style={styles.sectionTitle}>{selectedAnimal.name}</Text><Text style={styles.notificationArea}>{selectedAnimal.species}{selectedAnimal.breed ? ` · ${selectedAnimal.breed}` : ""}</Text>
+        {selectedAnimal.allergies ? <View style={styles.warningCard}><Text style={styles.warningTitle}>Alergias registradas</Text><Text style={styles.help}>{selectedAnimal.allergies}</Text></View> : null}
+        <View style={styles.consentCard}><Text style={styles.settingsTitle}>Historial compartido durante un viaje</Text><Text style={styles.help}>{selectedAnimal.sharing_enabled ? "Está autorizado. Una veterinaria necesita además tu credencial temporal y localidad coincidente." : "Está desactivado. Ninguna veterinaria puede solicitar el historial temporal hasta que lo autorices."}</Text><Button title={selectedAnimal.sharing_enabled ? "Desactivar historial compartido" : "Autorizar historial compartido"} onPress={() => updateSharingConsent(!selectedAnimal.sharing_enabled)} variant="outline"/></View>
+        <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Credencial de viaje</Text><Text style={styles.help}>Genera un código válido por 7 días. Presentalo voluntariamente en la veterinaria de destino; tu GPS nunca abre el historial de forma automática.</Text><Button title="Crear credencial temporal" onPress={createTravelCredential}/>{travelCredential ? <View style={styles.credentialCard}><Text style={styles.credentialLabel}>CÓDIGO TEMPORAL</Text><Text selectable style={styles.credentialCode}>{travelCredential.code}</Text><Text style={styles.help}>Válida hasta {new Date(travelCredential.expires_at).toLocaleString()}</Text></View> : null}</View>
+        <Text style={styles.sectionTitle}>Historial clínico</Text>{selectedAnimal.clinical_records?.length ? selectedAnimal.clinical_records.map((record, index) => <View key={`${record.date}-${index}`} style={styles.recordCard}><Text style={styles.recordDate}>{new Date(`${record.date}T12:00:00`).toLocaleDateString()}</Text><Text style={styles.settingsTitle}>{record.reason}</Text><Text style={styles.help}>{record.notes}</Text><Text style={styles.recordProfessional}>Registrado por {record.professional}</Text></View>) : <Text style={styles.empty}>Todavía no hay registros clínicos cargados.</Text>}
       </View> : null}
       {screen === "ajustes" ? <View style={styles.stack}>
         <View style={styles.panelIntro}><Text style={styles.sectionKicker}>TU DISPOSITIVO</Text><Text style={styles.sectionTitle}>Mi teléfono y alertas</Text><Text style={styles.help}>Los permisos aparecen solo cuando los necesitás.</Text></View>
@@ -645,6 +707,21 @@ const styles = StyleSheet.create({
   reviewNote: {color: "#78481e", backgroundColor: "#fff4df", padding: 10, borderRadius: 10},
   settingsCard: {backgroundColor: "#ffffff", borderWidth: 1, borderColor: "#d9e5e1", borderRadius: 16, padding: 16, gap: 11},
   settingsTitle: {fontSize: 16, fontWeight: "800", color: "#143f36"},
+  animalCard: {backgroundColor: "#ffffff", borderWidth: 1, borderColor: "#d9e5e1", borderRadius: 18, padding: 12, flexDirection: "row", alignItems: "center", gap: 13, shadowColor: "#0d4d42", shadowOpacity: 0.05, shadowRadius: 8, elevation: 1},
+  animalAvatar: {width: 72, height: 72, borderRadius: 18, resizeMode: "cover"},
+  animalAvatarPlaceholder: {width: 72, height: 72, borderRadius: 18, backgroundColor: "#e5f0ed", justifyContent: "center", alignItems: "center"},
+  animalAvatarText: {fontSize: 36},
+  animalCardContent: {flex: 1, gap: 3},
+  animalLink: {fontSize: 13, fontWeight: "800", color: "#0d4d42", marginTop: 3},
+  consentCard: {backgroundColor: "#eaf7f1", borderWidth: 1, borderColor: "#a8dfcb", borderRadius: 16, padding: 16, gap: 11},
+  warningCard: {backgroundColor: "#fff4df", borderWidth: 1, borderColor: "#f1cf9b", borderRadius: 14, padding: 14, gap: 5},
+  warningTitle: {fontSize: 14, fontWeight: "800", color: "#754b17"},
+  credentialCard: {backgroundColor: "#e5f0ed", borderRadius: 13, padding: 14, gap: 5, alignItems: "center"},
+  credentialLabel: {fontSize: 11, fontWeight: "900", letterSpacing: 1.2, color: "#326c55"},
+  credentialCode: {fontSize: 19, fontWeight: "900", color: "#00352c", letterSpacing: 1.4, textAlign: "center"},
+  recordCard: {backgroundColor: "#ffffff", borderWidth: 1, borderColor: "#d9e5e1", borderRadius: 15, padding: 15, gap: 6},
+  recordDate: {fontSize: 12, fontWeight: "800", color: "#326c55", textTransform: "uppercase"},
+  recordProfessional: {fontSize: 12, color: "#557267", marginTop: 2},
   permissionRow: {minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: "#edf3f1"},
   permissionIcon: {width: 22, textAlign: "center", fontSize: 18, color: "#0d4d42"},
   permissionLabel: {flex: 1, fontSize: 14, fontWeight: "700", color: "#29463f"},
