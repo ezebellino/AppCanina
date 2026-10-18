@@ -15,7 +15,7 @@
   let tileUnavailable = false;
   const map = window.L ? L.map("lost-pet-map").setView(fallbackCenter, 12) : null;
   if (map) {
-    const tiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {subdomains: "abcd", maxZoom: 19, attribution: "© OpenStreetMap contributors © CARTO"}).addTo(map);
+    const tiles = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {maxZoom: 19, attribution: "Tiles © Esri · © OpenStreetMap contributors"}).addTo(map);
     tiles.on("tileerror", () => {
       if (tileUnavailable) return;
       tileUnavailable = true;
