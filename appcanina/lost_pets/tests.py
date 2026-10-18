@@ -206,7 +206,7 @@ class LostPetReportTests(TestCase):
     def test_mobile_registration_creates_pending_veterinary_profile_without_staff_permissions(self):
         response = self.client.post(
             reverse("mobile_register"),
-            data='{"username":"veterinaria-nueva","first_name":"Laura","email":"laura@example.com","password":"ClaveSegura123","password_confirmation":"ClaveSegura123","account_type":"veterinary","organization_name":"Veterinaria del Parque","locality":"Avellaneda","organization_phone":"11 5555 1234"}',
+            data='{"username":"veterinaria-nueva","first_name":"Laura","email":"laura@example.com","password":"ClaveSegura123","password_confirmation":"ClaveSegura123","account_type":"veterinary","organization_name":"Veterinaria del Parque","locality":"Avellaneda","organization_phone":"11 5555 1234","donation_alias":"veterinaria.parque"}',
             content_type="application/json",
         )
 
@@ -215,6 +215,7 @@ class LostPetReportTests(TestCase):
         user = User.objects.get(username="veterinaria-nueva")
         self.assertEqual(organization.kind, Organization.Kind.VETERINARY)
         self.assertEqual(organization.locality, "Avellaneda")
+        self.assertEqual(organization.donation_alias, "veterinaria.parque")
         self.assertFalse(organization.is_verified)
         self.assertTrue(OrganizationMembership.objects.filter(organization=organization, user=user, role="manager").exists())
         self.assertFalse(user.has_perm("patients.view_patient"))

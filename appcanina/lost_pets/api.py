@@ -113,7 +113,7 @@ def mobile_register(request):
                 phone=(payload.get("organization_phone") or "").strip()[:40],
                 email=(payload.get("organization_email") or payload.get("email") or "").strip()[:254],
                 address=(payload.get("organization_address") or "").strip()[:220],
-                donation_alias=(payload.get("donation_alias") or "").strip()[:120] if account_type == "shelter" else "",
+                donation_alias=(payload.get("donation_alias") or "").strip()[:120],
             )
             OrganizationMembership.objects.create(
                 organization=organization,

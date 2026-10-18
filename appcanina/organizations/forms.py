@@ -9,13 +9,17 @@ from .models import OrganizationMembership
 class BusinessProfileForm(forms.ModelForm):
     class Meta:
         model = Organization
-        fields = ["name", "kind", "logo", "phone", "email", "address"]
+        fields = ["name", "kind", "logo", "phone", "email", "address", "donation_alias", "donation_message"]
         labels = {
             "name": "Nombre de la veterinaria o negocio",
             "kind": "Tipo de negocio",
+            "donation_alias": "Alias de cobro o colaboración",
+            "donation_message": "Mensaje para compartir con clientes",
         }
         help_texts = {
             "logo": "Opcional. Se verá en el perfil y junto al nombre del negocio.",
+            "donation_alias": "Opcional. Ej.: veterinaria.parque. Podés compartirlo con clientes para transferencias.",
+            "donation_message": "Opcional. Se muestra junto al alias en este perfil.",
         }
 
 
@@ -25,7 +29,7 @@ class ShelterProfileForm(forms.ModelForm):
         fields = ["name", "logo", "phone", "email", "address", "donation_alias", "donation_message"]
         labels = {
             "name": "Nombre del refugio",
-            "donation_alias": "Alias para recibir colaboraciones",
+            "donation_alias": "Alias de colaboración",
             "donation_message": "Mensaje debajo de cada animal",
         }
         help_texts = {
