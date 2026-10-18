@@ -115,3 +115,21 @@ class BusinessProfileTests(TestCase):
         profile = Organization.objects.get(is_business_profile=True)
         self.assertEqual(profile.name, "Veterinaria Patitas")
         self.assertEqual(profile.phone, "11 5555 1234")
+
+    def test_shelter_manager_edits_own_profile_without_commerce_links(self):
+        shelter = Organization.objects.create(name="Refugio Patitas", kind="shelter", donation_alias="patitas.demo")
+        from organizations.models import OrganizationMembership
+        OrganizationMembership.objects.create(organization=shelter, user=self.user)
+
+        response = self.client.get(reverse("business_profile"))
+
+        self.assertContains(response, "Refugio Patitas")
+        self.assertContains(response, "patitas.demo")
+        self.assertNotContains(response, "Gestionar marcas")
+        self.assertNotContains(response, "Ver proveedores")
+
+        response = self.client.post(reverse("business_profile"), {"name": "Refugio Patitas Unido", "kind": "shelter", "phone": "11 5555 0000", "email": "hola@patitas.test", "address": "Calle 12", "donation_alias": "patitas.unido", "donation_message": "Cada aporte suma."})
+        self.assertRedirects(response, reverse("business_profile"))
+        shelter.refresh_from_db()
+        self.assertEqual(shelter.name, "Refugio Patitas Unido")
+        self.assertEqual(shelter.donation_alias, "patitas.unido")

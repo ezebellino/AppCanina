@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from organizations.forms import BusinessProfileForm
-from organizations.models import Organization
+from organizations.models import Organization, OrganizationMembership
 
 from .forms import BrandForm, PriceIncreaseForm, ProductForm, ProductImportForm, SupplierForm
 from .imports import parse_product_workbook
@@ -196,9 +196,10 @@ def brand_create(request):
 
 @login_required
 def business_profile(request):
-    profile = Organization.objects.filter(is_business_profile=True).first()
+    membership = OrganizationMembership.objects.filter(user=request.user).select_related("organization").order_by("organization_id").first()
+    profile = membership.organization if membership else Organization.objects.filter(is_business_profile=True).first()
     form = BusinessProfileForm(request.POST or None, request.FILES or None, instance=profile)
-    can_edit = (
+    can_edit = bool(membership and membership.role == OrganizationMembership.Role.MANAGER) or (
         request.user.has_perm("organizations.change_organization")
         or request.user.has_perm("organizations.add_organization")
         or request.user.has_perm("auth.add_user")
@@ -208,8 +209,9 @@ def business_profile(request):
             messages.error(request, "No tenés permiso para modificar el perfil del negocio.")
         elif form.is_valid():
             organization = form.save(commit=False)
-            organization.is_business_profile = True
+            if not membership:
+                organization.is_business_profile = True
             organization.save()
             messages.success(request, "Perfil del negocio actualizado.")
             return redirect("business_profile")
-    return render(request, "inventory/business_profile.html", {"supplier_count": Supplier.objects.filter(active=True).count(), "brand_count": Brand.objects.filter(active=True).count(), "profile": profile, "form": form, "can_edit": can_edit})
+    return render(request, "inventory/business_profile.html", {"supplier_count": Supplier.objects.filter(active=True).count(), "brand_count": Brand.objects.filter(active=True).count(), "profile": profile, "form": form, "can_edit": can_edit, "is_shelter_profile": bool(profile and profile.kind == Organization.Kind.SHELTER)})

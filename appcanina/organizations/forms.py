@@ -11,8 +11,8 @@ class BusinessProfileForm(forms.ModelForm):
         model = Organization
         fields = ["name", "kind", "logo", "phone", "email", "address", "donation_alias", "donation_message"]
         labels = {
-            "name": "Nombre de la veterinaria o negocio",
-            "kind": "Tipo de negocio",
+            "name": "Nombre de la institución",
+            "kind": "Tipo de institución",
             "donation_alias": "Alias de cobro o colaboración",
             "donation_message": "Mensaje para compartir con clientes",
         }
