@@ -79,6 +79,13 @@ export default function App() {
   const [adoptionInterests, setAdoptionInterests] = useState([]);
   const [myAnimals, setMyAnimals] = useState([]);
   const [selectedAnimal, setSelectedAnimal] = useState(null);
+  const [newAnimalName, setNewAnimalName] = useState("");
+  const [newAnimalSpecies, setNewAnimalSpecies] = useState("dog");
+  const [newAnimalBreed, setNewAnimalBreed] = useState("");
+  const [newAnimalBirthDate, setNewAnimalBirthDate] = useState("");
+  const [newAnimalMicrochip, setNewAnimalMicrochip] = useState("");
+  const [newAnimalAllergies, setNewAnimalAllergies] = useState("");
+  const [newAnimalPhoto, setNewAnimalPhoto] = useState(null);
   const [travelCredential, setTravelCredential] = useState(null);
   const [isRestoringSession, setIsRestoringSession] = useState(true);
   const [pendingBiometricToken, setPendingBiometricToken] = useState("");
@@ -404,6 +411,26 @@ export default function App() {
     } catch (error) { setMessage(error.message); }
   };
 
+  const resetNewAnimal = () => {
+    setNewAnimalName(""); setNewAnimalSpecies("dog"); setNewAnimalBreed(""); setNewAnimalBirthDate("");
+    setNewAnimalMicrochip(""); setNewAnimalAllergies(""); setNewAnimalPhoto(null);
+  };
+
+  const submitNewAnimal = async () => {
+    try {
+      const form = new FormData();
+      form.append("name", newAnimalName); form.append("species", newAnimalSpecies);
+      form.append("breed", newAnimalBreed); form.append("birth_date", newAnimalBirthDate);
+      form.append("microchip", newAnimalMicrochip); form.append("allergies", newAnimalAllergies);
+      if (newAnimalPhoto?.uri) form.append("photo", {uri: newAnimalPhoto.uri, name: newAnimalPhoto.fileName || "mi-animal.jpg", type: newAnimalPhoto.mimeType || "image/jpeg"});
+      const response = await fetch(`${API}/mis-animales/`, {method: "POST", headers: {Authorization: `Bearer ${token}`}, body: form});
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo agregar tu animal.");
+      resetNewAnimal(); setMyAnimals(current => [...current, data.animal].sort((a, b) => a.name.localeCompare(b.name)));
+      setScreen("mis-animales"); setMessage(data.detail);
+    } catch (error) { setMessage(error.message); }
+  };
+
   const openAnimal = (animal) => {
     setSelectedAnimal(animal); setTravelCredential(null); setScreen("mi-animal");
   };
@@ -592,12 +619,27 @@ export default function App() {
         <View style={styles.field}><Text style={styles.fieldLabel}>Nombre</Text><TextInput value={adoptionName} onChangeText={setAdoptionName} placeholder="Ej.: Mora" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Especie</Text><TextInput value={adoptionSpecies} onChangeText={setAdoptionSpecies} placeholder="Perro, gato u otro" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Raza y edad aproximada</Text><TextInput value={adoptionBreed} onChangeText={setAdoptionBreed} placeholder="Ej.: Mestiza" placeholderTextColor="#6c8378" style={styles.input}/><TextInput value={adoptionAge} onChangeText={setAdoptionAge} placeholder="Ej.: 2 años" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Zona aproximada</Text><TextInput value={adoptionArea} onChangeText={setAdoptionArea} placeholder="Ej.: Barrio Norte" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Descripción</Text><TextInput value={adoptionDescription} onChangeText={setAdoptionDescription} multiline style={[styles.input, styles.textarea]}/></View><Button title="Enviar para revisión" onPress={submitAdoption}/>
       </View> : null}
       {screen === "mis-animales" ? <View style={styles.stack}>
-        <View style={styles.panelIntro}><Text style={styles.sectionKicker}>TU FAMILIA</Text><Text style={styles.sectionTitle}>Mis animales</Text><Text style={styles.help}>Solo vos podés ver las fichas que una veterinaria vinculó a tu cuenta.</Text></View>
+        <View style={styles.panelIntro}><Text style={styles.sectionKicker}>TU FAMILIA</Text><Text style={styles.sectionTitle}>Mis animales</Text><Text style={styles.help}>Agregá a tus animales o consultá las fichas que ya están vinculadas a tu cuenta.</Text></View>
+        <Button title="＋ Agregar mi animal" onPress={() => { resetNewAnimal(); setScreen("nuevo-animal"); }}/>
         <Button title="Actualizar mis animales" onPress={() => loadMyAnimals()} variant="outline"/>
         {myAnimals.length ? myAnimals.map(animal => <Pressable key={animal.id} accessibilityRole="button" onPress={() => openAnimal(animal)} style={({pressed}) => [styles.animalCard, pressed && styles.pressed]}>
           {animal.photo_url ? <Image source={{uri: animal.photo_url}} style={styles.animalAvatar}/> : <View style={styles.animalAvatarPlaceholder}><Text style={styles.animalAvatarText}>{animal.species?.toLowerCase().includes("gato") ? "🐱" : animal.species?.toLowerCase().includes("perro") ? "🐶" : "🐾"}</Text></View>}
           <View style={styles.animalCardContent}><Text style={styles.notificationTitle}>{animal.name}</Text><Text style={styles.notificationArea}>{animal.species}{animal.breed ? ` · ${animal.breed}` : ""}</Text><Text style={styles.animalLink}>Ver ficha e historial →</Text></View>
-        </Pressable>) : <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Todavía no hay animales vinculados</Text><Text style={styles.help}>Pedile a la veterinaria que vincule tu cuenta con la ficha del animal. La información no se busca por nombre ni por GPS.</Text></View>}
+        </Pressable>) : <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Todavía no agregaste animales</Text><Text style={styles.help}>Podés crear su ficha ahora. Luego, una veterinaria podrá completar su atención e historial clínico.</Text></View>}
+      </View> : null}
+      {screen === "nuevo-animal" ? <View style={styles.stack}>
+        <Button title="← Volver a mis animales" onPress={() => setScreen("mis-animales")} variant="outline"/>
+        <Text style={styles.sectionTitle}>Agregar mi animal</Text>
+        <Text style={styles.help}>La ficha queda vinculada a tu cuenta. Los profesionales solo acceden al historial clínico según los permisos que otorgues.</Text>
+        {newAnimalPhoto?.uri ? <Image source={{uri: newAnimalPhoto.uri}} style={styles.requestPhoto}/> : <View style={styles.requestPhotoEmpty}><Text style={styles.reportPhotoIcon}>🐾</Text><Text style={styles.help}>Una foto facilita identificarlo en la atención</Text></View>}
+        <View style={styles.nav}><Button title="Usar cámara" onPress={() => selectImage(true, setNewAnimalPhoto, "la ficha de tu animal")}/><Button title="Elegir de galería" onPress={() => selectImage(false, setNewAnimalPhoto, "la ficha de tu animal")}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Nombre</Text><TextInput value={newAnimalName} onChangeText={setNewAnimalName} placeholder="Ej.: Mora" placeholderTextColor="#6c8378" style={styles.input}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Especie</Text><View style={styles.filterRow}><FilterPill active={newAnimalSpecies === "dog"} label="Perro" onPress={() => setNewAnimalSpecies("dog")}/><FilterPill active={newAnimalSpecies === "cat"} label="Gato" onPress={() => setNewAnimalSpecies("cat")}/><FilterPill active={newAnimalSpecies === "other"} label="Otro" onPress={() => setNewAnimalSpecies("other")}/></View></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Raza <Text style={styles.optional}>(opcional)</Text></Text><TextInput value={newAnimalBreed} onChangeText={setNewAnimalBreed} placeholder="Ej.: Mestiza" placeholderTextColor="#6c8378" style={styles.input}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Fecha de nacimiento <Text style={styles.optional}>(opcional)</Text></Text><TextInput value={newAnimalBirthDate} onChangeText={setNewAnimalBirthDate} placeholder="AAAA-MM-DD" placeholderTextColor="#6c8378" style={styles.input}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Microchip o identificación <Text style={styles.optional}>(opcional)</Text></Text><TextInput value={newAnimalMicrochip} onChangeText={setNewAnimalMicrochip} placeholder="Ej.: 981020..." placeholderTextColor="#6c8378" style={styles.input}/></View>
+        <View style={styles.field}><Text style={styles.fieldLabel}>Alergias <Text style={styles.optional}>(opcional)</Text></Text><TextInput value={newAnimalAllergies} onChangeText={setNewAnimalAllergies} placeholder="Ej.: Polen, penicilina..." placeholderTextColor="#6c8378" multiline style={[styles.input, styles.textarea]}/></View>
+        <Button title="Guardar mi animal" onPress={submitNewAnimal}/>
       </View> : null}
       {screen === "mi-animal" && selectedAnimal ? <View style={styles.stack}>
         <Button title="← Volver a mis animales" onPress={() => { setScreen("mis-animales"); loadMyAnimals(); }} variant="outline"/>

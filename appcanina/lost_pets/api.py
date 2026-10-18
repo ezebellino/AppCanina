@@ -5,9 +5,11 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth import authenticate
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from PIL import UnidentifiedImageError
@@ -18,7 +20,7 @@ from .notifications import notify_new_sighting
 from organizations.forms import CommunityCollaboratorForm
 from organizations.models import Organization, OrganizationMembership
 from organizations.roles import ensure_base_roles
-from patients.models import OwnerAccountLink, Patient, PatientSharingConsent, TravelCredential
+from patients.models import Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent, TravelCredential
 
 
 def token_required(permission):
@@ -224,10 +226,59 @@ def mobile_reports(request):
 
 
 @csrf_exempt
-@require_GET
+@require_http_methods(["GET", "POST"])
 @token_required("lost_pets.view_lostpetreport")
 def mobile_my_animals(request):
-    """Expose only animals explicitly linked to the authenticated responsible."""
+    """List the owner's animals or register a new one from the mobile app."""
+    if request.method == "POST":
+        name = (request.POST.get("name") or "").strip()
+        species = (request.POST.get("species") or "").strip().lower()
+        species_aliases = {"perro": Patient.Species.DOG, "dog": Patient.Species.DOG, "gato": Patient.Species.CAT, "cat": Patient.Species.CAT, "otro": Patient.Species.OTHER, "other": Patient.Species.OTHER}
+        species = species_aliases.get(species, species)
+        if not name:
+            return JsonResponse({"detail": "Indicá el nombre de tu animal."}, status=400)
+        if species not in Patient.Species.values:
+            return JsonResponse({"detail": "Elegí si es perro, gato u otro animal."}, status=400)
+
+        birth_date = None
+        raw_birth_date = (request.POST.get("birth_date") or "").strip()
+        if raw_birth_date:
+            birth_date = parse_date(raw_birth_date)
+            if not birth_date:
+                return JsonResponse({"detail": "La fecha de nacimiento no es válida."}, status=400)
+        try:
+            photo = _mobile_photo(request)
+        except ValueError as error:
+            return JsonResponse({"detail": str(error)}, status=400)
+
+        with transaction.atomic():
+            contact = OwnerAccountLink.objects.filter(user=request.mobile_user).select_related("contact").first()
+            if contact:
+                contact = contact.contact
+            else:
+                full_name = request.mobile_user.get_full_name().strip() or request.mobile_user.username
+                contact = Contact.objects.create(full_name=full_name)
+                OwnerAccountLink.objects.create(user=request.mobile_user, contact=contact)
+            patient = Patient.objects.create(
+                name=name[:100],
+                species=species,
+                breed=(request.POST.get("breed") or "").strip()[:100],
+                birth_date=birth_date,
+                microchip=(request.POST.get("microchip") or "").strip()[:80],
+                allergies=(request.POST.get("allergies") or "").strip(),
+                photo=photo,
+            )
+            PatientContact.objects.create(
+                patient=patient,
+                contact=contact,
+                role=PatientContact.Role.RESPONSIBLE,
+                is_primary=True,
+            )
+        return JsonResponse({
+            "detail": "Tu animal fue agregado y quedó vinculado a tu cuenta.",
+            "animal": _mobile_patient_data(request, patient),
+        }, status=201)
+
     contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
     patients = (
         Patient.objects.filter(active=True, patientcontact__contact_id__in=contact_ids)

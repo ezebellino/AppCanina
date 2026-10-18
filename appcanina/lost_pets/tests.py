@@ -248,6 +248,34 @@ class LostPetReportTests(TestCase):
         forbidden = self.client.get(reverse("mobile_my_animal_detail", args=[other_patient.id]), HTTP_AUTHORIZATION=f"Bearer {raw_token}")
         self.assertEqual(forbidden.status_code, 404)
 
+    def test_mobile_owner_can_add_animal_and_is_linked_automatically(self):
+        roles = ensure_base_roles()
+        owner = User.objects.create_user("nueva-responsable", password="secret", first_name="María", last_name="López")
+        owner.groups.add(roles["collaborator"])
+        raw_token, _ = MobileAccessToken.issue(owner, "Prueba")
+
+        response = self.client.post(
+            reverse("mobile_my_animals"),
+            data={
+                "name": "Mora",
+                "species": "dog",
+                "breed": "Mestiza",
+                "birth_date": "2023-04-10",
+                "microchip": "AR-123",
+                "allergies": "Polen",
+                "photo": self.sample_photo(),
+            },
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        patient = Patient.objects.get(name="Mora")
+        self.assertEqual(patient.species, "dog")
+        self.assertTrue(bool(patient.photo))
+        self.assertTrue(OwnerAccountLink.objects.filter(user=owner, contact__patientcontact__patient=patient).exists())
+        listing = self.client.get(reverse("mobile_my_animals"), HTTP_AUTHORIZATION=f"Bearer {raw_token}")
+        self.assertEqual([animal["name"] for animal in listing.json()["animals"]], ["Mora"])
+
     def test_mobile_owner_can_issue_a_temporary_travel_credential(self):
         roles = ensure_base_roles()
         owner = User.objects.create_user("viaje-movil", password="secret")
