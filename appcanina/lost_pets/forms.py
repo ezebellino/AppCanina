@@ -7,7 +7,7 @@ from PIL import Image
 
 from patients.models import Patient
 
-from .models import LostPetReport, Sighting
+from .models import AdoptionPost, LostPetReport, Sighting
 
 
 def photo_without_location_metadata(uploaded_file):
@@ -62,6 +62,20 @@ class SightingForm(forms.ModelForm):
         if (latitude is None) != (longitude is None):
             self.add_error("latitude" if latitude is None else "longitude", "Completá ambas coordenadas o dejá ambas vacías.")
         return cleaned
+
+    def clean_photo(self):
+        return photo_without_location_metadata(self.cleaned_data.get("photo"))
+
+
+class AdoptionPostForm(forms.ModelForm):
+    class Meta:
+        model = AdoptionPost
+        fields = ["name", "species", "breed", "age_label", "description", "photo", "area_label"]
+        labels = {
+            "name": "Nombre del animal", "species": "Especie", "breed": "Raza", "age_label": "Edad aproximada",
+            "description": "Historia y cuidados importantes", "photo": "Foto", "area_label": "Zona o barrio",
+        }
+        widgets = {"description": forms.Textarea(attrs={"rows": 4})}
 
     def clean_photo(self):
         return photo_without_location_metadata(self.cleaned_data.get("photo"))

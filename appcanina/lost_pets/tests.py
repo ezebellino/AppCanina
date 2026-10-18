@@ -466,3 +466,29 @@ class LostPetReportTests(TestCase):
         self.assertEqual(interest.status, AdoptionInterest.Status.RECEIVED)
         self.assertEqual(duplicate.status_code, 409)
         self.assertEqual(activity.json()["interests"][0]["animal_name"], "Kira")
+
+
+class ShelterAdoptionPublishingTests(TestCase):
+    def setUp(self):
+        roles = ensure_base_roles()
+        self.manager = User.objects.create_user("refugio-manager", password="secret")
+        self.manager.groups.add(roles["collaborator"])
+        self.shelter = Organization.objects.create(name="Patitas Rescatadas", kind="shelter", is_verified=True)
+        OrganizationMembership.objects.create(organization=self.shelter, user=self.manager, role=OrganizationMembership.Role.MANAGER)
+        self.client.force_login(self.manager)
+
+    def test_verified_shelter_manager_can_publish_its_own_adoption(self):
+        response = self.client.post(
+            reverse("adoption_create"),
+            {"name": "Lola", "species": "dog", "breed": "Mestiza", "age_label": "2 años", "description": "Rescatada y lista para un hogar.", "area_label": "Avellaneda"},
+        )
+        post = AdoptionPost.objects.get(name="Lola")
+        self.assertRedirects(response, reverse("adoption_list"))
+        self.assertEqual(post.organization, self.shelter)
+        self.assertEqual(post.publisher, self.manager)
+        self.assertEqual(post.status, AdoptionPost.Status.PUBLISHED)
+
+    def test_pending_shelter_cannot_publish_until_verified(self):
+        self.shelter.is_verified = False
+        self.shelter.save(update_fields=["is_verified"])
+        self.assertEqual(self.client.get(reverse("adoption_create")).status_code, 403)

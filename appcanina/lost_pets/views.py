@@ -7,10 +7,16 @@ from django.views.decorators.http import require_GET, require_POST
 
 from patients.models import Patient
 
-from .forms import LostPetReportForm, SightingForm
+from .forms import AdoptionPostForm, LostPetReportForm, SightingForm
 from .models import AdoptionInterest, AdoptionPost, LostPetReport, Sighting
 from .notifications import notify_new_report, notify_new_sighting, notify_request_review
-from organizations.roles import can_manage_organization, is_community_collaborator, organizations_managed_by
+from organizations.roles import can_manage_organization, is_community_collaborator, organizations_managed_by, verified_shelters_managed_by
+
+
+def _adoption_manager_organizations(user):
+    if user.has_perm("lost_pets.change_adoptionpost"):
+        return organizations_managed_by(user)
+    return verified_shelters_managed_by(user)
 
 
 @login_required
@@ -37,28 +43,51 @@ def report_list(request):
 
 
 @login_required
-@permission_required("lost_pets.view_adoptionpost", raise_exception=True)
 def adoption_list(request):
     view_mode = request.GET.get("view", "published")
     posts = AdoptionPost.objects.select_related("publisher", "organization")
-    managed_organizations = organizations_managed_by(request.user)
-    if view_mode == "review" and request.user.has_perm("lost_pets.change_adoptionpost"):
+    managed_organizations = _adoption_manager_organizations(request.user)
+    can_manage_adoptions = managed_organizations.exists()
+    if not (request.user.has_perm("lost_pets.view_adoptionpost") or can_manage_adoptions):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    if view_mode == "review" and can_manage_adoptions:
         posts = posts.filter(status=AdoptionPost.Status.PENDING, organization__in=managed_organizations)
-    elif view_mode == "all" and request.user.has_perm("lost_pets.change_adoptionpost"):
+    elif view_mode == "all" and can_manage_adoptions:
         posts = posts.filter(organization__in=managed_organizations)
     else:
         view_mode = "published"
         posts = posts.filter(status=AdoptionPost.Status.PUBLISHED)
     pending_count = AdoptionPost.objects.filter(status=AdoptionPost.Status.PENDING, organization__in=managed_organizations).count()
-    return render(request, "lost_pets/adoption_list.html", {"posts": posts, "view_mode": view_mode, "pending_count": pending_count})
+    return render(request, "lost_pets/adoption_list.html", {"posts": posts, "view_mode": view_mode, "pending_count": pending_count, "can_manage_adoptions": can_manage_adoptions, "managed_organization_ids": list(managed_organizations.values_list("id", flat=True))})
 
 
 @login_required
-@permission_required("lost_pets.change_adoptionpost", raise_exception=True)
+@permission_required("lost_pets.view_lostpetreport", raise_exception=True)
+def adoption_create(request):
+    shelter = verified_shelters_managed_by(request.user).first()
+    if not shelter:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    form = AdoptionPostForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        post = form.save(commit=False)
+        post.publisher = request.user
+        post.organization = shelter
+        post.status = AdoptionPost.Status.PUBLISHED
+        post.save()
+        messages.success(request, f"{post.name} ya está publicado para adopción.")
+        return redirect("adoption_list")
+    return render(request, "lost_pets/adoption_form.html", {"form": form, "shelter": shelter})
+
+
+@login_required
+@login_required
 @require_POST
 def adoption_change_status(request, post_id):
     post = get_object_or_404(AdoptionPost, pk=post_id)
-    if post.organization and not can_manage_organization(request.user, post.organization):
+    managed_organizations = _adoption_manager_organizations(request.user)
+    if post.organization and not managed_organizations.filter(pk=post.organization_id).exists():
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     status = request.POST.get("status")

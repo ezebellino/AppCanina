@@ -70,3 +70,17 @@ def organizations_managed_by(user):
 
 def can_manage_organization(user, organization):
     return organizations_managed_by(user).filter(pk=organization.pk).exists()
+
+
+def verified_shelters_managed_by(user):
+    """Refuges whose responsible person may publish and manage adoptions."""
+    if not user.is_authenticated:
+        return Organization.objects.none()
+    if user.is_superuser:
+        return Organization.objects.filter(kind=Organization.Kind.SHELTER, is_verified=True)
+    return Organization.objects.filter(
+        kind=Organization.Kind.SHELTER,
+        is_verified=True,
+        memberships__user=user,
+        memberships__role="manager",
+    ).distinct()

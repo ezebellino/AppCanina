@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Publicar para adopción{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">{{ shelter.name }}</p><h1>Publicar animal para adopción</h1><p>La publicación se mostrará con la identidad y el alias solidario del refugio.</p></div><a class="button button-ghost" href="{% url 'adoption_list' %}?view=all">← Volver a adopciones</a></div>
+<form method="post" enctype="multipart/form-data" class="card form-grid">{% csrf_token %}{% for field in form %}<div class="form-field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}<div class="form-actions"><a href="{% url 'adoption_list' %}?view=all">Cancelar</a><button class="button">Publicar para adopción</button></div></form>
+{% endblock %}

@@ -530,13 +530,15 @@ def mobile_adoption_request(request):
     membership_query = OrganizationMembership.objects.filter(user=request.mobile_user).select_related("organization")
     membership = membership_query.filter(organization_id=organization_id).first() if organization_id else membership_query.first()
     organization = membership.organization if membership else Organization.objects.filter(is_business_profile=True).first()
+    institution_can_publish = bool(membership and membership.organization.is_verified)
     post = AdoptionPost.objects.create(
         publisher=request.mobile_user, organization=organization, name=name[:100], species=species,
         breed=(payload.get("breed") or "").strip()[:100], age_label=(payload.get("age") or "").strip()[:80],
         description=(payload.get("description") or "").strip(), area_label=area[:120], photo=photo,
-        status=AdoptionPost.Status.PUBLISHED if membership else AdoptionPost.Status.PENDING,
+        status=AdoptionPost.Status.PUBLISHED if institution_can_publish else AdoptionPost.Status.PENDING,
     )
-    return JsonResponse({"id": post.id, "detail": "Recibimos la publicación. La veterinaria o refugio responsable la revisará antes de mostrarla."}, status=201)
+    detail = "Tu refugio publicó el animal para adopción." if institution_can_publish else "Recibimos la publicación. La veterinaria o refugio responsable la revisará antes de mostrarla."
+    return JsonResponse({"id": post.id, "detail": detail}, status=201)
 
 
 @csrf_exempt
