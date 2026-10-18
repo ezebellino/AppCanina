@@ -140,7 +140,7 @@ class Command(BaseCommand):
                     "staff_note": "[DEMO] Entrevista coordinada para el sábado.",
                 },
             )
-            LostPetReport.objects.get_or_create(
+            report, _ = LostPetReport.objects.get_or_create(
                 reporter=community_user,
                 name=f"{DEMO_PREFIX} Tizón",
                 defaults={
@@ -150,8 +150,16 @@ class Command(BaseCommand):
                     "last_seen_at": timezone.now(),
                     "area_label": "Avellaneda",
                     "status": LostPetReport.Status.PUBLISHED,
+                    "latitude": "-34.661100",
+                    "longitude": "-58.365300",
                 },
             )
+            # Older DEMO loads predate the map. Add only its deliberately
+            # approximate source point; public output remains rounded/jittered.
+            if report.latitude is None or report.longitude is None:
+                report.latitude = "-34.661100"
+                report.longitude = "-58.365300"
+                report.save(update_fields=["latitude", "longitude"])
 
         created = [label for label, value in [("Veterinaria", vet_created), ("Refugio", refuge_created), ("Usuario", user_created)] if value]
         self.stdout.write(self.style.SUCCESS("Demo de Comunidad lista" + (f" (cuentas nuevas: {', '.join(created)})" if created else "") + "."))
