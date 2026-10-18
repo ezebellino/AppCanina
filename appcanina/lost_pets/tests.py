@@ -12,6 +12,7 @@ from patients.models import ClinicalRecord, Contact, OwnerAccountLink, Patient, 
 
 from .models import AdoptionInterest, AdoptionPost, CommunityDevicePermission, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from organizations.roles import ensure_base_roles
+from organizations.models import Organization, OrganizationMembership
 
 
 class LostPetReportTests(TestCase):
@@ -201,6 +202,23 @@ class LostPetReportTests(TestCase):
         self.assertTrue(collaborator.has_perm("lost_pets.add_sighting"))
         self.assertFalse(collaborator.has_perm("patients.view_patient"))
         self.assertIn("token", response.json())
+
+    def test_mobile_registration_creates_pending_veterinary_profile_without_staff_permissions(self):
+        response = self.client.post(
+            reverse("mobile_register"),
+            data='{"username":"veterinaria-nueva","first_name":"Laura","email":"laura@example.com","password":"ClaveSegura123","password_confirmation":"ClaveSegura123","account_type":"veterinary","organization_name":"Veterinaria del Parque","locality":"Avellaneda","organization_phone":"11 5555 1234"}',
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        organization = Organization.objects.get(name="Veterinaria del Parque")
+        user = User.objects.get(username="veterinaria-nueva")
+        self.assertEqual(organization.kind, Organization.Kind.VETERINARY)
+        self.assertEqual(organization.locality, "Avellaneda")
+        self.assertFalse(organization.is_verified)
+        self.assertTrue(OrganizationMembership.objects.filter(organization=organization, user=user, role="manager").exists())
+        self.assertFalse(user.has_perm("patients.view_patient"))
+        self.assertFalse(response.json()["organization"]["verified"])
 
     def test_mobile_dashboard_only_exposes_published_or_resolved_reports(self):
         roles = ensure_base_roles()

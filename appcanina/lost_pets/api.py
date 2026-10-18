@@ -65,7 +65,7 @@ def mobile_login(request):
 @csrf_exempt
 @require_POST
 def mobile_register(request):
-    """Create a strictly limited community account from the mobile app."""
+    """Create a community account, optionally with a pending organization profile."""
     ip = request.META.get("REMOTE_ADDR", "unknown")
     cache_key = f"mobile-register:{ip}"
     if cache.get(cache_key, 0) >= 3:
@@ -74,6 +74,20 @@ def mobile_register(request):
         payload = json.loads(request.body)
     except (TypeError, ValueError):
         return JsonResponse({"detail": "JSON inválido."}, status=400)
+
+    account_type = (payload.get("account_type") or "community").strip().lower()
+    organization_kind_by_account_type = {
+        "veterinary": Organization.Kind.VETERINARY,
+        "shelter": Organization.Kind.SHELTER,
+    }
+    if account_type not in {"community", *organization_kind_by_account_type}:
+        return JsonResponse({"detail": "Elegí Persona, Veterinaria o Refugio."}, status=400)
+    organization_name = (payload.get("organization_name") or "").strip()
+    locality = (payload.get("locality") or "").strip()
+    if account_type != "community" and not organization_name:
+        return JsonResponse({"detail": "Indicá el nombre de la institución."}, status=400)
+    if account_type != "community" and not locality:
+        return JsonResponse({"detail": "Indicá la localidad de la institución."}, status=400)
 
     form = CommunityCollaboratorForm({
         "username": (payload.get("username") or "").strip(),
@@ -86,11 +100,37 @@ def mobile_register(request):
         messages = [message for errors in form.errors.values() for message in errors]
         return JsonResponse({"detail": messages[0] if messages else "No se pudo crear la cuenta."}, status=400)
 
-    collaborator = form.save()
-    collaborator.groups.add(ensure_base_roles()["collaborator"])
+    with transaction.atomic():
+        collaborator = form.save()
+        collaborator.groups.add(ensure_base_roles()["collaborator"])
+        organization = None
+        if account_type in organization_kind_by_account_type:
+            organization = Organization.objects.create(
+                name=organization_name[:160],
+                kind=organization_kind_by_account_type[account_type],
+                locality=locality[:120],
+                phone=(payload.get("organization_phone") or "").strip()[:40],
+                email=(payload.get("organization_email") or payload.get("email") or "").strip()[:254],
+                address=(payload.get("organization_address") or "").strip()[:220],
+                donation_alias=(payload.get("donation_alias") or "").strip()[:120] if account_type == "shelter" else "",
+            )
+            OrganizationMembership.objects.create(
+                organization=organization,
+                user=collaborator,
+                role=OrganizationMembership.Role.MANAGER,
+            )
     cache.set(cache_key, cache.get(cache_key, 0) + 1, 3600)
     raw_token, _ = MobileAccessToken.issue(collaborator, payload.get("device_name", "Dispositivo móvil"))
-    return JsonResponse({"token": raw_token, "token_type": "Bearer", "user": {"username": collaborator.username}}, status=201)
+    message = "Cuenta creada."
+    if organization:
+        message = "Solicitud institucional recibida. El perfil queda pendiente de validación antes de habilitar herramientas de gestión."
+    return JsonResponse({
+        "token": raw_token,
+        "token_type": "Bearer",
+        "detail": message,
+        "user": {"username": collaborator.username, "account_type": account_type},
+        "organization": {"id": organization.id, "name": organization.name, "verified": organization.is_verified} if organization else None,
+    }, status=201)
 
 
 def _mobile_report_data(request, report):

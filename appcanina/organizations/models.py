@@ -15,6 +15,7 @@ class Organization(models.Model):
     email = models.EmailField("correo electrónico", blank=True)
     address = models.CharField("dirección", max_length=220, blank=True)
     locality = models.CharField("localidad", max_length=120, blank=True)
+    is_verified = models.BooleanField("perfil institucional verificado", default=False)
     donation_alias = models.CharField("alias para colaboraciones", max_length=120, blank=True)
     donation_message = models.CharField(
         "mensaje de colaboración", max_length=220, blank=True,

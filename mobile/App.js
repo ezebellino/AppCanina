@@ -42,8 +42,14 @@ export default function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
+  const [accountType, setAccountType] = useState("community");
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
+  const [organizationLocality, setOrganizationLocality] = useState("");
+  const [organizationPhone, setOrganizationPhone] = useState("");
+  const [organizationAddress, setOrganizationAddress] = useState("");
+  const [donationAlias, setDonationAlias] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [token, setToken] = useState("");
   const [message, setMessage] = useState("Ingresá para colaborar.");
@@ -267,8 +273,14 @@ export default function App() {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
           username,
+          account_type: accountType,
           first_name: firstName,
           email,
+          organization_name: organizationName,
+          locality: organizationLocality,
+          organization_phone: organizationPhone,
+          organization_address: organizationAddress,
+          donation_alias: donationAlias,
           password,
           password_confirmation: passwordConfirmation,
           device_name: "App móvil",
@@ -276,7 +288,7 @@ export default function App() {
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo crear la cuenta.");
-      await activateSession(data.token, `Cuenta creada. ¡Gracias por colaborar, ${data.user.username}!`);
+      await activateSession(data.token, data.detail || `Cuenta creada. ¡Gracias por colaborar, ${data.user.username}!`);
     } catch (error) {
       setMessage(error.message);
     }
@@ -525,10 +537,11 @@ export default function App() {
     <ScrollView contentContainerStyle={styles.content}>
       {!token ? <><Text style={styles.title}>Tu Veterinaria</Text><Text style={styles.subtitle}>Comunidad · animales extraviados</Text></> : null}
       {!token ? isRestoringSession ? <View style={styles.stack}><Text style={styles.help}>Preparando tu sesión segura…</Text></View> : pendingBiometricToken ? <View style={styles.stack}><Text style={styles.sectionTitle}>Volvé a ingresar</Text><Text style={styles.help}>Tu sesión está guardada en este teléfono y protegida con biometría.</Text><Button title="Ingresar con huella" onPress={unlockWithBiometrics}/><Button title="Usar otra cuenta" onPress={() => setPendingBiometricToken("")}/></View> : <View style={styles.stack}>
-      {isRegistering ? <Text style={styles.help}>Creá tu cuenta para recibir alertas y compartir avistamientos. Tu acceso será solo comunitario.</Text> : null}
+      {isRegistering ? <><Text style={styles.help}>Elegí el tipo de cuenta. Las instituciones quedan en revisión antes de administrar publicaciones o datos clínicos.</Text><View style={styles.field}><Text style={styles.fieldLabel}>Quiero registrarme como</Text><View style={styles.filterRow}><FilterPill active={accountType === "community"} label="Persona" onPress={() => setAccountType("community")}/><FilterPill active={accountType === "veterinary"} label="Veterinaria" onPress={() => setAccountType("veterinary")}/><FilterPill active={accountType === "shelter"} label="Refugio" onPress={() => setAccountType("shelter")}/></View></View></> : null}
       {isRegistering ? <View style={styles.field}><Text style={styles.fieldLabel}>Nombre <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: Sofía" placeholderTextColor="#6c8378" value={firstName} onChangeText={setFirstName} style={styles.input}/></View> : null}
       <View style={styles.field}><Text style={styles.fieldLabel}>Usuario</Text><TextInput placeholder="Elegí un usuario" placeholderTextColor="#6c8378" value={username} onChangeText={setUsername} autoCapitalize="none" style={styles.input}/></View>
       {isRegistering ? <View style={styles.field}><Text style={styles.fieldLabel}>Correo electrónico <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="nombre@correo.com" placeholderTextColor="#6c8378" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={styles.input}/></View> : null}
+      {isRegistering && accountType !== "community" ? <><View style={styles.field}><Text style={styles.fieldLabel}>Nombre de {accountType === "veterinary" ? "la veterinaria" : "el refugio"}</Text><TextInput placeholder={accountType === "veterinary" ? "Ej.: Veterinaria del Parque" : "Ej.: Patitas del Sur"} placeholderTextColor="#6c8378" value={organizationName} onChangeText={setOrganizationName} style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Localidad</Text><TextInput placeholder="Ej.: Avellaneda" placeholderTextColor="#6c8378" value={organizationLocality} onChangeText={setOrganizationLocality} style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Teléfono <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: 11 5555 1234" placeholderTextColor="#6c8378" value={organizationPhone} onChangeText={setOrganizationPhone} keyboardType="phone-pad" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Dirección <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: Calle 123" placeholderTextColor="#6c8378" value={organizationAddress} onChangeText={setOrganizationAddress} style={styles.input}/></View>{accountType === "shelter" ? <View style={styles.field}><Text style={styles.fieldLabel}>Alias para colaborar <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: refugio.patitas" placeholderTextColor="#6c8378" value={donationAlias} onChangeText={setDonationAlias} autoCapitalize="none" style={styles.input}/></View> : null}</> : null}
       <View style={styles.field}><Text style={styles.fieldLabel}>Contraseña</Text><TextInput placeholder="Mínimo 8 caracteres" placeholderTextColor="#6c8378" value={password} onChangeText={setPassword} secureTextEntry style={styles.input}/></View>
       {isRegistering ? <View style={styles.field}><Text style={styles.fieldLabel}>Repetir contraseña</Text><TextInput placeholder="Repetí tu contraseña" placeholderTextColor="#6c8378" value={passwordConfirmation} onChangeText={setPasswordConfirmation} secureTextEntry style={styles.input}/></View> : null}
       <Button title={isRegistering ? "Crear cuenta" : "Ingresar"} onPress={isRegistering ? register : login}/>
