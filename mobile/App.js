@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {Image, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View} from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as Location from "expo-location";
@@ -31,6 +31,32 @@ function FilterPill({active, label, onPress}) {
   return <Pressable accessibilityRole="button" onPress={onPress} style={({pressed}) => [styles.filterPill, active && styles.filterPillActive, pressed && styles.pressed]}>
     <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>{label}</Text>
   </Pressable>;
+}
+
+function WorkspaceSwitcher({active, onSelect}) {
+  const touchStartX = useRef(null);
+  const changeWithGesture = (event) => {
+    if (touchStartX.current === null) return;
+    const deltaX = event.nativeEvent.pageX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(deltaX) < 32) return;
+    onSelect(deltaX < 0 ? "veterinary" : "community");
+  };
+
+  return <View
+    accessibilityRole="tablist"
+    accessibilityLabel="Área de la aplicación"
+    onTouchStart={(event) => { touchStartX.current = event.nativeEvent.pageX; }}
+    onTouchEnd={changeWithGesture}
+    style={styles.workspaceSwitcher}
+  >
+    <Pressable accessibilityRole="tab" accessibilityState={{selected: active === "community"}} onPress={() => onSelect("community")} style={[styles.workspaceOption, active === "community" && styles.workspaceOptionActive]}>
+      <Text style={[styles.workspaceOptionText, active === "community" && styles.workspaceOptionTextActive]}>Comunidad</Text>
+    </Pressable>
+    <Pressable accessibilityRole="tab" accessibilityState={{selected: active === "veterinary"}} onPress={() => onSelect("veterinary")} style={[styles.workspaceOption, active === "veterinary" && styles.workspaceOptionActive]}>
+      <Text style={[styles.workspaceOptionText, active === "veterinary" && styles.workspaceOptionTextActive]}>Veterinaria</Text>
+    </Pressable>
+  </View>;
 }
 
 function PermissionRow({icon, label, status}) {
@@ -99,6 +125,7 @@ export default function App() {
   const [pendingBiometricToken, setPendingBiometricToken] = useState("");
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [workspace, setWorkspace] = useState("community");
   const [devicePermissions, setDevicePermissions] = useState({camera: "unknown", location: "unknown", notifications: "unknown"});
 
   const loadNotifications = async (accessToken = token) => {
@@ -575,6 +602,19 @@ export default function App() {
     load?.();
   };
 
+  const switchWorkspace = (nextWorkspace) => {
+    if (nextWorkspace === workspace) return;
+    setWorkspace(nextWorkspace);
+    setMenuOpen(false);
+    if (nextWorkspace === "veterinary") {
+      setScreen("mis-animales");
+      loadMyAnimals();
+    } else {
+      setScreen("panel");
+      loadReports();
+    }
+  };
+
   return <SafeAreaView style={styles.screen}>
     <ScrollView contentContainerStyle={styles.content}>
       {!token ? <><Text style={styles.title}>Tu Veterinaria</Text><Text style={styles.subtitle}>Comunidad · animales extraviados</Text></> : null}
@@ -590,20 +630,27 @@ export default function App() {
       <Button title={isRegistering ? "Ya tengo una cuenta" : "Crear una cuenta para colaborar"} onPress={() => { setIsRegistering(!isRegistering); setMessage(isRegistering ? "Ingresá para colaborar." : "Completá tus datos para crear una cuenta."); }}/>
     </View> : <View style={styles.stack}>
       <View style={styles.appHeader}>
-        <View style={styles.brandGroup}><View style={styles.brandMark}><Text style={styles.brandMarkText}>✚</Text></View><View><Text style={styles.appBrand}>Tu Veterinaria</Text><Text style={styles.appContext}>Comunidad</Text></View></View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Abrir menú" onPress={() => setMenuOpen(true)} style={({pressed}) => [styles.menuTrigger, pressed && styles.pressed]}><Text style={styles.menuTriggerText}>☰</Text></Pressable>
+        <View style={styles.appHeaderTop}>
+          <View style={styles.brandGroup}><View style={styles.brandMark}><Text style={styles.brandMarkText}>✚</Text></View><View><Text style={styles.appBrand}>Tu Veterinaria</Text><Text style={styles.appContext}>{workspace === "community" ? "Comunidad" : "Veterinaria"}</Text></View></View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Abrir menú" onPress={() => setMenuOpen(true)} style={({pressed}) => [styles.menuTrigger, pressed && styles.pressed]}><Text style={styles.menuTriggerText}>☰</Text></Pressable>
+        </View>
+        <WorkspaceSwitcher active={workspace} onSelect={switchWorkspace}/>
       </View>
       <Modal visible={menuOpen} transparent animationType="slide" onRequestClose={() => setMenuOpen(false)}>
         <View style={styles.modalScrim}><Pressable style={styles.scrimTouch} onPress={() => setMenuOpen(false)}/><View style={styles.menuSheet}>
-          <View style={styles.sheetHandle}/><View style={styles.sheetHeading}><View><Text style={styles.menuHeading}>Comunidad</Text><Text style={styles.menuSubheading}>Todo lo importante, a un toque.</Text></View><Pressable accessibilityRole="button" onPress={() => setMenuOpen(false)} style={styles.closeButton}><Text style={styles.closeButtonText}>×</Text></Pressable></View>
-          <MenuItem active={screen === "panel"} icon="⌂" label="Panel" onPress={() => navigate("panel")}/>
-          <MenuItem active={screen === "buscar"} icon="⌕" label="Buscar animales" onPress={() => navigate("buscar")}/>
-          <MenuItem icon="＋" label="Pedir una búsqueda" onPress={() => { resetSearchRequest(); navigate("solicitud"); }}/>
-          <MenuItem active={screen === "mis-solicitudes"} icon="▤" label="Mis solicitudes" onPress={() => navigate("mis-solicitudes", loadMySearchRequests)}/>
-          <MenuItem active={screen === "adopciones"} icon="♡" label="Adopciones" onPress={() => navigate("adopciones", loadAdoptions)}/>
-          <MenuItem active={screen === "mi-actividad"} icon="◷" label="Mi actividad" onPress={() => navigate("mi-actividad", loadAdoptionInterests)}/>
-          <MenuItem active={screen === "mis-animales" || screen === "mi-animal"} icon="🐾" label="Mis animales" onPress={() => navigate("mis-animales", loadMyAnimals)}/>
-          <MenuItem active={screen === "vincular-familia"} icon="⌘" label="Vincular mascota familiar" onPress={() => { setFamilyCode(""); navigate("vincular-familia"); }}/>
+          <View style={styles.sheetHandle}/><View style={styles.sheetHeading}><View><Text style={styles.menuHeading}>{workspace === "community" ? "Comunidad" : "Veterinaria"}</Text><Text style={styles.menuSubheading}>{workspace === "community" ? "Ayudá a encontrar y adoptar." : "Tus animales y su atención."}</Text></View><Pressable accessibilityRole="button" onPress={() => setMenuOpen(false)} style={styles.closeButton}><Text style={styles.closeButtonText}>×</Text></Pressable></View>
+          <WorkspaceSwitcher active={workspace} onSelect={switchWorkspace}/>
+          {workspace === "community" ? <>
+            <MenuItem active={screen === "panel"} icon="⌂" label="Panel" onPress={() => navigate("panel", loadReports)}/>
+            <MenuItem active={screen === "buscar"} icon="⌕" label="Buscar animales" onPress={() => navigate("buscar")}/>
+            <MenuItem icon="＋" label="Pedir una búsqueda" onPress={() => { resetSearchRequest(); navigate("solicitud"); }}/>
+            <MenuItem active={screen === "mis-solicitudes"} icon="▤" label="Mis solicitudes" onPress={() => navigate("mis-solicitudes", loadMySearchRequests)}/>
+            <MenuItem active={screen === "adopciones"} icon="♡" label="Adopciones" onPress={() => navigate("adopciones", loadAdoptions)}/>
+            <MenuItem active={screen === "mi-actividad"} icon="◷" label="Mi actividad" onPress={() => navigate("mi-actividad", loadAdoptionInterests)}/>
+          </> : <>
+            <MenuItem active={screen === "mis-animales" || screen === "mi-animal" || screen === "nuevo-animal"} icon="🐾" label="Mis animales e historial" onPress={() => navigate("mis-animales", loadMyAnimals)}/>
+            <MenuItem active={screen === "vincular-familia"} icon="⌘" label="Vincular mascota familiar" onPress={() => { setFamilyCode(""); navigate("vincular-familia"); }}/>
+          </>}
           <View style={styles.menuDivider}/><MenuItem active={screen === "ajustes"} icon="⚙" label="Mi teléfono y alertas" onPress={() => navigate("ajustes")}/><MenuItem danger icon="↪" label="Cerrar sesión" onPress={logout}/>
         </View></View>
       </Modal>
@@ -748,17 +795,23 @@ const styles = StyleSheet.create({
   sectionTitle: {fontSize: 22, fontWeight: "800", color: "#143f36", marginTop: 1, letterSpacing: -0.35},
   sectionKicker: {fontSize: 11, fontWeight: "800", color: "#0d4d42", letterSpacing: 1.25},
   nav: {flexDirection: "row", flexWrap: "wrap", gap: 8},
-  appHeader: {minHeight: 70, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 18, backgroundColor: "#0d4d42", flexDirection: "row", alignItems: "center", justifyContent: "space-between", shadowColor: "#00352c", shadowOpacity: 0.16, shadowRadius: 14, elevation: 3},
+  appHeader: {padding: 14, borderRadius: 18, backgroundColor: "#0d4d42", gap: 12, shadowColor: "#00352c", shadowOpacity: 0.16, shadowRadius: 14, elevation: 3},
+  appHeaderTop: {minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between"},
   brandGroup: {flexDirection: "row", alignItems: "center", gap: 10},
   brandMark: {width: 38, height: 38, borderRadius: 12, backgroundColor: "#b3eedf", alignItems: "center", justifyContent: "center"},
   brandMarkText: {color: "#00352c", fontSize: 21, fontWeight: "900"},
   appBrand: {fontSize: 17, fontWeight: "800", color: "#ffffff"},
   appContext: {fontSize: 11, fontWeight: "800", color: "#b3eedf", textTransform: "uppercase", letterSpacing: 1},
+  workspaceSwitcher: {minHeight: 46, padding: 4, borderRadius: 15, flexDirection: "row", backgroundColor: "rgba(229, 240, 237, 0.22)", borderWidth: 1, borderColor: "rgba(179, 238, 223, 0.30)"},
+  workspaceOption: {flex: 1, minHeight: 36, alignItems: "center", justifyContent: "center", borderRadius: 11, paddingHorizontal: 10},
+  workspaceOptionActive: {backgroundColor: "#ffffff", shadowColor: "#00352c", shadowOpacity: 0.12, shadowRadius: 4, elevation: 2},
+  workspaceOptionText: {fontSize: 13, fontWeight: "800", color: "#d1e9e1"},
+  workspaceOptionTextActive: {color: "#0d4d42"},
   menuTrigger: {width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "#e5f0ed"},
   menuTriggerText: {fontSize: 24, lineHeight: 25, color: "#0d4d42", fontWeight: "700"},
   modalScrim: {flex: 1, backgroundColor: "rgba(20, 34, 31, 0.42)", justifyContent: "flex-end"},
   scrimTouch: {flex: 1},
-  menuSheet: {backgroundColor: "#ffffff", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 18, paddingBottom: 28, paddingTop: 10, gap: 3},
+  menuSheet: {backgroundColor: "#ffffff", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 18, paddingBottom: 28, paddingTop: 10, gap: 8},
   sheetHandle: {alignSelf: "center", width: 42, height: 4, borderRadius: 3, backgroundColor: "#bfc9c5", marginBottom: 8},
   sheetHeading: {flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 7},
   menuHeading: {fontSize: 18, fontWeight: "800", color: "#143f36"},
