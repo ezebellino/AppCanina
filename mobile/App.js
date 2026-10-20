@@ -607,13 +607,16 @@ export default function App() {
     setWorkspace(nextWorkspace);
     setMenuOpen(false);
     if (nextWorkspace === "veterinary") {
-      setScreen("mis-animales");
+      setScreen("veterinaria");
       loadMyAnimals();
     } else {
       setScreen("panel");
       loadReports();
     }
   };
+
+  const clinicalRecordCount = myAnimals.reduce((total, animal) => total + (animal.clinical_records?.length || 0), 0);
+  const sharedHistoryCount = myAnimals.filter(animal => animal.sharing_enabled).length;
 
   return <SafeAreaView style={styles.screen}>
     <ScrollView contentContainerStyle={styles.content}>
@@ -648,6 +651,7 @@ export default function App() {
             <MenuItem active={screen === "adopciones"} icon="♡" label="Adopciones" onPress={() => navigate("adopciones", loadAdoptions)}/>
             <MenuItem active={screen === "mi-actividad"} icon="◷" label="Mi actividad" onPress={() => navigate("mi-actividad", loadAdoptionInterests)}/>
           </> : <>
+            <MenuItem active={screen === "veterinaria"} icon="⌂" label="Panel veterinaria" onPress={() => navigate("veterinaria", loadMyAnimals)}/>
             <MenuItem active={screen === "mis-animales" || screen === "mi-animal" || screen === "nuevo-animal"} icon="🐾" label="Mis animales e historial" onPress={() => navigate("mis-animales", loadMyAnimals)}/>
             <MenuItem active={screen === "vincular-familia"} icon="⌘" label="Vincular mascota familiar" onPress={() => { setFamilyCode(""); navigate("vincular-familia"); }}/>
           </>}
@@ -720,6 +724,21 @@ export default function App() {
         {adoptionPhoto?.uri ? <Image source={{uri: adoptionPhoto.uri}} style={styles.requestPhoto}/> : <View style={styles.requestPhotoEmpty}><Text style={styles.reportPhotoIcon}>🐾</Text><Text style={styles.help}>Agregá una foto clara</Text></View>}
         <View style={styles.nav}><Button title="Usar cámara" onPress={() => selectImage(true, setAdoptionPhoto, "la publicación de adopción")}/><Button title="Elegir foto" onPress={() => selectImage(false, setAdoptionPhoto, "la publicación de adopción")}/></View>
         <View style={styles.field}><Text style={styles.fieldLabel}>Nombre</Text><TextInput value={adoptionName} onChangeText={setAdoptionName} placeholder="Ej.: Mora" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Especie</Text><TextInput value={adoptionSpecies} onChangeText={setAdoptionSpecies} placeholder="Perro, gato u otro" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Raza y edad aproximada</Text><TextInput value={adoptionBreed} onChangeText={setAdoptionBreed} placeholder="Ej.: Mestiza" placeholderTextColor="#6c8378" style={styles.input}/><TextInput value={adoptionAge} onChangeText={setAdoptionAge} placeholder="Ej.: 2 años" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Zona aproximada</Text><TextInput value={adoptionArea} onChangeText={setAdoptionArea} placeholder="Ej.: Barrio Norte" placeholderTextColor="#6c8378" style={styles.input}/></View><View style={styles.field}><Text style={styles.fieldLabel}>Descripción</Text><TextInput value={adoptionDescription} onChangeText={setAdoptionDescription} multiline style={[styles.input, styles.textarea]}/></View><Button title="Enviar para revisión" onPress={submitAdoption}/>
+      </View> : null}
+      {screen === "veterinaria" ? <View style={styles.stack}>
+        <View style={styles.panelIntro}><Text style={styles.sectionKicker}>TU VETERINARIA</Text><Text style={styles.sectionTitle}>La salud de tu familia</Text><Text style={styles.help}>Consultá fichas, historial y accesos familiares en un solo lugar.</Text></View>
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryCard}><Text style={styles.summaryValue}>{myAnimals.length}</Text><Text style={styles.summaryLabel}>{myAnimals.length === 1 ? "animal vinculado" : "animales vinculados"}</Text></View>
+          <View style={styles.summaryCard}><Text style={styles.summaryValue}>{clinicalRecordCount}</Text><Text style={styles.summaryLabel}>{clinicalRecordCount === 1 ? "registro clínico" : "registros clínicos"}</Text></View>
+          <View style={styles.summaryCard}><Text style={styles.summaryValue}>{sharedHistoryCount}</Text><Text style={styles.summaryLabel}>{sharedHistoryCount === 1 ? "historial autorizado" : "historiales autorizados"}</Text></View>
+        </View>
+        <Button title="＋ Agregar mi animal" onPress={() => { resetNewAnimal(); setScreen("nuevo-animal"); }}/>
+        <Button title="Ver todos mis animales" onPress={() => { setScreen("mis-animales"); loadMyAnimals(); }} variant="outline"/>
+        {myAnimals.length ? <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Acceso rápido</Text><Text style={styles.help}>Abrí una ficha para consultar su historial clínico y administrar permisos.</Text>{myAnimals.slice(0, 2).map(animal => <Pressable key={animal.id} accessibilityRole="button" onPress={() => openAnimal(animal)} style={({pressed}) => [styles.quickAnimal, pressed && styles.pressed]}>
+          {animal.photo_url ? <Image source={{uri: animal.photo_url}} style={styles.quickAnimalAvatar}/> : <View style={styles.quickAnimalPlaceholder}><Text style={styles.animalAvatarText}>{animal.species?.toLowerCase().includes("gato") ? "🐱" : animal.species?.toLowerCase().includes("perro") ? "🐶" : "🐾"}</Text></View>}
+          <View style={styles.animalCardContent}><Text style={styles.notificationTitle}>{animal.name}</Text><Text style={styles.notificationArea}>{animal.species}{animal.breed ? ` · ${animal.breed}` : ""}</Text><Text style={styles.animalLink}>Ver ficha e historial →</Text></View>
+        </Pressable>)}</View> : <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Tu primera ficha empieza acá</Text><Text style={styles.help}>Agregá a tu animal para tener sus datos organizados cuando necesites atención.</Text></View>}
+        <View style={styles.consentCard}><Text style={styles.settingsTitle}>Privacidad de tu historial</Text><Text style={styles.help}>El historial nunca se abre por ubicación. Podés autorizar atención temporal para cada animal desde su ficha, cuando lo necesites.</Text></View>
       </View> : null}
       {screen === "mis-animales" ? <View style={styles.stack}>
         <View style={styles.panelIntro}><Text style={styles.sectionKicker}>TU FAMILIA</Text><Text style={styles.sectionTitle}>Mis animales</Text><Text style={styles.help}>Agregá a tus animales o consultá las fichas que ya están vinculadas a tu cuenta.</Text></View>
@@ -827,6 +846,10 @@ const styles = StyleSheet.create({
   menuDivider: {height: 1, backgroundColor: "#e2ece8", marginVertical: 6},
   pressed: {opacity: 0.72, transform: [{scale: 0.985}]},
   panelIntro: {gap: 4},
+  summaryGrid: {flexDirection: "row", gap: 8},
+  summaryCard: {flex: 1, minHeight: 94, borderRadius: 16, padding: 12, justifyContent: "space-between", backgroundColor: "#ffffff", borderWidth: 1, borderColor: "#d9e5e1"},
+  summaryValue: {fontSize: 27, lineHeight: 31, fontWeight: "900", color: "#0d4d42"},
+  summaryLabel: {fontSize: 12, lineHeight: 16, color: "#466156", fontWeight: "700"},
   filterRow: {flexDirection: "row", flexWrap: "wrap", gap: 8},
   filterPill: {minHeight: 40, paddingHorizontal: 15, borderRadius: 22, justifyContent: "center", borderWidth: 1.5, borderColor: "#0d4d42", backgroundColor: "#ffffff"},
   filterPillActive: {backgroundColor: "#0d4d42", borderColor: "#0d4d42"},
@@ -872,6 +895,9 @@ const styles = StyleSheet.create({
   animalAvatarPlaceholder: {width: 72, height: 72, borderRadius: 18, backgroundColor: "#e5f0ed", justifyContent: "center", alignItems: "center"},
   animalAvatarText: {fontSize: 36},
   animalCardContent: {flex: 1, gap: 3},
+  quickAnimal: {minHeight: 72, flexDirection: "row", alignItems: "center", gap: 11, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#e6efeb"},
+  quickAnimalAvatar: {width: 54, height: 54, borderRadius: 14, resizeMode: "cover"},
+  quickAnimalPlaceholder: {width: 54, height: 54, borderRadius: 14, backgroundColor: "#e5f0ed", justifyContent: "center", alignItems: "center"},
   animalLink: {fontSize: 13, fontWeight: "800", color: "#0d4d42", marginTop: 3},
   consentCard: {backgroundColor: "#eaf7f1", borderWidth: 1, borderColor: "#a8dfcb", borderRadius: 16, padding: 16, gap: 11},
   warningCard: {backgroundColor: "#fff4df", borderWidth: 1, borderColor: "#f1cf9b", borderRadius: 14, padding: 14, gap: 5},
