@@ -35,6 +35,8 @@ def _sale_response(request, product_form, service_form, checkout_form, cart, tot
         "linked_appointment": linked_appointment,
         "linked_consultation_patient": linked_consultation_patient,
         "product_categories": Product.Category.choices,
+        "cart_count": len(cart),
+        "cash_open": CashSession.objects.filter(closed_at__isnull=True).exists(),
     })
 
 
