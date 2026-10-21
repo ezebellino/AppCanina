@@ -23,6 +23,47 @@ from visits.models import HomeVisit
 logger = logging.getLogger(__name__)
 
 
+def _operating_organizations(user):
+    """Organizations the signed-in staff member is allowed to operate.
+
+    Clinical permissions are deliberately global Django permissions because they
+    describe a role.  The organization membership is the second, mandatory
+    boundary that decides which clinical data that role may access.
+    """
+    return organizations_managed_by(user)
+
+
+def _patients_visible_to(user):
+    """Return only the clinical files visible in the current organization scope.
+
+    ``organization=None`` is intentionally not visible to regular staff.  The
+    data migration assigns historic records to the primary business profile;
+    keeping unassigned data superuser-only prevents a fallback from becoming a
+    cross-tenant bypass.
+    """
+    if user.is_superuser:
+        return Patient.objects.all()
+    return Patient.objects.filter(organization__in=_operating_organizations(user))
+
+
+def _patient_or_404_for(user, patient_id, *, active_only=False):
+    patients = _patients_visible_to(user)
+    if active_only:
+        patients = patients.filter(active=True)
+    return get_object_or_404(patients, pk=patient_id)
+
+
+def _default_operating_organization(user):
+    """Choose a server-side organization for a new clinical file.
+
+    A member may belong to several institutions.  Prefer the designated
+    business profile when it is one of them; otherwise use the first owned
+    organization deterministically.  The browser never submits this value.
+    """
+    organizations = _operating_organizations(user)
+    return organizations.filter(is_business_profile=True).first() or organizations.order_by("id").first()
+
+
 def _owned_patient_or_404(user, patient_id):
     contact_ids = OwnerAccountLink.objects.filter(user=user).values_list("contact_id", flat=True)
     return get_object_or_404(Patient.objects.prefetch_related("clinical_records__professional"), pk=patient_id, patientcontact__contact_id__in=contact_ids)
@@ -74,7 +115,7 @@ def my_animal_credential(request, patient_id):
 @login_required
 @permission_required("patients.change_patientcontact", raise_exception=True)
 def patient_owner_account_link(request, patient_id):
-    patient = get_object_or_404(Patient.objects.prefetch_related("patientcontact_set__contact"), pk=patient_id)
+    patient = get_object_or_404(_patients_visible_to(request.user).prefetch_related("patientcontact_set__contact"), pk=patient_id)
     form = OwnerAccountLinkForm(request.POST or None)
     relation = patient.patientcontact_set.select_related("contact").filter(role__in=[PatientContact.Role.RESPONSIBLE, PatientContact.Role.ADOPTER]).first()
     if request.method == "POST" and relation and form.is_valid():
@@ -137,7 +178,7 @@ def dashboard(request):
     metrics = []
     attention = []
     if request.user.has_perm("patients.view_patient"):
-        metrics.append({"value": Patient.objects.filter(active=True).count(), "label": "pacientes activos", "url": "patient_list", "tone": "teal"})
+        metrics.append({"value": _patients_visible_to(request.user).filter(active=True).count(), "label": "pacientes activos", "url": "patient_list", "tone": "teal"})
     if request.user.has_perm("grooming.view_groomingappointment"):
         turns_today = GroomingAppointment.objects.filter(starts_at__date=today).exclude(status=GroomingAppointment.Status.CANCELED).count()
         metrics.append({"value": turns_today, "label": "turnos de hoy", "url": "grooming_agenda", "tone": "amber"})
@@ -145,7 +186,7 @@ def dashboard(request):
         visits_today = HomeVisit.objects.filter(scheduled_for__date=today).exclude(status=HomeVisit.Status.CANCELED).count()
         metrics.append({"value": visits_today, "label": "visitas de hoy", "url": "home_visit_list", "tone": "blue"})
     if request.user.has_perm("patients.view_carereminder"):
-        due_reminders = CareReminder.objects.filter(completed_on__isnull=True, due_on__lte=today)
+        due_reminders = CareReminder.objects.filter(patient__in=_patients_visible_to(request.user), completed_on__isnull=True, due_on__lte=today)
         if due_reminders.exists():
             attention.append({"value": due_reminders.count(), "label": "recordatorios clínicos pendientes", "url": "care_reminder_list"})
     if request.user.has_perm("inventory.view_product"):
@@ -163,10 +204,23 @@ def dashboard(request):
 @permission_required("patients.view_patient", raise_exception=True)
 def patient_list(request):
     query = request.GET.get("q", "").strip()
-    patients = Patient.objects.filter(active=True).prefetch_related("patientcontact_set__contact")
+    species = request.GET.get("species", "").strip()
+    patients = _patients_visible_to(request.user).filter(active=True).prefetch_related("patientcontact_set__contact")
     if query:
         patients = patients.filter(Q(name__icontains=query) | Q(breed__icontains=query) | Q(microchip__icontains=query) | Q(contacts__full_name__icontains=query) | Q(contacts__phone__icontains=query) | Q(contacts__email__icontains=query)).distinct()
-    return render(request, "patients/patient_list.html", {"patients": patients, "query": query})
+    if species in dict(Patient.Species.choices):
+        patients = patients.filter(species=species)
+    return render(
+        request,
+        "patients/patient_list.html",
+        {
+            "patients": patients,
+            "query": query,
+            "species": species,
+            "species_choices": Patient.Species.choices,
+            "result_count": patients.count(),
+        },
+    )
 
 
 @login_required
@@ -180,8 +234,9 @@ def global_search(request):
     query = request.GET.get("q", "").strip()
     patient_results, contact_results, product_results = [], [], []
     if query and request.user.has_perm("patients.view_patient"):
-        patient_results = Patient.objects.filter(active=True).filter(Q(name__icontains=query) | Q(breed__icontains=query) | Q(microchip__icontains=query) | Q(contacts__full_name__icontains=query) | Q(contacts__phone__icontains=query) | Q(contacts__email__icontains=query)).prefetch_related("patientcontact_set__contact").distinct()[:12]
-        contact_results = Contact.objects.filter(Q(full_name__icontains=query) | Q(phone__icontains=query) | Q(email__icontains=query)).prefetch_related("patients").distinct()[:12]
+        visible_patients = _patients_visible_to(request.user).filter(active=True)
+        patient_results = visible_patients.filter(Q(name__icontains=query) | Q(breed__icontains=query) | Q(microchip__icontains=query) | Q(contacts__full_name__icontains=query) | Q(contacts__phone__icontains=query) | Q(contacts__email__icontains=query)).prefetch_related("patientcontact_set__contact").distinct()[:12]
+        contact_results = Contact.objects.filter(patients__in=visible_patients).filter(Q(full_name__icontains=query) | Q(phone__icontains=query) | Q(email__icontains=query)).prefetch_related("patients").distinct()[:12]
     if query and request.user.has_perm("inventory.view_product"):
         product_results = Product.objects.filter(active=True).filter(Q(name__icontains=query) | Q(commercial_name__icontains=query) | Q(sku__icontains=query) | Q(brand__name__icontains=query) | Q(supplier__name__icontains=query)).select_related("brand", "supplier")[:12]
     return render(request, "patients/global_search.html", {"query": query, "patient_results": patient_results, "contact_results": contact_results, "product_results": product_results})
@@ -193,8 +248,14 @@ def patient_create(request):
     patient_form = PatientForm(request.POST or None, request.FILES or None, prefix="patient")
     contact_form = ContactForm(request.POST or None, prefix="contact")
     if request.method == "POST" and patient_form.is_valid() and contact_form.is_valid():
+        organization = _default_operating_organization(request.user)
+        if not organization:
+            messages.error(request, "Tu cuenta no está vinculada a una organización para crear fichas clínicas.")
+            return render(request, "patients/patient_form.html", {"patient_form": patient_form, "contact_form": contact_form})
         with transaction.atomic():
-            patient = patient_form.save()
+            patient = patient_form.save(commit=False)
+            patient.organization = organization
+            patient.save()
             contact_data = contact_form.cleaned_data
             contact = Contact.objects.filter(full_name__iexact=contact_data["full_name"].strip(), kind=contact_data["kind"], phone=contact_data["phone"], email__iexact=contact_data["email"].strip()).first()
             if not contact:
@@ -208,7 +269,7 @@ def patient_create(request):
 @permission_required("patients.view_patient", raise_exception=True)
 def patient_detail(request, patient_id):
     patient = get_object_or_404(
-        Patient.objects.prefetch_related("patientcontact_set__contact", "clinical_records__professional", "care_reminders"),
+        _patients_visible_to(request.user).prefetch_related("patientcontact_set__contact", "clinical_records__professional", "care_reminders"),
         pk=patient_id,
     )
     commercial_context = {"patient_sales": [], "responsible_sales": [], "patient_total": 0, "responsible_total": 0, "completed_grooming_count": 0}
@@ -225,7 +286,7 @@ def patient_detail(request, patient_id):
 def care_reminder_list(request):
     today = timezone.localdate()
     view_mode = request.GET.get("view", "pending")
-    reminders = CareReminder.objects.select_related("patient")
+    reminders = CareReminder.objects.select_related("patient").filter(patient__in=_patients_visible_to(request.user))
     if view_mode == "done":
         reminders = reminders.filter(completed_on__isnull=False)
     elif view_mode == "all":
@@ -239,7 +300,7 @@ def care_reminder_list(request):
 @login_required
 @permission_required("patients.add_carereminder", raise_exception=True)
 def care_reminder_create(request, patient_id):
-    patient = get_object_or_404(Patient, pk=patient_id, active=True)
+    patient = _patient_or_404_for(request.user, patient_id, active_only=True)
     form = CareReminderForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         reminder = form.save(commit=False)
@@ -253,7 +314,7 @@ def care_reminder_create(request, patient_id):
 @permission_required("patients.change_carereminder", raise_exception=True)
 @require_POST
 def care_reminder_complete(request, reminder_id):
-    reminder = get_object_or_404(CareReminder, pk=reminder_id)
+    reminder = get_object_or_404(CareReminder.objects.filter(patient__in=_patients_visible_to(request.user)), pk=reminder_id)
     reminder.completed_on = timezone.localdate()
     reminder.save(update_fields=["completed_on"])
     return redirect(request.POST.get("next") or "care_reminder_list")
@@ -262,7 +323,7 @@ def care_reminder_complete(request, reminder_id):
 @login_required
 @permission_required(["patients.change_patient", "patients.change_contact", "patients.change_patientcontact"], raise_exception=True)
 def patient_edit(request, patient_id):
-    patient = get_object_or_404(Patient, pk=patient_id)
+    patient = _patient_or_404_for(request.user, patient_id)
     primary_relation = patient.patientcontact_set.select_related("contact").filter(is_primary=True).first()
     patient_form = PatientForm(request.POST or None, request.FILES or None, instance=patient, prefix="patient")
     contact_form = ContactForm(request.POST or None, instance=primary_relation.contact if primary_relation else None, prefix="contact")
@@ -291,7 +352,7 @@ def patient_edit(request, patient_id):
 @login_required
 @permission_required(["patients.add_contact", "patients.add_patientcontact"], raise_exception=True)
 def patient_contact_create(request, patient_id):
-    patient = get_object_or_404(Patient, pk=patient_id)
+    patient = _patient_or_404_for(request.user, patient_id)
     contact_form = ContactForm(request.POST or None, prefix="contact")
     relation_form = PatientContactForm(request.POST or None, prefix="relation")
     existing_form = ExistingPatientContactForm(request.POST or None, prefix="existing")
@@ -325,7 +386,7 @@ def patient_contact_create(request, patient_id):
 @permission_required("patients.change_patientcontact", raise_exception=True)
 def patient_contact_edit(request, patient_id, relation_id):
     relation = get_object_or_404(
-        PatientContact.objects.select_related("patient", "contact"),
+        PatientContact.objects.select_related("patient", "contact").filter(patient__in=_patients_visible_to(request.user)),
         pk=relation_id,
         patient_id=patient_id,
     )
@@ -344,7 +405,7 @@ def patient_contact_edit(request, patient_id, relation_id):
 @permission_required("patients.delete_patientcontact", raise_exception=True)
 @require_POST
 def patient_contact_remove(request, patient_id, relation_id):
-    relation = get_object_or_404(PatientContact, pk=relation_id, patient_id=patient_id)
+    relation = get_object_or_404(PatientContact.objects.filter(patient__in=_patients_visible_to(request.user)), pk=relation_id, patient_id=patient_id)
     with transaction.atomic():
         patient_id = relation.patient_id
         was_primary = relation.is_primary
@@ -360,7 +421,7 @@ def patient_contact_remove(request, patient_id, relation_id):
 @login_required
 @permission_required("patients.add_clinicalrecord", raise_exception=True)
 def clinical_record_create(request, patient_id):
-    patient = get_object_or_404(Patient, pk=patient_id)
+    patient = _patient_or_404_for(request.user, patient_id)
     form = ClinicalRecordForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         record = form.save(commit=False)
@@ -375,7 +436,7 @@ def clinical_record_create(request, patient_id):
 @permission_required("patients.delete_patient", raise_exception=True)
 @require_POST
 def patient_archive(request, patient_id):
-    patient = get_object_or_404(Patient, pk=patient_id)
+    patient = _patient_or_404_for(request.user, patient_id)
     patient.active = False
     patient.save(update_fields=["active"])
     return redirect("patient_list")

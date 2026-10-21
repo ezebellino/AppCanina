@@ -40,7 +40,7 @@ def agenda(request):
     else:
         selected_employee = ""
     employees = get_user_model().objects.filter(is_active=True).order_by("username")
-    return render(request, "grooming/agenda.html", {"appointments": appointments, "today_appointments": today_appointments, "delayed_appointments": delayed_appointments, "next_appointment": next_appointment, "view_mode": view_mode, "selected_status": selected_status, "selected_employee": selected_employee, "employees": employees, "status_choices": GroomingAppointment.Status.choices})
+    return render(request, "grooming/agenda.html", {"appointments": appointments, "appointment_count": appointments.count(), "today_appointments": today_appointments, "delayed_appointments": delayed_appointments, "next_appointment": next_appointment, "view_mode": view_mode, "selected_status": selected_status, "selected_employee": selected_employee, "employees": employees, "status_choices": GroomingAppointment.Status.choices})
 
 @login_required
 @permission_required("grooming.add_groomingappointment", raise_exception=True)

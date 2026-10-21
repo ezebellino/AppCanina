@@ -9,7 +9,6 @@ services:
       DJANGO_DB_PATH: "/data/db.sqlite3"
       DJANGO_MEDIA_ROOT: "/data/media"
       DJANGO_SERVE_MEDIA: "1"
-      DJANGO_SECRET_KEY: "cambia-esta-clave-antes-de-exponer-la-app"
     volumes:
       - appcanina_data:/data
     restart: unless-stopped

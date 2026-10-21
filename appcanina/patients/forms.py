@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from .models import CareReminder, ClinicalRecord, Contact, OwnerAccountLink, Patient, PatientContact
+from .image_utils import safe_image_upload
 
 
 class PatientForm(forms.ModelForm):
@@ -8,6 +9,9 @@ class PatientForm(forms.ModelForm):
         model = Patient
         fields = ["name", "species", "breed", "birth_date", "microchip", "photo", "allergies", "notes", "active"]
         widgets = {"birth_date": forms.DateInput(attrs={"type": "date"}), "allergies": forms.Textarea(attrs={"rows": 2}), "notes": forms.Textarea(attrs={"rows": 3})}
+
+    def clean_photo(self):
+        return safe_image_upload(self.cleaned_data.get("photo"))
 
 
 class ContactForm(forms.ModelForm):

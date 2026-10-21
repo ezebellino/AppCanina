@@ -2,13 +2,29 @@ import os
 import sys
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "development-only-change-before-production")
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+if not SECRET_KEY and not DEBUG:
+    # Docker's entrypoint stores the generated key in the private data volume
+    # so management commands executed later in the same container use it too.
+    secret_file = Path(os.environ.get("DJANGO_SECRET_FILE", "/data/.django_secret_key"))
+    if secret_file.is_file():
+        SECRET_KEY = secret_file.read_text(encoding="utf-8").strip()
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "development-only-change-before-production"
+    else:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY es obligatoria cuando DJANGO_DEBUG=0.")
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()]
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()]
 FORCE_HTTPS = os.environ.get("DJANGO_FORCE_HTTPS", "0") == "1"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -83,6 +99,9 @@ if FORCE_HTTPS:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31_536_000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"

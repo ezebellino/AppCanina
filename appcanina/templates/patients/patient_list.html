@@ -1,1 +1,37 @@
-{% extends "base.html" %}{% block title %}Pacientes · AppCanina{% endblock %}{% block content %}<div class="page-heading"><div><p class="eyebrow">Atención animal</p><h1>Fichas activas</h1></div>{% if perms.patients.add_patient %}<a class="button" href="{% url 'patient_create' %}">＋ Nuevo paciente</a>{% endif %}</div><form method="get" class="search-bar"><span class="search-icon" aria-hidden="true">⌕</span><input name="q" value="{{ query }}" placeholder="Buscar mascota, responsable, teléfono o chip" autofocus aria-label="Buscar pacientes"><button>Buscar</button>{% if query %}<a href="{% url 'patient_list' %}">Limpiar</a>{% endif %}</form><section class="card patient-directory">{% if patients %}{% for patient in patients %}<article class="patient-row patient-row-rich"><span class="patient-list-avatar{% if patient.photo %} has-photo{% endif %}" aria-hidden="true">{% if patient.photo %}<img src="{{ patient.photo.url }}" alt="">{% elif patient.species == "dog" %}🐶{% elif patient.species == "cat" %}🐱{% else %}🦜{% endif %}</span><div><h2><a href="{% url 'patient_detail' patient.id %}">{{ patient.name }}</a></h2><p>{{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}</p></div><div class="patient-owner">{% for relation in patient.patientcontact_set.all %}{% if relation.is_primary %}<strong>{{ relation.contact.full_name }}</strong><p>{{ relation.get_role_display }}</p>{% endif %}{% endfor %}</div><a class="row-action" href="{% url 'patient_detail' patient.id %}" aria-label="Ver ficha de {{ patient.name }}">Ver ficha <span aria-hidden="true">→</span></a></article>{% endfor %}{% else %}<div class="empty"><h2>{% if query %}No encontramos coincidencias{% else %}Todavía no hay pacientes{% endif %}</h2><p>{% if query %}Probá con otro dato.{% else %}Creá la primera ficha para comenzar.{% endif %}</p></div>{% endif %}</section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Pacientes · Tu Veterinaria{% endblock %}
+{% block content %}
+<section class="directory-hero">
+  <div>
+    <p class="eyebrow">Atención animal</p>
+    <h1>Pacientes</h1>
+    <p>Fichas, responsables e historial clínico, reunidos en un solo lugar.</p>
+  </div>
+  {% if perms.patients.add_patient %}<a class="button" href="{% url 'patient_create' %}"><span aria-hidden="true">＋</span> Nuevo paciente</a>{% endif %}
+</section>
+
+<section class="patient-directory-toolbar" aria-label="Buscar y filtrar pacientes">
+  <form method="get" class="patient-filter-form">
+    <label class="patient-search-field"><span class="search-icon" aria-hidden="true">⌕</span><span class="sr-only">Buscar pacientes</span><input name="q" value="{{ query }}" placeholder="Buscar nombre, responsable, teléfono o chip" autofocus></label>
+    <label class="patient-species-filter"><span class="sr-only">Especie</span><select name="species"><option value="">Todas las especies</option>{% for value, label in species_choices %}<option value="{{ value }}" {% if species == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <button type="submit">Buscar</button>
+    {% if query or species %}<a class="toolbar-clear" href="{% url 'patient_list' %}">Limpiar</a>{% endif %}
+  </form>
+  <p class="directory-count">{{ result_count }} ficha{{ result_count|pluralize:"s" }} activa{{ result_count|pluralize:"s" }}{% if query or species %} con este filtro{% endif %}</p>
+</section>
+
+<section class="card patient-directory" aria-live="polite">
+  {% if patients %}
+    {% for patient in patients %}
+      <article class="patient-row patient-row-rich">
+        <span class="patient-list-avatar{% if patient.photo %} has-photo{% endif %}" aria-hidden="true">{% if patient.photo %}<img src="{{ patient.photo.url }}" alt="">{% elif patient.species == "dog" %}🐶{% elif patient.species == "cat" %}🐱{% else %}🦜{% endif %}</span>
+        <div class="patient-row-identity"><h2><a href="{% url 'patient_detail' patient.id %}">{{ patient.name }}</a></h2><p>{{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}</p></div>
+        <div class="patient-owner">{% for relation in patient.patientcontact_set.all %}{% if relation.is_primary %}<strong>{{ relation.contact.full_name }}</strong><p>{{ relation.get_role_display }}</p>{% endif %}{% empty %}<strong>Sin responsable asignado</strong><p>Completá la ficha</p>{% endfor %}</div>
+        <a class="row-action" href="{% url 'patient_detail' patient.id %}" aria-label="Ver ficha de {{ patient.name }}">Ver ficha <span aria-hidden="true">→</span></a>
+      </article>
+    {% endfor %}
+  {% else %}
+    <div class="empty patient-directory-empty"><span aria-hidden="true">🐾</span><h2>{% if query or species %}No encontramos coincidencias{% else %}Todavía no hay pacientes{% endif %}</h2><p>{% if query or species %}Probá quitando algún filtro o buscá con otro dato del paciente o responsable.{% else %}Creá la primera ficha para empezar a registrar la atención clínica.{% endif %}</p>{% if query or species %}<a class="button button-ghost" href="{% url 'patient_list' %}">Ver todas las fichas</a>{% elif perms.patients.add_patient %}<a class="button" href="{% url 'patient_create' %}">Crear primer paciente</a>{% endif %}</div>
+  {% endif %}
+</section>
+{% endblock %}

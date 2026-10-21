@@ -166,10 +166,12 @@ def map_data(request):
 def report_create(request):
     patient_id = request.GET.get("patient")
     initial = {"patient": patient_id, "last_seen_at": timezone.localtime().replace(second=0, microsecond=0)}
+    managed_organizations = organizations_managed_by(request.user)
+    visible_patients = Patient.objects.filter(active=True) if request.user.is_superuser else Patient.objects.filter(active=True, organization__in=managed_organizations)
     if patient_id:
-        patient = get_object_or_404(Patient, pk=patient_id, active=True)
+        patient = get_object_or_404(visible_patients, pk=patient_id)
         initial.update({"name": patient.name, "species": patient.species, "breed": patient.breed})
-    form = LostPetReportForm(request.POST or None, request.FILES or None, initial=initial)
+    form = LostPetReportForm(request.POST or None, request.FILES or None, initial=initial, patient_queryset=visible_patients)
     if request.method == "POST" and form.is_valid():
         report = form.save(commit=False)
         report.reporter = request.user

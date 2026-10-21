@@ -20,7 +20,9 @@ class LostPetReportTests(TestCase):
         self.user = User.objects.create_user("community-user", password="secret")
         permissions = Permission.objects.filter(codename__in=["view_lostpetreport", "add_lostpetreport", "add_sighting", "change_lostpetreport"])
         self.user.user_permissions.add(*permissions)
-        self.patient = Patient.objects.create(name="Toto", species="dog", breed="Mestizo")
+        self.organization = Organization.objects.create(name="Veterinaria comunitaria", kind=Organization.Kind.VETERINARY)
+        OrganizationMembership.objects.create(organization=self.organization, user=self.user)
+        self.patient = Patient.objects.create(name="Toto", species="dog", breed="Mestizo", organization=self.organization)
         self.client.force_login(self.user)
 
     def sample_photo(self):
@@ -492,3 +494,44 @@ class ShelterAdoptionPublishingTests(TestCase):
         self.shelter.is_verified = False
         self.shelter.save(update_fields=["is_verified"])
         self.assertEqual(self.client.get(reverse("adoption_create")).status_code, 403)
+
+
+class MobileAdoptionPublishingAuthorizationTests(TestCase):
+    """Only a verified shelter manager may publish from the mobile API."""
+
+    def setUp(self):
+        self.roles = ensure_base_roles()
+
+    def request_as(self, user, organization, name):
+        user.groups.add(self.roles["collaborator"])
+        raw_token, _ = MobileAccessToken.issue(user, "Authorization regression")
+        return self.client.post(
+            reverse("mobile_adoption_request"),
+            data={"name": name, "species": "perro", "area": "Centro", "organization_id": organization.id},
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+
+    def test_only_verified_shelter_manager_publishes_immediately(self):
+        verified_shelter = Organization.objects.create(name="Refugio verificado", kind=Organization.Kind.SHELTER, is_verified=True)
+        unverified_shelter = Organization.objects.create(name="Refugio pendiente", kind=Organization.Kind.SHELTER, is_verified=False)
+        veterinary = Organization.objects.create(name="Veterinaria verificada", kind=Organization.Kind.VETERINARY, is_verified=True)
+
+        manager = User.objects.create_user("shelter-manager", password="secret")
+        staff = User.objects.create_user("shelter-staff", password="secret")
+        pending_manager = User.objects.create_user("pending-manager", password="secret")
+        veterinary_manager = User.objects.create_user("vet-manager", password="secret")
+        OrganizationMembership.objects.create(organization=verified_shelter, user=manager, role=OrganizationMembership.Role.MANAGER)
+        OrganizationMembership.objects.create(organization=verified_shelter, user=staff, role=OrganizationMembership.Role.STAFF)
+        OrganizationMembership.objects.create(organization=unverified_shelter, user=pending_manager, role=OrganizationMembership.Role.MANAGER)
+        OrganizationMembership.objects.create(organization=veterinary, user=veterinary_manager, role=OrganizationMembership.Role.MANAGER)
+
+        self.assertEqual(self.request_as(manager, verified_shelter, "Lola").status_code, 201)
+        self.assertEqual(AdoptionPost.objects.get(name="Lola").status, AdoptionPost.Status.PUBLISHED)
+
+        for user, organization, name in [
+            (staff, verified_shelter, "Toto"),
+            (pending_manager, unverified_shelter, "Mora"),
+            (veterinary_manager, veterinary, "Nube"),
+        ]:
+            self.assertEqual(self.request_as(user, organization, name).status_code, 201)
+            self.assertEqual(AdoptionPost.objects.get(name=name).status, AdoptionPost.Status.PENDING)

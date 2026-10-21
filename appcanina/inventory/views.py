@@ -21,6 +21,7 @@ from .models import Brand, Product, Supplier
 def product_list(request):
     query = request.GET.get("q", "").strip()
     supplier_id = request.GET.get("supplier", "").strip()
+    category = request.GET.get("category", "").strip()
     selected_supplier = None
     products = Product.objects.select_related("brand", "supplier").filter(active=True)
     if supplier_id:
@@ -28,8 +29,12 @@ def product_list(request):
         products = products.filter(supplier=selected_supplier)
     if query:
         products = products.filter(Q(name__icontains=query) | Q(commercial_name__icontains=query) | Q(sku__icontains=query) | Q(brand__name__icontains=query) | Q(category__icontains=query) | Q(supplier__name__icontains=query))
+    if category in dict(Product.Category.choices):
+        products = products.filter(category=category)
+    else:
+        category = ""
     alert_count = Product.objects.filter(active=True).filter(Q(stock__lte=F("minimum_stock")) | Q(expires_on__lte=timezone.localdate() + timedelta(days=30))).count()
-    return render(request, "inventory/product_list.html", {"products": products, "query": query, "selected_supplier": selected_supplier, "alert_count": alert_count})
+    return render(request, "inventory/product_list.html", {"products": products, "query": query, "category": category, "category_choices": Product.Category.choices, "selected_supplier": selected_supplier, "alert_count": alert_count, "product_count": products.count()})
 
 
 @login_required

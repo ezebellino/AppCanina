@@ -64,6 +64,45 @@ function PermissionRow({icon, label, status}) {
   return <View style={styles.permissionRow}><Text style={styles.permissionIcon}>{icon}</Text><Text style={styles.permissionLabel}>{label}</Text><Text style={[styles.permissionStatus, status === "granted" && styles.permissionGranted, status === "denied" && styles.permissionDenied]}>{labelByStatus[status] || labelByStatus.unknown}</Text></View>;
 }
 
+function AnimalGlyph({species, style}) {
+  const normalized = (species || "").toLowerCase();
+  const icon = normalized.includes("gato") || normalized.includes("cat") ? "🐱" : normalized.includes("perro") || normalized.includes("dog") ? "🐶" : "🐾";
+  return <Text style={[styles.animalGlyph, style]}>{icon}</Text>;
+}
+
+function TravelCredentialCard({animal, credential}) {
+  if (!credential) return null;
+  return <View style={styles.travelCredentialCard}>
+    <View style={styles.credentialTopBar}>
+      <View><Text style={styles.credentialOverline}>APP CANINA · VIAJE</Text><Text style={styles.credentialHeading}>Credencial de salud</Text></View>
+      <View style={styles.credentialSeal}><Text style={styles.credentialSealText}>✚</Text></View>
+    </View>
+    <View style={styles.credentialAnimalRow}>
+      {animal.photo_url ? <Image source={{uri: animal.photo_url}} style={styles.credentialAnimalPhoto}/> : <View style={styles.credentialAnimalFallback}><AnimalGlyph species={animal.species}/></View>}
+      <View style={styles.credentialAnimalInfo}><Text style={styles.credentialAnimalName}>{animal.name}</Text><Text style={styles.credentialAnimalMeta}>{animal.species}{animal.breed ? ` · ${animal.breed}` : ""}</Text><Text style={styles.credentialAnimalMeta}>{animal.microchip ? `ID ${animal.microchip}` : "Identificación no informada"}</Text></View>
+    </View>
+    <View style={styles.credentialCodePanel}><Text style={styles.credentialLabel}>CÓDIGO TEMPORAL · PRESENTACIÓN VOLUNTARIA</Text><Text selectable style={styles.credentialCode}>{credential.code}</Text><Text style={styles.credentialExpires}>Válida hasta {new Date(credential.expires_at).toLocaleString()}</Text></View>
+    <Text style={styles.credentialFootnote}>Esta credencial no comparte tu ubicación ni abre el historial por sí sola.</Text>
+  </View>;
+}
+
+function AdoptionCard({post, onInterest}) {
+  return <View style={styles.adoptionCard}>
+    <View style={styles.adoptionPhotoFrame}>
+      {post.photo_url ? <Image source={{uri: post.photo_url}} style={styles.adoptionPhoto}/> : <View style={styles.adoptionPhotoFallback}><AnimalGlyph species={post.species} style={styles.adoptionGlyph}/><Text style={styles.adoptionFallbackText}>Buscando una familia</Text></View>}
+      <View style={styles.adoptionBadge}><Text style={styles.adoptionBadgeText}>EN ADOPCIÓN</Text></View>
+    </View>
+    <View style={styles.adoptionContent}>
+      <View style={styles.adoptionTitleRow}><View style={styles.adoptionTitleBlock}><Text style={styles.adoptionName}>{post.name}</Text><Text style={styles.adoptionTraits}>{post.species}{post.breed ? ` · ${post.breed}` : ""}{post.age ? ` · ${post.age}` : ""}</Text></View><Text style={styles.adoptionHeart}>♡</Text></View>
+      <Text style={styles.adoptionLocation}>⌖ {post.area}</Text>
+      <Text numberOfLines={3} style={styles.adoptionDescription}>{post.description || "Esperando conocer a su próxima familia."}</Text>
+      {post.organization?.name ? <View style={styles.adoptionOrganization}><View style={styles.organizationMiniMark}>{post.organization.logo_url ? <Image source={{uri: post.organization.logo_url}} style={styles.organizationMiniLogo}/> : <Text style={styles.organizationMiniLetter}>{post.organization.name[0]}</Text>}</View><Text style={styles.adoptionOrganizationName}>Acompañado por {post.organization.name}</Text></View> : null}
+      {post.organization?.donation_message ? <View style={styles.donationCard}><Text style={styles.donationText}>{post.organization.donation_message}</Text></View> : null}
+      <Pressable accessibilityRole="button" onPress={onInterest} style={({pressed}) => [styles.adoptionCta, pressed && styles.pressed]}><Text style={styles.adoptionCtaText}>Quiero conocer a {post.name}</Text><Text style={styles.adoptionCtaArrow}>→</Text></Pressable>
+    </View>
+  </View>;
+}
+
 export default function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -715,7 +754,7 @@ export default function App() {
       {screen === "adopciones" ? <View style={styles.stack}>
         <Text style={styles.sectionTitle}>Adopciones responsables</Text><Text style={styles.help}>Estas publicaciones fueron revisadas por una veterinaria o refugio.</Text>
         <Button title="Publicar para adopción" onPress={() => setScreen("nueva-adopcion")}/>
-        {adoptions.length ? adoptions.map(post => <View key={post.id} style={styles.reportCard}>{post.photo_url ? <Image source={{uri: post.photo_url}} style={styles.reportPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text></View>}<View style={styles.reportContent}>{post.organization?.logo_url ? <Image source={{uri: post.organization.logo_url}} style={styles.organizationLogo}/> : null}<Text style={styles.notificationTitle}>{post.name} · {post.species}</Text><Text style={styles.notificationArea}>⌖ {post.area}</Text><Text>{post.age ? `${post.age} · ` : ""}{post.description || "Sin descripción adicional."}</Text>{post.organization?.name ? <Text style={styles.organizationName}>En adopción con {post.organization.name}</Text> : null}{post.organization?.donation_message ? <View style={styles.donationCard}><Text style={styles.donationText}>{post.organization.donation_message}</Text></View> : null}<Button title="Me interesa adoptar" onPress={() => { setSelectedAdoption(post); setInterestMessage(""); setScreen("interes-adopcion"); }}/></View></View>) : <Text style={styles.empty}>Todavía no hay animales publicados para adoptar.</Text>}
+        {adoptions.length ? adoptions.map(post => <AdoptionCard key={post.id} post={post} onInterest={() => { setSelectedAdoption(post); setInterestMessage(""); setScreen("interes-adopcion"); }}/>) : <Text style={styles.empty}>Todavía no hay animales publicados para adoptar.</Text>}
       </View> : null}
       {screen === "interes-adopcion" && selectedAdoption ? <View style={styles.stack}><Button title="← Volver a adopciones" onPress={() => setScreen("adopciones")}/><Text style={styles.sectionTitle}>Me interesa adoptar a {selectedAdoption.name}</Text><Text style={styles.help}>Tu mensaje llegará solo a la veterinaria o refugio responsable. Tus datos no se publicarán.</Text><View style={styles.field}><Text style={styles.fieldLabel}>Contanos por qué te interesa</Text><TextInput value={interestMessage} onChangeText={setInterestMessage} multiline placeholder="Ej.: Tengo experiencia, vivo en una casa con patio..." placeholderTextColor="#6c8378" style={[styles.input, styles.textarea]}/></View><Button title="Enviar interés privado" onPress={submitAdoptionInterest}/></View> : null}
       {screen === "mi-actividad" ? <View style={styles.stack}><Text style={styles.sectionTitle}>Mi actividad de adopción</Text><Text style={styles.help}>Seguimiento de tus intereses sin exponer información personal.</Text>{adoptionInterests.length ? adoptionInterests.map(interest => <View key={interest.id} style={styles.reportCard}><View style={styles.reportContent}><Text style={styles.notificationTitle}>{interest.animal_name} · {interest.species}</Text><Text style={styles.reportMeta}>{interest.status_label}</Text><Text>{interest.message}</Text>{interest.staff_note ? <Text style={styles.reviewNote}>Mensaje del equipo: {interest.staff_note}</Text> : null}</View></View>) : <Text style={styles.empty}>Todavía no enviaste intereses de adopción.</Text>}</View> : null}
@@ -777,7 +816,7 @@ export default function App() {
         <Text style={styles.sectionTitle}>{selectedAnimal.name}</Text><Text style={styles.notificationArea}>{selectedAnimal.species}{selectedAnimal.breed ? ` · ${selectedAnimal.breed}` : ""}</Text>
         {selectedAnimal.allergies ? <View style={styles.warningCard}><Text style={styles.warningTitle}>Alergias registradas</Text><Text style={styles.help}>{selectedAnimal.allergies}</Text></View> : null}
         <View style={styles.consentCard}><Text style={styles.settingsTitle}>Historial compartido durante un viaje</Text><Text style={styles.help}>{selectedAnimal.sharing_enabled ? "Está autorizado. Una veterinaria necesita además tu credencial temporal y localidad coincidente." : "Está desactivado. Ninguna veterinaria puede solicitar el historial temporal hasta que lo autorices."}</Text><Button title={selectedAnimal.sharing_enabled ? "Desactivar historial compartido" : "Autorizar historial compartido"} onPress={() => updateSharingConsent(!selectedAnimal.sharing_enabled)} variant="outline"/></View>
-        <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Credencial de viaje</Text><Text style={styles.help}>Genera un código válido por 7 días. Presentalo voluntariamente en la veterinaria de destino; tu GPS nunca abre el historial de forma automática.</Text><Button title="Crear credencial temporal" onPress={createTravelCredential}/>{travelCredential ? <View style={styles.credentialCard}><Text style={styles.credentialLabel}>CÓDIGO TEMPORAL</Text><Text selectable style={styles.credentialCode}>{travelCredential.code}</Text><Text style={styles.help}>Válida hasta {new Date(travelCredential.expires_at).toLocaleString()}</Text></View> : null}</View>
+        <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Credencial de viaje</Text><Text style={styles.help}>Genera un código válido por 7 días. Presentalo voluntariamente en la veterinaria de destino; tu GPS nunca abre el historial de forma automática.</Text><Button title="Crear credencial temporal" onPress={createTravelCredential}/><TravelCredentialCard animal={selectedAnimal} credential={travelCredential}/></View>
         {selectedAnimal.can_share_with_family ? <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Compartir con mi familia</Text><Text style={styles.help}>Creá un código temporal para que otra persona de confianza vea la misma ficha, sin duplicar datos ni historial.</Text><Button title="Crear código familiar" onPress={createFamilyInvite}/>{familyInvite ? <View style={styles.credentialCard}><Text style={styles.credentialLabel}>CÓDIGO FAMILIAR · UN SOLO USO</Text><Text selectable style={styles.credentialCode}>{familyInvite.code}</Text><Text style={styles.help}>Vence {new Date(familyInvite.expires_at).toLocaleString()}. No lo compartas públicamente.</Text></View> : null}{selectedAnimal.family_members?.length ? <View style={styles.familyList}>{selectedAnimal.family_members.map(member => <View key={member.access_id} style={styles.familyMember}><View><Text style={styles.settingsTitle}>{member.name}</Text><Text style={styles.help}>Acceso familiar activo</Text></View><Button title="Revocar" variant="outline" onPress={() => revokeFamilyAccess(member.access_id, member.name)}/></View>)}</View> : <Text style={styles.help}>Todavía no vinculaste a nadie de tu familia.</Text>}</View> : <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Acceso familiar</Text><Text style={styles.help}>Esta ficha fue compartida contigo por su responsable. Podés verla junto con su historial, pero solo el titular administra accesos y credenciales.</Text></View>}
         <Text style={styles.sectionTitle}>Historial clínico</Text>{selectedAnimal.clinical_records?.length ? selectedAnimal.clinical_records.map((record, index) => <View key={`${record.date}-${index}`} style={styles.recordCard}><Text style={styles.recordDate}>{new Date(`${record.date}T12:00:00`).toLocaleDateString()}</Text><Text style={styles.settingsTitle}>{record.reason}</Text><Text style={styles.help}>{record.notes}</Text><Text style={styles.recordProfessional}>Registrado por {record.professional}</Text></View>) : <Text style={styles.empty}>Todavía no hay registros clínicos cargados.</Text>}
       </View> : null}
@@ -878,6 +917,31 @@ const styles = StyleSheet.create({
   reportPhotoIcon: {fontSize: 52},
   reportPhotoCaption: {color: "#557267"},
   reportContent: {padding: 16, gap: 7},
+  animalGlyph: {fontSize: 35},
+  adoptionCard: {backgroundColor: "#ffffff", borderRadius: 22, overflow: "hidden", borderWidth: 1, borderColor: "#d6e5df", shadowColor: "#073f35", shadowOpacity: 0.10, shadowRadius: 16, elevation: 3},
+  adoptionPhotoFrame: {height: 292, backgroundColor: "#dfeee8", position: "relative"},
+  adoptionPhoto: {width: "100%", height: "100%", resizeMode: "cover"},
+  adoptionPhotoFallback: {flex: 1, alignItems: "center", justifyContent: "center", gap: 9, backgroundColor: "#dcefe7"},
+  adoptionGlyph: {fontSize: 66},
+  adoptionFallbackText: {fontSize: 14, fontWeight: "700", color: "#356857"},
+  adoptionBadge: {position: "absolute", top: 14, left: 14, backgroundColor: "#fffaf0", borderRadius: 18, paddingHorizontal: 11, paddingVertical: 6, borderWidth: 1, borderColor: "#f4d195"},
+  adoptionBadgeText: {fontSize: 10, letterSpacing: 1.1, fontWeight: "900", color: "#875418"},
+  adoptionContent: {padding: 17, gap: 9},
+  adoptionTitleRow: {flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12},
+  adoptionTitleBlock: {flex: 1, gap: 3},
+  adoptionName: {fontSize: 25, lineHeight: 29, letterSpacing: -0.45, fontWeight: "900", color: "#123e34"},
+  adoptionTraits: {fontSize: 13, fontWeight: "700", color: "#477163"},
+  adoptionHeart: {width: 38, height: 38, borderRadius: 19, overflow: "hidden", textAlign: "center", textAlignVertical: "center", fontSize: 25, lineHeight: 38, color: "#0d4d42", backgroundColor: "#e6f5ef"},
+  adoptionLocation: {fontSize: 13, fontWeight: "700", color: "#477163"},
+  adoptionDescription: {fontSize: 14, lineHeight: 20, color: "#29463f"},
+  adoptionOrganization: {flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2},
+  organizationMiniMark: {width: 30, height: 30, borderRadius: 15, overflow: "hidden", backgroundColor: "#e5f0ed", alignItems: "center", justifyContent: "center"},
+  organizationMiniLogo: {width: 30, height: 30, resizeMode: "cover"},
+  organizationMiniLetter: {fontSize: 13, fontWeight: "900", color: "#0d4d42"},
+  adoptionOrganizationName: {flex: 1, fontSize: 12, color: "#356857", fontWeight: "700"},
+  adoptionCta: {minHeight: 49, marginTop: 3, paddingHorizontal: 17, borderRadius: 24, backgroundColor: "#0d4d42", flexDirection: "row", alignItems: "center", justifyContent: "space-between"},
+  adoptionCtaText: {fontSize: 14, fontWeight: "900", color: "#ffffff"},
+  adoptionCtaArrow: {fontSize: 21, lineHeight: 22, fontWeight: "700", color: "#b3eedf"},
   organizationLogo: {width: 34, height: 34, borderRadius: 17, resizeMode: "cover", marginBottom: 2},
   organizationName: {fontSize: 13, fontWeight: "700", color: "#326c55", marginTop: 2},
   donationCard: {backgroundColor: "#eef7f2", borderRadius: 12, padding: 11, marginTop: 2},
@@ -902,6 +966,21 @@ const styles = StyleSheet.create({
   consentCard: {backgroundColor: "#eaf7f1", borderWidth: 1, borderColor: "#a8dfcb", borderRadius: 16, padding: 16, gap: 11},
   warningCard: {backgroundColor: "#fff4df", borderWidth: 1, borderColor: "#f1cf9b", borderRadius: 14, padding: 14, gap: 5},
   warningTitle: {fontSize: 14, fontWeight: "800", color: "#754b17"},
+  travelCredentialCard: {marginTop: 4, borderRadius: 20, padding: 16, gap: 14, backgroundColor: "#0d4d42", overflow: "hidden", shadowColor: "#00352c", shadowOpacity: 0.16, shadowRadius: 12, elevation: 3},
+  credentialTopBar: {flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between"},
+  credentialOverline: {fontSize: 10, fontWeight: "900", letterSpacing: 1.25, color: "#b3eedf"},
+  credentialHeading: {fontSize: 19, fontWeight: "900", color: "#ffffff", marginTop: 3},
+  credentialSeal: {width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#b3eedf"},
+  credentialSealText: {fontSize: 21, fontWeight: "900", color: "#00352c"},
+  credentialAnimalRow: {flexDirection: "row", alignItems: "center", gap: 12},
+  credentialAnimalPhoto: {width: 68, height: 68, borderRadius: 18, resizeMode: "cover", borderWidth: 2, borderColor: "#b3eedf"},
+  credentialAnimalFallback: {width: 68, height: 68, borderRadius: 18, backgroundColor: "#e5f0ed", alignItems: "center", justifyContent: "center"},
+  credentialAnimalInfo: {flex: 1, gap: 2},
+  credentialAnimalName: {fontSize: 22, fontWeight: "900", color: "#ffffff"},
+  credentialAnimalMeta: {fontSize: 12, lineHeight: 17, color: "#d2ebe3"},
+  credentialCodePanel: {borderRadius: 14, backgroundColor: "#ffffff", paddingVertical: 13, paddingHorizontal: 12, alignItems: "center", gap: 4},
+  credentialExpires: {fontSize: 12, color: "#466156", textAlign: "center"},
+  credentialFootnote: {fontSize: 11, lineHeight: 16, color: "#c7e4db", textAlign: "center"},
   credentialCard: {backgroundColor: "#e5f0ed", borderRadius: 13, padding: 14, gap: 5, alignItems: "center"},
   credentialLabel: {fontSize: 11, fontWeight: "900", letterSpacing: 1.2, color: "#326c55"},
   credentialCode: {fontSize: 19, fontWeight: "900", color: "#00352c", letterSpacing: 1.4, textAlign: "center"},

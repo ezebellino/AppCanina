@@ -33,6 +33,9 @@ class RoleAccessTests(TestCase):
         group, _ = Group.objects.get_or_create(name="test-role")
         group.permissions.set(Permission.objects.filter(content_type__app_label="patients", codename__in=codes))
         user.groups.add(group)
+        organization = Organization.objects.create(name=f"Clínica de {user.username}", kind=Organization.Kind.VETERINARY)
+        OrganizationMembership.objects.create(organization=organization, user=user)
+        Patient.objects.filter(organization__isnull=True).update(organization=organization)
         return user
 
     def test_employee_can_read_patients_but_cannot_create(self):
@@ -60,6 +63,9 @@ class RoleAccessTests(TestCase):
         Sale.objects.create(patient=other_patient, contact=contact, total=2000, payment_method="qr", seller=seller)
         user = User.objects.create_user("viewer", password="secret")
         user.user_permissions.add(Permission.objects.get(codename="view_patient"), Permission.objects.get(codename="view_sale"))
+        organization = Organization.objects.create(name="Clínica del viewer", kind=Organization.Kind.VETERINARY)
+        OrganizationMembership.objects.create(organization=organization, user=user)
+        Patient.objects.filter(pk__in=[patient.id, other_patient.id]).update(organization=organization)
         self.client.force_login(user)
         response = self.client.get(reverse("patient_detail", args=[patient.id]))
         self.assertContains(response, "Compras de Luna")
@@ -75,6 +81,10 @@ class RoleAccessTests(TestCase):
         Product.objects.create(name="Alimento Luna", category="food", brand=brand, supplier=supplier, price=1000)
         user = User.objects.create_user("searcher", password="secret")
         user.user_permissions.add(Permission.objects.get(content_type__app_label="patients", codename="view_patient"), Permission.objects.get(content_type__app_label="inventory", codename="view_product"))
+        organization = Organization.objects.create(name="Clínica del buscador", kind=Organization.Kind.VETERINARY)
+        OrganizationMembership.objects.create(organization=organization, user=user)
+        patient.organization = organization
+        patient.save(update_fields=["organization"])
         self.client.force_login(user)
         response = self.client.get(reverse("global_search"), {"q": "Luna"})
         self.assertContains(response, patient.name)
@@ -212,12 +222,67 @@ class RoleAccessTests(TestCase):
         self.assertEqual(image_response.headers["Content-Type"], "image/png")
 
 
+class OrganizationClinicalIsolationTests(TestCase):
+    """Regression tests for the clinical tenant boundary."""
+
+    def setUp(self):
+        self.organization_a = Organization.objects.create(name="Veterinaria A", kind=Organization.Kind.VETERINARY)
+        self.organization_b = Organization.objects.create(name="Veterinaria B", kind=Organization.Kind.VETERINARY)
+        self.user_a = User.objects.create_user("professional-a", password="secret")
+        self.user_a.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="patients",
+            codename__in=["view_patient", "change_patient", "change_contact", "change_patientcontact", "add_clinicalrecord", "add_carereminder", "change_carereminder", "view_carereminder", "delete_patient"],
+        ))
+        OrganizationMembership.objects.create(organization=self.organization_a, user=self.user_a)
+        self.patient_a = Patient.objects.create(name="Luna A", species="cat", organization=self.organization_a)
+        self.patient_b = Patient.objects.create(name="Luna B", species="dog", organization=self.organization_b)
+        self.reminder_b = CareReminder.objects.create(patient=self.patient_b, kind=CareReminder.Kind.VACCINE, due_on="2026-11-01")
+        self.client.force_login(self.user_a)
+
+    def test_list_and_search_only_show_the_member_organization(self):
+        response = self.client.get(reverse("patient_list"))
+        self.assertContains(response, self.patient_a.name)
+        self.assertNotContains(response, self.patient_b.name)
+
+        response = self.client.get(reverse("global_search"), {"q": "Luna"})
+        self.assertContains(response, self.patient_a.name)
+        self.assertNotContains(response, self.patient_b.name)
+
+    def test_other_organization_patient_cannot_be_read_or_mutated_by_id(self):
+        self.assertEqual(self.client.get(reverse("patient_detail", args=[self.patient_b.id])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("patient_edit", args=[self.patient_b.id])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("clinical_record_create", args=[self.patient_b.id])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("care_reminder_create", args=[self.patient_b.id])).status_code, 404)
+        self.assertEqual(self.client.post(reverse("care_reminder_complete", args=[self.reminder_b.id])).status_code, 404)
+        self.assertEqual(self.client.post(reverse("patient_archive", args=[self.patient_b.id])).status_code, 404)
+        self.patient_b.refresh_from_db()
+        self.reminder_b.refresh_from_db()
+        self.assertTrue(self.patient_b.active)
+        self.assertIsNone(self.reminder_b.completed_on)
+
+    def test_patient_creation_assigns_the_organization_on_the_server(self):
+        self.user_a.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="patients", codename__in=["add_patient", "add_contact", "add_patientcontact"],
+        ))
+        response = self.client.post(reverse("patient_create"), {
+            "patient-name": "Mora", "patient-species": "cat", "patient-breed": "", "patient-birth_date": "",
+            "patient-microchip": "", "patient-allergies": "", "patient-notes": "",
+            "contact-full_name": "Ana", "contact-kind": "person", "contact-phone": "", "contact-email": "",
+            "patient-organization": self.organization_b.id,
+        })
+        self.assertRedirects(response, reverse("patient_list"))
+        self.assertEqual(Patient.objects.get(name="Mora").organization, self.organization_a)
+
+
 class CareReminderTests(TestCase):
     def user_with(self, *codes):
         user = User.objects.create_user("employee", password="secret")
         group, _ = Group.objects.get_or_create(name="test-role")
         group.permissions.set(Permission.objects.filter(content_type__app_label="patients", codename__in=codes))
         user.groups.add(group)
+        organization = Organization.objects.create(name=f"Clínica de {user.username}", kind=Organization.Kind.VETERINARY)
+        OrganizationMembership.objects.create(organization=organization, user=user)
+        Patient.objects.filter(organization__isnull=True).update(organization=organization)
         return user
 
     def setUp(self):
@@ -228,7 +293,9 @@ class CareReminderTests(TestCase):
             Permission.objects.get(codename="view_carereminder"),
             Permission.objects.get(codename="change_carereminder"),
         )
-        self.patient = Patient.objects.create(name="Mora", species="dog")
+        self.organization = Organization.objects.create(name="Clínica de recordatorios", kind=Organization.Kind.VETERINARY)
+        OrganizationMembership.objects.create(organization=self.organization, user=self.user)
+        self.patient = Patient.objects.create(name="Mora", species="dog", organization=self.organization)
         self.client.force_login(self.user)
 
     def test_reminder_can_be_created_and_completed_from_patient_flow(self):

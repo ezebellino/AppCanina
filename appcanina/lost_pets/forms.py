@@ -1,28 +1,13 @@
-from io import BytesIO
-from pathlib import Path
-
 from django import forms
-from django.core.files.base import ContentFile
-from PIL import Image
 
 from patients.models import Patient
+from patients.image_utils import safe_image_upload
 
 from .models import AdoptionPost, LostPetReport, Sighting
 
 
 def photo_without_location_metadata(uploaded_file):
-    if not uploaded_file:
-        return uploaded_file
-    image = Image.open(uploaded_file)
-    image.load()
-    image_format = "JPEG" if image.format in {"JPEG", "JPG"} else "PNG"
-    if image_format == "JPEG" and image.mode not in {"RGB", "L"}:
-        image = image.convert("RGB")
-    output = BytesIO()
-    image.save(output, format=image_format, quality=90, optimize=True)
-    suffix = ".jpg" if image_format == "JPEG" else ".png"
-    filename = f"{Path(uploaded_file.name).stem}{suffix}"
-    return ContentFile(output.getvalue(), name=filename)
+    return safe_image_upload(uploaded_file)
 
 
 class LostPetReportForm(forms.ModelForm):
@@ -32,9 +17,10 @@ class LostPetReportForm(forms.ModelForm):
         labels = {"patient": "Paciente registrado (opcional)", "name": "Nombre del animal", "species": "Especie", "breed": "Raza", "description": "Señas particulares", "photo": "Foto", "last_seen_at": "Última vez visto", "area_label": "Zona o barrio", "latitude": "Latitud exacta (opcional)", "longitude": "Longitud exacta (opcional)"}
         widgets = {"last_seen_at": forms.DateTimeInput(attrs={"type": "datetime-local"}), "description": forms.Textarea(attrs={"rows": 3})}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, patient_queryset=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["patient"].queryset = Patient.objects.filter(active=True).order_by("name")
+        queryset = patient_queryset if patient_queryset is not None else Patient.objects.none()
+        self.fields["patient"].queryset = queryset.filter(active=True).order_by("name")
         self.fields["patient"].empty_label = "No vincular por ahora"
         self.fields["area_label"].widget.attrs["placeholder"] = "Ej.: Parque Central, Barrio Norte"
 

@@ -94,8 +94,11 @@ class Command(BaseCommand):
             OwnerAccountLink.objects.get_or_create(contact=contact, user=community_user)
             patient, _ = Patient.objects.get_or_create(
                 microchip="DEMO-COM-001",
-                defaults={"name": "Canela", "species": Patient.Species.DOG, "breed": "Mestiza", "notes": "Paciente ficticio de demostración."},
+                defaults={"organization": veterinary, "name": "Canela", "species": Patient.Species.DOG, "breed": "Mestiza", "notes": "Paciente ficticio de demostración."},
             )
+            if patient.organization_id != veterinary.id:
+                patient.organization = veterinary
+                patient.save(update_fields=["organization"])
             PatientContact.objects.get_or_create(patient=patient, contact=contact, role=PatientContact.Role.RESPONSIBLE, defaults={"is_primary": True})
             ClinicalRecord.objects.get_or_create(
                 patient=patient,

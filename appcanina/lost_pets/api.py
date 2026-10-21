@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth import authenticate
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
@@ -286,7 +287,7 @@ def _mobile_photo(request):
         return None
     try:
         return photo_without_location_metadata(uploaded)
-    except (UnidentifiedImageError, OSError, ValueError):
+    except (UnidentifiedImageError, OSError, ValueError, ValidationError):
         raise ValueError("La imagen no pudo procesarse. Probá con una foto JPG o PNG.")
 
 
@@ -529,8 +530,16 @@ def mobile_adoption_request(request):
     organization_id = payload.get("organization_id")
     membership_query = OrganizationMembership.objects.filter(user=request.mobile_user).select_related("organization")
     membership = membership_query.filter(organization_id=organization_id).first() if organization_id else membership_query.first()
+    # Only the verified shelter's responsible person may publish immediately.
+    # A general team member (or a veterinary organization) can submit a
+    # proposal, but it remains pending for the shelter/refuge workflow.
     organization = membership.organization if membership else Organization.objects.filter(is_business_profile=True).first()
-    institution_can_publish = bool(membership and membership.organization.is_verified)
+    institution_can_publish = bool(
+        membership
+        and membership.role == OrganizationMembership.Role.MANAGER
+        and membership.organization.kind == Organization.Kind.SHELTER
+        and membership.organization.is_verified
+    )
     post = AdoptionPost.objects.create(
         publisher=request.mobile_user, organization=organization, name=name[:100], species=species,
         breed=(payload.get("breed") or "").strip()[:100], age_label=(payload.get("age") or "").strip()[:80],

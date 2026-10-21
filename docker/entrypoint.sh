@@ -1,6 +1,21 @@
 #!/bin/sh
 set -eu
 
+# A client installation should not ship a shared predictable secret.  Docker
+# persists a locally generated key in its data volume; managed deployments can
+# (and should) provide DJANGO_SECRET_KEY as an environment secret instead.
+if [ -z "${DJANGO_SECRET_KEY:-}" ]; then
+    secret_file="${DJANGO_SECRET_FILE:-/data/.django_secret_key}"
+    if [ -f "$secret_file" ]; then
+        DJANGO_SECRET_KEY="$(cat "$secret_file")"
+    else
+        umask 077
+        DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+        printf '%s' "$DJANGO_SECRET_KEY" > "$secret_file"
+    fi
+    export DJANGO_SECRET_KEY
+fi
+
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
