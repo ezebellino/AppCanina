@@ -10,6 +10,7 @@ urlpatterns = [
     path("acceso-viaje/", views.travel_access_request, name="travel_access_request"),
     path("acceso-viaje/<int:request_id>/", views.travel_access_history, name="travel_access_history"),
     path("pacientes/", views.patient_list, name="patient_list"),
+    path("atencion/", views.daily_animal_care, name="daily_animal_care"),
     path("buscar/", views.global_search, name="global_search"),
     path("pacientes/nuevo/", views.patient_create, name="patient_create"),
     path("pacientes/<int:patient_id>/contactos/nuevo/", views.patient_contact_create, name="patient_contact_create"),

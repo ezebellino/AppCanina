@@ -307,6 +307,19 @@ class CareReminderTests(TestCase):
         reminder.refresh_from_db()
         self.assertIsNotNone(reminder.completed_on)
 
+    def test_daily_animal_care_only_shows_visible_due_reminders(self):
+        today = timezone.localdate()
+        due = CareReminder.objects.create(patient=self.patient, kind="vaccine", due_on=today, notes="Refuerzo")
+        foreign_org = Organization.objects.create(name="Otra clínica", kind=Organization.Kind.VETERINARY)
+        foreign_patient = Patient.objects.create(name="Oculto", species="cat", organization=foreign_org)
+        CareReminder.objects.create(patient=foreign_patient, kind="medication", due_on=today)
+
+        response = self.client.get(reverse("daily_animal_care"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, due.patient.name)
+        self.assertNotContains(response, foreign_patient.name)
+
     def test_user_with_add_permissions_can_add_adopter_and_change_primary_contact(self):
         original_contact = Contact.objects.create(full_name="Ana Pérez")
         patient = Patient.objects.create(name="Luna", species="cat")

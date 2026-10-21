@@ -224,6 +224,31 @@ def patient_list(request):
 
 
 @login_required
+@permission_required("patients.view_patient", raise_exception=True)
+def daily_animal_care(request):
+    """Permission-aware clinical work queue for the current day."""
+    today = timezone.localdate()
+    visible_patients = _patients_visible_to(request.user).filter(active=True)
+    reminders = CareReminder.objects.none()
+    visits = HomeVisit.objects.none()
+    if request.user.has_perm("patients.view_carereminder"):
+        reminders = CareReminder.objects.select_related("patient").filter(
+            patient__in=visible_patients, completed_on__isnull=True, due_on__lte=today
+        ).order_by("due_on", "id")
+    if request.user.has_perm("visits.view_homevisit"):
+        visits = HomeVisit.objects.select_related("patient", "assigned_to").filter(
+            patient__in=visible_patients, scheduled_for__date=today
+        ).exclude(status=HomeVisit.Status.CANCELED).order_by("scheduled_for", "id")
+    return render(request, "patients/daily_animal_care.html", {
+        "today": today,
+        "reminders": reminders,
+        "visits": visits,
+        "overdue_reminders": reminders.filter(due_on__lt=today).count(),
+        "today_reminders": reminders.filter(due_on=today).count(),
+    })
+
+
+@login_required
 def global_search(request):
     if (
         request.user.has_perm("lost_pets.view_lostpetreport")
