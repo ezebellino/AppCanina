@@ -244,6 +244,12 @@ class OrganizationClinicalIsolationTests(TestCase):
         self.assertContains(response, self.patient_a.name)
         self.assertNotContains(response, self.patient_b.name)
 
+    def test_daily_close_loads_only_the_current_organization_scope(self):
+        response = self.client.get(reverse("daily_close"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Terminá el día con claridad")
+
         response = self.client.get(reverse("global_search"), {"q": "Luna"})
         self.assertContains(response, self.patient_a.name)
         self.assertNotContains(response, self.patient_b.name)

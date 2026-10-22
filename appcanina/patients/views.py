@@ -14,7 +14,7 @@ from django.utils import timezone
 from .forms import CareReminderForm, ClinicalRecordForm, ContactForm, ExistingPatientContactForm, OwnerAccountLinkForm, PatientContactForm, PatientForm, TravelAccessRequestForm
 from .models import CareReminder, ClinicalHistoryAccessLog, Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent, TravelAccessRequest, TravelCredential
 from organizations.roles import organizations_managed_by
-from sales.models import Sale
+from sales.models import CashSession, Sale
 from inventory.models import Product
 from grooming.models import GroomingAppointment
 from visits.models import HomeVisit
@@ -175,23 +175,26 @@ def dashboard(request):
     ):
         return redirect("lost_pet_list")
     today = timezone.localdate()
+    organization = _default_operating_organization(request.user)
+    visible_patients = _patients_visible_to(request.user)
     metrics = []
     attention = []
     if request.user.has_perm("patients.view_patient"):
-        metrics.append({"value": _patients_visible_to(request.user).filter(active=True).count(), "label": "pacientes activos", "url": "patient_list", "tone": "teal"})
+        metrics.append({"value": visible_patients.filter(active=True).count(), "label": "pacientes activos", "url": "patient_list", "tone": "teal"})
     if request.user.has_perm("grooming.view_groomingappointment"):
-        turns_today = GroomingAppointment.objects.filter(starts_at__date=today).exclude(status=GroomingAppointment.Status.CANCELED).count()
+        turns_today = GroomingAppointment.objects.filter(patient__in=visible_patients, starts_at__date=today).exclude(status=GroomingAppointment.Status.CANCELED).count()
         metrics.append({"value": turns_today, "label": "turnos de hoy", "url": "grooming_agenda", "tone": "amber"})
     if request.user.has_perm("visits.view_homevisit"):
-        visits_today = HomeVisit.objects.filter(scheduled_for__date=today).exclude(status=HomeVisit.Status.CANCELED).count()
+        visits_today = HomeVisit.objects.filter(patient__in=visible_patients, scheduled_for__date=today).exclude(status=HomeVisit.Status.CANCELED).count()
         metrics.append({"value": visits_today, "label": "visitas de hoy", "url": "home_visit_list", "tone": "blue"})
     if request.user.has_perm("patients.view_carereminder"):
-        due_reminders = CareReminder.objects.filter(patient__in=_patients_visible_to(request.user), completed_on__isnull=True, due_on__lte=today)
+        due_reminders = CareReminder.objects.filter(patient__in=visible_patients, completed_on__isnull=True, due_on__lte=today)
         if due_reminders.exists():
             attention.append({"value": due_reminders.count(), "label": "recordatorios clínicos pendientes", "url": "care_reminder_list"})
     if request.user.has_perm("inventory.view_product"):
-        low_stock = Product.objects.filter(active=True, stock__lte=F("minimum_stock")).count()
-        metrics.append({"value": Product.objects.filter(active=True).count(), "label": "productos activos", "url": "inventory_list", "tone": "blue"})
+        products = Product.objects.filter(organization=organization, active=True) if organization else Product.objects.none()
+        low_stock = products.filter(stock__lte=F("minimum_stock")).count()
+        metrics.append({"value": products.count(), "label": "productos activos", "url": "inventory_list", "tone": "blue"})
         if low_stock:
             attention.append({"value": low_stock, "label": "productos con stock bajo", "url": "inventory_alerts"})
     if request.user.has_perm("sales.view_sale"):
@@ -246,6 +249,46 @@ def daily_animal_care(request):
         "overdue_reminders": reminders.filter(due_on__lt=today).count(),
         "today_reminders": reminders.filter(due_on=today).count(),
     })
+
+
+@login_required
+def daily_close(request):
+    """Short, permission-aware operational close for the current organization."""
+    today = timezone.localdate()
+    organization = _default_operating_organization(request.user)
+    visible_patients = _patients_visible_to(request.user).filter(active=True)
+    metrics, pending = [], []
+    if request.user.has_perm("sales.view_sale") and organization:
+        sales = Sale.objects.filter(organization=organization, created_at__date=today)
+        metrics.append({"icon": "▣", "tone": "commerce", "value": sales.aggregate(total=Sum("total"))["total"] or 0, "label": "vendido hoy", "detail": f"{sales.count()} venta{'s' if sales.count() != 1 else ''} registrada{'s' if sales.count() != 1 else ''}", "url": "daily_report", "currency": True})
+    if request.user.has_perm("sales.view_cashsession") and organization:
+        cash_session = CashSession.objects.filter(organization=organization, closed_at__isnull=True).first()
+        if cash_session:
+            pending.append({"icon": "◷", "label": "La caja sigue abierta", "detail": "Revisá el arqueo antes de cerrar la jornada.", "url": "cash_dashboard"})
+        else:
+            metrics.append({"icon": "✓", "tone": "calm", "value": "Cerrada", "label": "caja diaria", "detail": "No hay una caja abierta.", "url": "cash_dashboard", "currency": False})
+    if request.user.has_perm("grooming.view_groomingappointment"):
+        appointments = GroomingAppointment.objects.filter(patient__in=visible_patients, starts_at__date=today)
+        done = appointments.filter(status=GroomingAppointment.Status.DONE).count()
+        active = appointments.exclude(status__in=[GroomingAppointment.Status.DONE, GroomingAppointment.Status.CANCELED]).count()
+        metrics.append({"icon": "✂", "tone": "services", "value": done, "label": "turnos finalizados", "detail": f"{active} pendiente{'s' if active != 1 else ''} de resolver", "url": "grooming_agenda", "currency": False})
+        if active:
+            pending.append({"icon": "✂", "label": f"{active} turno{'s' if active != 1 else ''} aún activo{'s' if active != 1 else ''}", "detail": "Confirmá, finalizá o marcá inasistencia.", "url": "grooming_agenda"})
+    if request.user.has_perm("visits.view_homevisit"):
+        visits = HomeVisit.objects.filter(patient__in=visible_patients, scheduled_for__date=today).exclude(status=HomeVisit.Status.CANCELED)
+        completed = visits.filter(status=HomeVisit.Status.COMPLETED).count()
+        pending_visits = visits.exclude(status=HomeVisit.Status.COMPLETED).count()
+        metrics.append({"icon": "⌖", "tone": "visits", "value": completed, "label": "visitas finalizadas", "detail": f"{pending_visits} pendiente{'s' if pending_visits != 1 else ''} de gestión", "url": "home_visit_list", "currency": False})
+    if request.user.has_perm("patients.view_carereminder"):
+        reminders = CareReminder.objects.filter(patient__in=visible_patients, completed_on__isnull=True, due_on__lte=today)
+        if reminders.exists():
+            pending.append({"icon": "⚕", "label": f"{reminders.count()} cuidado{'s' if reminders.count() != 1 else ''} pendiente{'s' if reminders.count() != 1 else ''}", "detail": "Incluye recordatorios vencidos y previstos para hoy.", "url": "daily_animal_care"})
+    if request.user.has_perm("inventory.view_product") and organization:
+        low_stock = Product.objects.filter(organization=organization, active=True, stock__lte=F("minimum_stock")).count()
+        metrics.append({"icon": "▤", "tone": "stock", "value": low_stock, "label": "alertas de stock", "detail": "Productos en o bajo su mínimo.", "url": "inventory_alerts", "currency": False})
+        if low_stock:
+            pending.append({"icon": "▤", "label": f"{low_stock} producto{'s' if low_stock != 1 else ''} para reponer", "detail": "Revisá stock crítico antes de mañana.", "url": "inventory_alerts"})
+    return render(request, "patients/daily_close.html", {"today": today, "close_metrics": metrics, "pending": pending, "organization": organization})
 
 
 @login_required
