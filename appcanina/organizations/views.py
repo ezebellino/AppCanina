@@ -113,6 +113,16 @@ def organization_verification_update(request, organization_id):
     else:
         organization.verification_status = Organization.VerificationStatus.REJECTED
         organization.is_verified = False
+        roles = ensure_base_roles()
+        managers = organization.memberships.filter(role=OrganizationMembership.Role.MANAGER).select_related("user")
+        for membership in managers:
+            has_another_approved_institution = OrganizationMembership.objects.filter(
+                user=membership.user,
+                role=OrganizationMembership.Role.MANAGER,
+                organization__verification_status=Organization.VerificationStatus.APPROVED,
+            ).exclude(organization=organization).exists()
+            if not has_another_approved_institution:
+                membership.user.groups.remove(roles["admin"])
         messages.success(request, f"La solicitud de {organization.name} fue rechazada. El perfil quedó inactivo.")
     organization.save()
     return redirect("organization_verification_list")

@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .models import Organization, OrganizationMembership
-from .roles import COMMUNITY_COLLABORATOR_GROUP
+from .roles import COMMUNITY_COLLABORATOR_GROUP, ensure_base_roles
 
 
 class InitialSetupTests(TestCase):
@@ -108,3 +108,17 @@ class OrganizationVerificationTests(TestCase):
         self.assertRedirects(response, reverse("organization_verification_list"))
         self.veterinary.refresh_from_db()
         self.assertEqual(self.veterinary.verification_status, Organization.VerificationStatus.PENDING)
+
+    def test_rejection_removes_operational_role_when_manager_has_no_other_approved_institution(self):
+        self.manager.groups.add(ensure_base_roles()["admin"])
+        self.veterinary.verification_status = Organization.VerificationStatus.APPROVED
+        self.veterinary.is_verified = True
+        self.veterinary.save()
+        self.client.force_login(self.platform_admin)
+
+        self.client.post(
+            reverse("organization_verification_update", args=[self.veterinary.id]),
+            {"action": "reject", "verification_note": "Habilitación revocada."},
+        )
+
+        self.assertFalse(self.manager.groups.filter(name="Administrador").exists())
