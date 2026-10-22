@@ -33,17 +33,24 @@ class HomeVisitForm(forms.ModelForm):
                 self.add_error("new_contact_name", "Indicá un responsable para la nueva ficha.")
         return cleaned
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, patient_queryset=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if patient_queryset is not None:
+            self.fields["patient"].queryset = patient_queryset
         self.fields["new_patient_name"].widget.attrs["placeholder"] = "Nombre de la mascota"
         self.fields["new_contact_name"].widget.attrs["placeholder"] = "Nombre del responsable"
         self.fields["new_contact_phone"].widget.attrs["placeholder"] = "Teléfono"
 
-    def create_patient_if_needed(self):
+    def create_patient_if_needed(self, organization):
         patient = self.cleaned_data.get("patient")
         if patient:
             return patient
-        patient = Patient.objects.create(name=self.cleaned_data["new_patient_name"].strip(), species=self.cleaned_data["new_patient_species"], notes="Ficha creada desde una visita a domicilio.")
+        patient = Patient.objects.create(
+            name=self.cleaned_data["new_patient_name"].strip(),
+            species=self.cleaned_data["new_patient_species"],
+            organization=organization,
+            notes="Ficha creada desde una visita a domicilio.",
+        )
         contact = Contact.objects.create(full_name=self.cleaned_data["new_contact_name"].strip(), phone=self.cleaned_data.get("new_contact_phone", "").strip())
         PatientContact.objects.create(patient=patient, contact=contact, role=PatientContact.Role.RESPONSIBLE, is_primary=True)
         return patient
