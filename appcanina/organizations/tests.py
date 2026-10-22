@@ -9,7 +9,7 @@ from .roles import COMMUNITY_COLLABORATOR_GROUP, ensure_base_roles
 class InitialSetupTests(TestCase):
     def test_first_setup_creates_owner_and_business_profile(self):
         response = self.client.post(reverse("initial_setup"), {"business_name": "Veterinaria Nala", "business_kind": "veterinary", "username": "nala-admin", "email": "nala@example.test", "password1": "clave-segura-123", "password2": "clave-segura-123"})
-        self.assertRedirects(response, reverse("dashboard"))
+        self.assertRedirects(response, reverse("platform_dashboard"))
         self.assertTrue(User.objects.get(username="nala-admin").is_superuser)
         self.assertEqual(Organization.objects.get(is_business_profile=True).name, "Veterinaria Nala")
         self.assertTrue(User.objects.get(username="nala-admin").groups.filter(name=COMMUNITY_COLLABORATOR_GROUP).exists() is False)
@@ -69,6 +69,21 @@ class OrganizationVerificationTests(TestCase):
             self.client.post(reverse("organization_verification_update", args=[self.veterinary.id]), {"action": "approve"}).status_code,
             403,
         )
+
+    def test_platform_admin_has_a_separate_dashboard(self):
+        self.client.force_login(self.platform_admin)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertRedirects(response, reverse("platform_dashboard"))
+        response = self.client.get(reverse("platform_dashboard"))
+        self.assertContains(response, "Panel de plataforma")
+        self.assertNotContains(response, "Atención animal")
+
+    def test_institution_manager_cannot_open_platform_dashboard(self):
+        self.client.force_login(self.manager)
+
+        self.assertEqual(self.client.get(reverse("platform_dashboard")).status_code, 403)
 
     def test_platform_admin_approves_veterinary_and_enables_manager_role(self):
         self.client.force_login(self.platform_admin)

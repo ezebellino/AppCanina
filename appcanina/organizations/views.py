@@ -33,7 +33,7 @@ def initial_setup(request):
                 is_business_profile=True,
             )
         login(request, user)
-        return redirect("dashboard")
+        return redirect("platform_dashboard")
     return render(request, "organizations/initial_setup.html", {"form": form})
 
 
@@ -52,6 +52,43 @@ def community_collaborators(request):
         request,
         "organizations/community_collaborators.html",
         {"form": form, "collaborators": collaborators},
+    )
+
+
+@login_required
+def platform_dashboard(request):
+    """A platform-only landing page, intentionally separate from institutional operations."""
+    if not request.user.is_staff:
+        raise PermissionDenied
+
+    institution_filter = {"kind__in": [Organization.Kind.VETERINARY, Organization.Kind.SHELTER]}
+    pending = Organization.objects.filter(
+        **institution_filter,
+        verification_status=Organization.VerificationStatus.PENDING,
+    )
+    approved = Organization.objects.filter(
+        **institution_filter,
+        verification_status=Organization.VerificationStatus.APPROVED,
+    )
+    roles = ensure_base_roles()
+    community_users = User.objects.filter(
+        groups=roles["collaborator"],
+        organization_memberships__isnull=True,
+        is_active=True,
+    ).distinct()
+    latest_requests = pending.prefetch_related("memberships__user").order_by("id")[:6]
+    return render(
+        request,
+        "organizations/platform_dashboard.html",
+        {
+            "metrics": [
+                {"value": pending.count(), "label": "solicitudes pendientes", "tone": "amber"},
+                {"value": approved.filter(kind=Organization.Kind.VETERINARY).count(), "label": "veterinarias aprobadas", "tone": "teal"},
+                {"value": approved.filter(kind=Organization.Kind.SHELTER).count(), "label": "refugios aprobados", "tone": "blue"},
+                {"value": community_users.count(), "label": "personas en Comunidad", "tone": "teal"},
+            ],
+            "latest_requests": latest_requests,
+        },
     )
 
 

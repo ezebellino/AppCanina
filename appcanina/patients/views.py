@@ -167,6 +167,8 @@ def travel_access_history(request, request_id):
 @login_required
 def dashboard(request):
     """Compact desktop-first landing page for the day-to-day operation."""
+    if request.user.is_staff:
+        return redirect("platform_dashboard")
     if (
         request.user.has_perm("lost_pets.view_lostpetreport")
         and not request.user.has_perm("patients.view_patient")
