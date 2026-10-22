@@ -1,5 +1,7 @@
 from django.contrib.auth.models import User
+from django.core import mail
 from django.test import TestCase
+from django.test import override_settings
 from django.urls import reverse
 
 from .models import Organization, OrganizationMembership
@@ -45,6 +47,30 @@ class CommunityCollaboratorTests(TestCase):
         self.assertTrue(collaborator.has_perm("lost_pets.add_sighting"))
         self.assertFalse(collaborator.has_perm("lost_pets.add_lostpetreport"))
         self.assertFalse(collaborator.has_perm("patients.view_patient"))
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class PasswordRecoveryTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            "recuperacion",
+            email="recuperacion@example.test",
+            password="clave-anterior",
+        )
+
+    def test_password_recovery_sends_a_single_use_reset_link(self):
+        response = self.client.post(reverse("password_reset"), {"email": self.user.email})
+
+        self.assertRedirects(response, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Restablecé tu contraseña", mail.outbox[0].subject)
+        self.assertIn("cuenta/restablecer/", mail.outbox[0].body)
+
+    def test_password_recovery_does_not_disclose_unknown_email_addresses(self):
+        response = self.client.post(reverse("password_reset"), {"email": "no-existe@example.test"})
+
+        self.assertRedirects(response, reverse("password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class OrganizationVerificationTests(TestCase):
