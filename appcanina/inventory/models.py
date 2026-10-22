@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
+from organizations.models import Organization
 
 
 class Supplier(models.Model):
@@ -11,7 +12,8 @@ class Supplier(models.Model):
         WEEKLY = "weekly", "Una vez por semana"
         TWICE_WEEKLY = "twice_weekly", "Dos veces por semana"
         AS_NEEDED = "as_needed", "A demanda"
-    name = models.CharField("nombre", max_length=140, unique=True)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="suppliers", null=True, blank=True)
+    name = models.CharField("nombre", max_length=140)
     phone = models.CharField("teléfono", max_length=40, blank=True)
     email = models.EmailField("correo electrónico", blank=True)
     notes = models.TextField("observaciones", blank=True)
@@ -21,6 +23,7 @@ class Supplier(models.Model):
 
     class Meta:
         ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["organization", "name"], name="unique_supplier_per_organization")]
         verbose_name = "proveedor"
         verbose_name_plural = "proveedores"
 
@@ -29,11 +32,13 @@ class Supplier(models.Model):
 
 
 class Brand(models.Model):
-    name = models.CharField("nombre", max_length=100, unique=True)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="brands", null=True, blank=True)
+    name = models.CharField("nombre", max_length=100)
     active = models.BooleanField("activa", default=True)
 
     class Meta:
         ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["organization", "name"], name="unique_brand_per_organization")]
         verbose_name = "marca"
         verbose_name_plural = "marcas"
 
@@ -59,7 +64,8 @@ class Product(models.Model):
         KILOGRAM = "kg", "Kilogramo"
         BAG = "bag", "Bolsa"
 
-    sku = models.CharField("código interno", max_length=50, blank=True, unique=True, null=True)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="products", null=True, blank=True)
+    sku = models.CharField("código interno", max_length=50, blank=True, null=True)
     name = models.CharField("nombre", max_length=180)
     commercial_name = models.CharField("nombre comercial o profesional", max_length=220, blank=True)
     category = models.CharField("categoría", max_length=16, choices=Category.choices)
@@ -82,6 +88,7 @@ class Product(models.Model):
 
     class Meta:
         ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["organization", "sku"], name="unique_product_sku_per_organization")]
         verbose_name = "producto"
         verbose_name_plural = "productos"
 

@@ -9,6 +9,7 @@ from django.utils import timezone
 from grooming.models import GroomingAppointment, GroomingService
 from inventory.models import Brand, Product, Supplier
 from patients.models import Contact, Patient, PatientContact
+from organizations.models import Organization, OrganizationMembership
 from .models import CashMovement, CashSession, Sale, SaleLine
 from .views import _cash_summary, _closed_cash_history
 
@@ -17,11 +18,13 @@ class MixedSaleTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("seller", password="secret")
         self.user.user_permissions.add(Permission.objects.get(codename="add_sale"))
-        self.brand = Brand.objects.create(name="Marca prueba")
-        self.supplier = Supplier.objects.create(name="Proveedor prueba")
-        self.product = Product.objects.create(name="Alimento", category="food", brand=self.brand, supplier=self.supplier, sale_unit="kg", price=Decimal("10000"), stock=Decimal("5"))
+        self.organization = Organization.objects.create(name="Veterinaria Ventas", kind="veterinary", is_business_profile=True)
+        OrganizationMembership.objects.create(organization=self.organization, user=self.user)
+        self.brand = Brand.objects.create(name="Marca prueba", organization=self.organization)
+        self.supplier = Supplier.objects.create(name="Proveedor prueba", organization=self.organization)
+        self.product = Product.objects.create(organization=self.organization, name="Alimento", category="food", brand=self.brand, supplier=self.supplier, sale_unit="kg", price=Decimal("10000"), stock=Decimal("5"))
         self.service = GroomingService.objects.create(name="Baño", duration_minutes=30)
-        CashSession.objects.create(opened_by=self.user, opening_amount=Decimal("0"))
+        CashSession.objects.create(organization=self.organization, opened_by=self.user, opening_amount=Decimal("0"))
         self.client.force_login(self.user)
 
     def test_checkout_mixed_cart_creates_lines_and_reduces_product_stock(self):
@@ -47,7 +50,9 @@ class AppointmentCheckoutTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("groomer-seller", password="secret")
         self.user.user_permissions.add(Permission.objects.get(codename="add_sale"), Permission.objects.get(codename="view_groomingappointment"))
-        self.patient = Patient.objects.create(name="Mora", species="dog")
+        self.organization = Organization.objects.create(name="Veterinaria Peluquería", kind="veterinary", is_business_profile=True)
+        OrganizationMembership.objects.create(organization=self.organization, user=self.user)
+        self.patient = Patient.objects.create(name="Mora", species="dog", organization=self.organization)
         self.contact = Contact.objects.create(full_name="Ana responsable")
         PatientContact.objects.create(patient=self.patient, contact=self.contact, role="responsible", is_primary=True)
         self.service = GroomingService.objects.create(name="Baño", duration_minutes=45, price=Decimal("8500"))
@@ -91,13 +96,27 @@ class DailyReportTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("report-user", password="secret")
         self.user.user_permissions.add(Permission.objects.get(codename="view_sale"))
+        self.organization = Organization.objects.create(name="Veterinaria Reportes", kind="veterinary", is_business_profile=True)
+        OrganizationMembership.objects.create(organization=self.organization, user=self.user)
         self.client.force_login(self.user)
 
     def test_daily_report_groups_payment_methods_and_sale_lines(self):
-        sale = Sale.objects.create(total=Decimal("5200"), payment_method="cash", seller=self.user)
-        Sale.objects.create(total=Decimal("1800"), payment_method="transfer", seller=self.user)
+        sale = Sale.objects.create(organization=self.organization, total=Decimal("5200"), payment_method="cash", seller=self.user)
+        Sale.objects.create(organization=self.organization, total=Decimal("1800"), payment_method="transfer", seller=self.user)
         SaleLine.objects.create(sale=sale, description="Alimento balanceado", quantity=Decimal("2"), unit_price=Decimal("2600"), total=Decimal("5200"))
         response = self.client.get(reverse("daily_report"))
         self.assertContains(response, "Resumen del día")
         self.assertContains(response, "$7000")
         self.assertContains(response, "Alimento balanceado")
+
+    def test_sales_history_excludes_other_organization_sales(self):
+        other_organization = Organization.objects.create(name="Veterinaria ajena ventas", kind="veterinary")
+        own_sale = Sale.objects.create(organization=self.organization, total=Decimal("1000"), payment_method="cash", seller=self.user)
+        foreign_sale = Sale.objects.create(organization=other_organization, total=Decimal("9000"), payment_method="cash", seller=self.user)
+        SaleLine.objects.create(sale=own_sale, description="Venta propia", quantity=Decimal("1"), unit_price=Decimal("1000"), total=Decimal("1000"))
+        SaleLine.objects.create(sale=foreign_sale, description="Venta ajena", quantity=Decimal("1"), unit_price=Decimal("9000"), total=Decimal("9000"))
+
+        response = self.client.get(reverse("sale_list"))
+
+        self.assertContains(response, "Venta propia")
+        self.assertNotContains(response, "Venta ajena")

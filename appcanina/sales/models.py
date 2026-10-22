@@ -8,6 +8,7 @@ from django.utils import timezone
 from inventory.models import Product
 from grooming.models import GroomingService
 from patients.models import Contact, Patient
+from organizations.models import Organization
 
 
 class Sale(models.Model):
@@ -16,6 +17,7 @@ class Sale(models.Model):
         TRANSFER = "transfer", "Transferencia"
         QR = "qr", "QR"
 
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="sales", null=True, blank=True)
     patient = models.ForeignKey(Patient, verbose_name="paciente", on_delete=models.PROTECT, related_name="sales", null=True, blank=True)
     contact = models.ForeignKey(Contact, verbose_name="cliente o responsable", on_delete=models.PROTECT, related_name="sales", null=True, blank=True)
     product = models.ForeignKey(Product, verbose_name="producto principal legado", on_delete=models.PROTECT, related_name="sales", null=True, blank=True)
@@ -53,6 +55,7 @@ class SaleLine(models.Model):
 
 
 class CashSession(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="cash_sessions", null=True, blank=True)
     opened_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="opened_cash_sessions")
     opened_at = models.DateTimeField(auto_now_add=True)
     opening_amount = models.DecimalField("monto inicial", max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0"))])

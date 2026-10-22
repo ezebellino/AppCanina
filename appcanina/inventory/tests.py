@@ -10,19 +10,21 @@ from django.utils import timezone
 from openpyxl import Workbook
 
 from .models import Brand, Product, Supplier
-from organizations.models import Organization
+from organizations.models import Organization, OrganizationMembership
 
 
 class InventoryAlertsTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("inventory-user", password="secret")
         self.user.user_permissions.add(Permission.objects.get(codename="view_product"))
-        self.brand = Brand.objects.create(name="Marca alerta")
-        self.supplier = Supplier.objects.create(name="Proveedor alerta")
+        self.organization = Organization.objects.create(name="Veterinaria Inventario", kind="veterinary", is_business_profile=True)
+        OrganizationMembership.objects.create(organization=self.organization, user=self.user)
+        self.brand = Brand.objects.create(name="Marca alerta", organization=self.organization)
+        self.supplier = Supplier.objects.create(name="Proveedor alerta", organization=self.organization)
         self.client.force_login(self.user)
 
     def create_product(self, name, **kwargs):
-        defaults = {"category": "medicine", "brand": self.brand, "supplier": self.supplier, "price": Decimal("1000"), "stock": Decimal("10"), "minimum_stock": Decimal("2")}
+        defaults = {"organization": self.organization, "category": "medicine", "brand": self.brand, "supplier": self.supplier, "price": Decimal("1000"), "stock": Decimal("10"), "minimum_stock": Decimal("2")}
         defaults.update(kwargs)
         return Product.objects.create(name=name, **defaults)
 
@@ -39,7 +41,7 @@ class InventoryAlertsTests(TestCase):
         self.assertNotContains(response, "Alimento sin alerta")
 
     def test_inventory_can_filter_products_by_supplier(self):
-        other_supplier = Supplier.objects.create(name="Otro proveedor")
+        other_supplier = Supplier.objects.create(name="Otro proveedor", organization=self.organization)
         self.create_product("Alimento del proveedor")
         self.create_product("Alimento ajeno", supplier=other_supplier)
 
@@ -48,11 +50,25 @@ class InventoryAlertsTests(TestCase):
         self.assertContains(response, "Alimento del proveedor")
         self.assertNotContains(response, "Alimento ajeno")
 
+    def test_inventory_does_not_show_products_from_another_organization(self):
+        other_organization = Organization.objects.create(name="Veterinaria ajena", kind="veterinary")
+        other_brand = Brand.objects.create(name="Marca ajena", organization=other_organization)
+        other_supplier = Supplier.objects.create(name="Proveedor ajeno", organization=other_organization)
+        Product.objects.create(organization=other_organization, name="Producto oculto", category="food", brand=other_brand, supplier=other_supplier, price=Decimal("500"))
+        self.create_product("Producto propio")
+
+        response = self.client.get(reverse("inventory_list"))
+
+        self.assertContains(response, "Producto propio")
+        self.assertNotContains(response, "Producto oculto")
+
 
 class ProductImportTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("importer", password="secret")
         self.user.user_permissions.add(Permission.objects.get(codename="add_product"), Permission.objects.get(codename="view_product"))
+        self.organization = Organization.objects.create(name="Veterinaria Importadora", kind="veterinary", is_business_profile=True)
+        OrganizationMembership.objects.create(organization=self.organization, user=self.user)
         self.client.force_login(self.user)
 
     def workbook_file(self, rows):
@@ -78,9 +94,9 @@ class ProductImportTests(TestCase):
         self.assertEqual(product.brand.name, "Marca Salud")
 
     def test_existing_sku_is_updated_and_invalid_row_is_not_imported(self):
-        brand = Brand.objects.create(name="Marca previa")
-        supplier = Supplier.objects.create(name="Proveedor previo")
-        product = Product.objects.create(sku="SKU-1", name="Producto previo", category="food", brand=brand, supplier=supplier, price=Decimal("100"))
+        brand = Brand.objects.create(name="Marca previa", organization=self.organization)
+        supplier = Supplier.objects.create(name="Proveedor previo", organization=self.organization)
+        product = Product.objects.create(organization=self.organization, sku="SKU-1", name="Producto previo", category="food", brand=brand, supplier=supplier, price=Decimal("100"))
         upload = self.workbook_file([["SKU-1", "Producto actualizado", "Alimento", "Marca previa", "Proveedor previo", "250", 3, 1, "", "No"]])
         self.client.post(reverse("product_import"), {"action": "preview", "file": upload})
         self.client.post(reverse("product_import"), {"action": "confirm"})

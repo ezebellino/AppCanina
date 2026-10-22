@@ -27,10 +27,10 @@ class CartProductForm(forms.Form):
     grams = forms.DecimalField(label="Gramos", required=False, min_value=Decimal("1"), decimal_places=0, max_digits=8)
     quantity = forms.DecimalField(label="Cantidad", required=False, min_value=Decimal("0.001"), decimal_places=3, max_digits=10)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, product_queryset=None, **kwargs):
         super().__init__(*args, **kwargs)
         product_field = self.fields["product"]
-        product_field.queryset = Product.objects.filter(active=True).select_related("brand")
+        product_field.queryset = (product_queryset if product_queryset is not None else Product.objects.filter(active=True)).select_related("brand")
         product_field.widget = ProductSaleSelect(attrs={"class": "sale-product-select"})
         product_field.widget.choices = product_field.choices
         product_field.label_from_instance = lambda product: "{}{} · {} · ${} · Stock: {}".format(
@@ -65,6 +65,13 @@ class CheckoutForm(forms.Form):
     contact = forms.ModelChoiceField(label="Cliente o responsable", queryset=Contact.objects.order_by("full_name"), required=False, empty_label="Usar responsable principal del paciente")
     payment_method = forms.ChoiceField(label="Cobro", choices=Sale.PaymentMethod.choices)
     payment_reference = forms.CharField(label="Referencia", required=False, max_length=120)
+
+    def __init__(self, *args, patient_queryset=None, contact_queryset=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if patient_queryset is not None:
+            self.fields["patient"].queryset = patient_queryset
+        if contact_queryset is not None:
+            self.fields["contact"].queryset = contact_queryset
 
 
 class ConsultationChargeForm(forms.Form):

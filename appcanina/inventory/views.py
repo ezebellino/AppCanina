@@ -10,10 +10,38 @@ from django.utils import timezone
 
 from organizations.forms import BusinessProfileForm
 from organizations.models import Organization, OrganizationMembership
+from organizations.roles import organizations_managed_by
 
 from .forms import BrandForm, PriceIncreaseForm, ProductForm, ProductImportForm, SupplierForm
 from .imports import parse_product_workbook
 from .models import Brand, Product, Supplier
+
+
+def _operating_organizations(user):
+    return organizations_managed_by(user)
+
+
+def _default_operating_organization(user):
+    organizations = _operating_organizations(user)
+    return organizations.filter(is_business_profile=True).first() or organizations.order_by("id").first()
+
+
+def _products_visible_to(user):
+    if user.is_superuser:
+        return Product.objects.all()
+    return Product.objects.filter(organization__in=_operating_organizations(user))
+
+
+def _suppliers_visible_to(user):
+    if user.is_superuser:
+        return Supplier.objects.all()
+    return Supplier.objects.filter(organization__in=_operating_organizations(user))
+
+
+def _brands_visible_to(user):
+    if user.is_superuser:
+        return Brand.objects.all()
+    return Brand.objects.filter(organization__in=_operating_organizations(user))
 
 
 @login_required
@@ -23,9 +51,9 @@ def product_list(request):
     supplier_id = request.GET.get("supplier", "").strip()
     category = request.GET.get("category", "").strip()
     selected_supplier = None
-    products = Product.objects.select_related("brand", "supplier").filter(active=True)
+    products = _products_visible_to(request.user).select_related("brand", "supplier").filter(active=True)
     if supplier_id:
-        selected_supplier = get_object_or_404(Supplier, pk=supplier_id, active=True)
+        selected_supplier = get_object_or_404(_suppliers_visible_to(request.user), pk=supplier_id, active=True)
         products = products.filter(supplier=selected_supplier)
     if query:
         products = products.filter(Q(name__icontains=query) | Q(commercial_name__icontains=query) | Q(sku__icontains=query) | Q(brand__name__icontains=query) | Q(category__icontains=query) | Q(supplier__name__icontains=query))
@@ -33,7 +61,7 @@ def product_list(request):
         products = products.filter(category=category)
     else:
         category = ""
-    alert_count = Product.objects.filter(active=True).filter(Q(stock__lte=F("minimum_stock")) | Q(expires_on__lte=timezone.localdate() + timedelta(days=30))).count()
+    alert_count = _products_visible_to(request.user).filter(active=True).filter(Q(stock__lte=F("minimum_stock")) | Q(expires_on__lte=timezone.localdate() + timedelta(days=30))).count()
     return render(request, "inventory/product_list.html", {"products": products, "query": query, "category": category, "category_choices": Product.Category.choices, "selected_supplier": selected_supplier, "alert_count": alert_count, "product_count": products.count()})
 
 
@@ -41,7 +69,7 @@ def product_list(request):
 @permission_required("inventory.view_product", raise_exception=True)
 def inventory_alerts(request):
     today = timezone.localdate()
-    products = Product.objects.select_related("brand", "supplier").filter(active=True)
+    products = _products_visible_to(request.user).select_related("brand", "supplier").filter(active=True)
     low_stock = products.filter(stock__lte=F("minimum_stock"))
     expired = products.filter(expires_on__lt=today)
     expiring_soon = products.filter(expires_on__gte=today, expires_on__lte=today + timedelta(days=30))
@@ -51,17 +79,23 @@ def inventory_alerts(request):
 @login_required
 @permission_required("inventory.add_product", raise_exception=True)
 def product_create(request):
+    organization = _default_operating_organization(request.user)
+    if not organization:
+        messages.error(request, "Tu cuenta no tiene una organización comercial asignada.")
+        return redirect("inventory_list")
     if request.method == "POST" and "add_brand" in request.POST:
         brand_name = request.POST.get("new_brand", "").strip()
         if brand_name:
-            brand, _ = Brand.objects.get_or_create(name__iexact=brand_name, defaults={"name": brand_name})
+            brand, _ = Brand.objects.get_or_create(organization=organization, name__iexact=brand_name, defaults={"name": brand_name})
             messages.success(request, f"La marca {brand.name} ya está cargada y fue seleccionada.")
             return redirect(f"{request.path}?brand={brand.id}")
         messages.error(request, "Escribí el nombre de la marca antes de agregarla.")
         return redirect(request.path)
-    form = ProductForm(request.POST or None, initial={"brand": request.GET.get("brand")})
+    form = ProductForm(request.POST or None, initial={"brand": request.GET.get("brand")}, organization=organization)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        product = form.save(commit=False)
+        product.organization = organization
+        product.save()
         messages.success(request, "Producto creado y agregado al inventario.")
         return redirect("inventory_list")
     return render(request, "inventory/product_form.html", {"form": form})
@@ -95,6 +129,10 @@ def _import_row_from_session(row):
 @login_required
 @permission_required("inventory.add_product", raise_exception=True)
 def product_import(request):
+    organization = _default_operating_organization(request.user)
+    if not organization:
+        messages.error(request, "Tu cuenta no tiene una organización comercial asignada.")
+        return redirect("inventory_list")
     preview_rows = request.session.get("inventory_import_preview", [])
     errors = []
     form = ProductImportForm()
@@ -116,14 +154,14 @@ def product_import(request):
         with transaction.atomic():
             for serialized in preview_rows:
                 row = _import_row_from_session(serialized)
-                brand = Brand.objects.filter(name__iexact=row.pop("brand")).first()
+                brand = Brand.objects.filter(organization=organization, name__iexact=row.pop("brand")).first()
                 if not brand:
-                    brand = Brand.objects.create(name=serialized["brand"])
-                supplier = Supplier.objects.filter(name__iexact=row.pop("supplier")).first()
+                    brand = Brand.objects.create(organization=organization, name=serialized["brand"])
+                supplier = Supplier.objects.filter(organization=organization, name__iexact=row.pop("supplier")).first()
                 if not supplier:
-                    supplier = Supplier.objects.create(name=serialized["supplier"])
+                    supplier = Supplier.objects.create(organization=organization, name=serialized["supplier"])
                 sku = row["sku"]
-                product = Product.objects.filter(sku=sku).first() if sku else None
+                product = Product.objects.filter(organization=organization, sku=sku).first() if sku else None
                 if product:
                     updated += 1
                 else:
@@ -133,6 +171,7 @@ def product_import(request):
                     setattr(product, field, value)
                 product.brand = brand
                 product.supplier = supplier
+                product.organization = organization
                 product.active = True
                 product.full_clean()
                 product.save()
@@ -145,8 +184,8 @@ def product_import(request):
 @login_required
 @permission_required("inventory.change_product", raise_exception=True)
 def product_edit(request, product_id):
-    product = get_object_or_404(Product, pk=product_id)
-    form = ProductForm(request.POST or None, instance=product)
+    product = get_object_or_404(_products_visible_to(request.user), pk=product_id)
+    form = ProductForm(request.POST or None, instance=product, organization=product.organization)
     if request.method == "POST" and form.is_valid():
         form.save()
         return redirect("inventory_list")
@@ -156,16 +195,22 @@ def product_edit(request, product_id):
 @login_required
 @permission_required("inventory.view_supplier", raise_exception=True)
 def supplier_list(request):
-    suppliers = Supplier.objects.filter(active=True).annotate(product_count=Count("products"))
+    suppliers = _suppliers_visible_to(request.user).filter(active=True).annotate(product_count=Count("products"))
     return render(request, "inventory/supplier_list.html", {"suppliers": suppliers})
 
 
 @login_required
 @permission_required("inventory.add_supplier", raise_exception=True)
 def supplier_create(request):
+    organization = _default_operating_organization(request.user)
+    if not organization:
+        messages.error(request, "Tu cuenta no tiene una organización comercial asignada.")
+        return redirect("supplier_list")
     form = SupplierForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        supplier = form.save(commit=False)
+        supplier.organization = organization
+        supplier.save()
         return redirect("supplier_list")
     return render(request, "inventory/simple_form.html", {"form": form, "title": "Nuevo proveedor", "back_url": "supplier_list"})
 
@@ -173,7 +218,7 @@ def supplier_create(request):
 @login_required
 @permission_required("inventory.change_product", raise_exception=True)
 def supplier_price_increase(request, supplier_id):
-    supplier = get_object_or_404(Supplier, pk=supplier_id, active=True)
+    supplier = get_object_or_404(_suppliers_visible_to(request.user), pk=supplier_id, active=True)
     form = PriceIncreaseForm(request.POST or None)
     products = supplier.products.filter(active=True)
     if request.method == "POST" and form.is_valid():
@@ -186,15 +231,21 @@ def supplier_price_increase(request, supplier_id):
 @login_required
 @permission_required("inventory.view_brand", raise_exception=True)
 def brand_list(request):
-    return render(request, "inventory/brand_list.html", {"brands": Brand.objects.filter(active=True)})
+    return render(request, "inventory/brand_list.html", {"brands": _brands_visible_to(request.user).filter(active=True)})
 
 
 @login_required
 @permission_required("inventory.add_brand", raise_exception=True)
 def brand_create(request):
+    organization = _default_operating_organization(request.user)
+    if not organization:
+        messages.error(request, "Tu cuenta no tiene una organización comercial asignada.")
+        return redirect("brand_list")
     form = BrandForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        brand = form.save(commit=False)
+        brand.organization = organization
+        brand.save()
         return redirect("brand_list")
     return render(request, "inventory/simple_form.html", {"form": form, "title": "Nueva marca", "back_url": "brand_list"})
 
@@ -219,4 +270,4 @@ def business_profile(request):
             organization.save()
             messages.success(request, "Perfil del negocio actualizado.")
             return redirect("business_profile")
-    return render(request, "inventory/business_profile.html", {"supplier_count": Supplier.objects.filter(active=True).count(), "brand_count": Brand.objects.filter(active=True).count(), "profile": profile, "form": form, "can_edit": can_edit, "is_shelter_profile": bool(profile and profile.kind == Organization.Kind.SHELTER)})
+    return render(request, "inventory/business_profile.html", {"supplier_count": _suppliers_visible_to(request.user).filter(active=True).count(), "brand_count": _brands_visible_to(request.user).filter(active=True).count(), "profile": profile, "form": form, "can_edit": can_edit, "is_shelter_profile": bool(profile and profile.kind == Organization.Kind.SHELTER)})

@@ -36,11 +36,18 @@ class ProductForm(forms.ModelForm):
             self.add_error("promotion_ends_on", "La promoción no puede terminar antes de comenzar.")
         return cleaned
 
+    def __init__(self, *args, organization=None, **kwargs):
+        self.organization = organization
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["brand"].queryset = Brand.objects.filter(organization=organization, active=True)
+            self.fields["supplier"].queryset = Supplier.objects.filter(organization=organization, active=True)
+
     def save(self, commit=True):
         product = super().save(commit=False)
         new_brand = self.cleaned_data.get("new_brand", "").strip()
         if new_brand:
-            product.brand, _ = Brand.objects.get_or_create(name__iexact=new_brand, defaults={"name": new_brand})
+            product.brand, _ = Brand.objects.get_or_create(organization=self.organization, name__iexact=new_brand, defaults={"name": new_brand})
         if commit:
             product.save()
         return product
