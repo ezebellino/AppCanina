@@ -2,8 +2,10 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from .forms import CommunityCollaboratorForm, OrganizationMembershipForm, ShelterProfileForm
 from .models import Organization, OrganizationMembership
@@ -51,6 +53,69 @@ def community_collaborators(request):
         "organizations/community_collaborators.html",
         {"form": form, "collaborators": collaborators},
     )
+
+
+@login_required
+def organization_verification_list(request):
+    """Platform-only review queue for veterinary and shelter profiles."""
+    if not request.user.is_staff:
+        raise PermissionDenied
+
+    pending_organizations = Organization.objects.filter(
+        kind__in=[Organization.Kind.VETERINARY, Organization.Kind.SHELTER],
+        verification_status=Organization.VerificationStatus.PENDING,
+    ).prefetch_related("memberships__user").order_by("id")
+    recent_reviews = Organization.objects.filter(
+        kind__in=[Organization.Kind.VETERINARY, Organization.Kind.SHELTER],
+    ).exclude(
+        verification_status=Organization.VerificationStatus.PENDING,
+    ).select_related("reviewed_by").order_by("-reviewed_at", "-id")[:12]
+    return render(
+        request,
+        "organizations/verification_list.html",
+        {"pending_organizations": pending_organizations, "recent_reviews": recent_reviews},
+    )
+
+
+@login_required
+def organization_verification_update(request, organization_id):
+    """Approve or reject an institutional profile; community accounts never enter this flow."""
+    if not request.user.is_staff:
+        raise PermissionDenied
+    if request.method != "POST":
+        raise PermissionDenied
+
+    organization = get_object_or_404(
+        Organization,
+        pk=organization_id,
+        kind__in=[Organization.Kind.VETERINARY, Organization.Kind.SHELTER],
+    )
+    action = request.POST.get("action")
+    note = request.POST.get("verification_note", "").strip()
+    if action not in {"approve", "reject"}:
+        messages.error(request, "Acción de validación inválida.")
+        return redirect("organization_verification_list")
+    if action == "reject" and not note:
+        messages.error(request, "Indicá un motivo para rechazar la solicitud.")
+        return redirect("organization_verification_list")
+
+    organization.reviewed_at = timezone.now()
+    organization.reviewed_by = request.user
+    organization.verification_note = note
+    if action == "approve":
+        organization.verification_status = Organization.VerificationStatus.APPROVED
+        organization.is_verified = True
+        roles = ensure_base_roles()
+        managers = organization.memberships.filter(role=OrganizationMembership.Role.MANAGER).select_related("user")
+        for membership in managers:
+            membership.user.groups.add(roles["admin"])
+        messages.success(request, f"{organization.name} fue validada y su responsable ya puede operar el perfil.")
+    else:
+        organization.verification_status = Organization.VerificationStatus.REJECTED
+        organization.is_verified = False
+        messages.success(request, f"La solicitud de {organization.name} fue rechazada. El perfil quedó inactivo.")
+    organization.save()
+    return redirect("organization_verification_list")
 
 
 @login_required

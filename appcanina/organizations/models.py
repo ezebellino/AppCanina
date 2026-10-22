@@ -7,6 +7,11 @@ class Organization(models.Model):
         VETERINARY = "veterinary", "Veterinaria"
         SHELTER = "shelter", "Refugio o perrera"
 
+    class VerificationStatus(models.TextChoices):
+        PENDING = "pending", "Pendiente de validación"
+        APPROVED = "approved", "Aprobada"
+        REJECTED = "rejected", "Rechazada"
+
     name = models.CharField("nombre", max_length=160)
     kind = models.CharField("tipo", max_length=20, choices=Kind.choices)
     is_business_profile = models.BooleanField("es el perfil del negocio", default=False)
@@ -16,6 +21,22 @@ class Organization(models.Model):
     address = models.CharField("dirección", max_length=220, blank=True)
     locality = models.CharField("localidad", max_length=120, blank=True)
     is_verified = models.BooleanField("perfil institucional verificado", default=False)
+    verification_status = models.CharField(
+        "estado de validación",
+        max_length=16,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.PENDING,
+    )
+    verification_note = models.TextField("nota de validación", blank=True)
+    reviewed_at = models.DateTimeField("revisado el", blank=True, null=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_organizations",
+        verbose_name="revisado por",
+    )
     donation_alias = models.CharField("alias para colaboraciones", max_length=120, blank=True)
     donation_message = models.CharField(
         "mensaje de colaboración", max_length=220, blank=True,

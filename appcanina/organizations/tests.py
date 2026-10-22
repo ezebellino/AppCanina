@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Organization
+from .models import Organization, OrganizationMembership
 from .roles import COMMUNITY_COLLABORATOR_GROUP
 
 
@@ -45,3 +45,66 @@ class CommunityCollaboratorTests(TestCase):
         self.assertTrue(collaborator.has_perm("lost_pets.add_sighting"))
         self.assertFalse(collaborator.has_perm("lost_pets.add_lostpetreport"))
         self.assertFalse(collaborator.has_perm("patients.view_patient"))
+
+
+class OrganizationVerificationTests(TestCase):
+    def setUp(self):
+        self.platform_admin = User.objects.create_user("platform-admin", password="secret", is_staff=True)
+        self.manager = User.objects.create_user("pending-manager", password="secret")
+        self.veterinary = Organization.objects.create(
+            name="Veterinaria del Parque",
+            kind=Organization.Kind.VETERINARY,
+            locality="La Plata",
+        )
+        OrganizationMembership.objects.create(
+            organization=self.veterinary,
+            user=self.manager,
+            role=OrganizationMembership.Role.MANAGER,
+        )
+
+    def test_only_platform_staff_can_access_the_verification_queue(self):
+        self.client.force_login(self.manager)
+        self.assertEqual(self.client.get(reverse("organization_verification_list")).status_code, 403)
+        self.assertEqual(
+            self.client.post(reverse("organization_verification_update", args=[self.veterinary.id]), {"action": "approve"}).status_code,
+            403,
+        )
+
+    def test_platform_admin_approves_veterinary_and_enables_manager_role(self):
+        self.client.force_login(self.platform_admin)
+        response = self.client.post(
+            reverse("organization_verification_update", args=[self.veterinary.id]),
+            {"action": "approve", "verification_note": "Documentación revisada."},
+        )
+
+        self.assertRedirects(response, reverse("organization_verification_list"))
+        self.veterinary.refresh_from_db()
+        self.assertTrue(self.veterinary.is_verified)
+        self.assertEqual(self.veterinary.verification_status, Organization.VerificationStatus.APPROVED)
+        self.assertEqual(self.veterinary.reviewed_by, self.platform_admin)
+        self.assertTrue(self.manager.groups.filter(name="Administrador").exists())
+
+    def test_platform_admin_rejects_shelter_with_reason(self):
+        shelter = Organization.objects.create(name="Refugio Sur", kind=Organization.Kind.SHELTER)
+        self.client.force_login(self.platform_admin)
+        response = self.client.post(
+            reverse("organization_verification_update", args=[shelter.id]),
+            {"action": "reject", "verification_note": "Falta constancia institucional."},
+        )
+
+        self.assertRedirects(response, reverse("organization_verification_list"))
+        shelter.refresh_from_db()
+        self.assertFalse(shelter.is_verified)
+        self.assertEqual(shelter.verification_status, Organization.VerificationStatus.REJECTED)
+        self.assertEqual(shelter.verification_note, "Falta constancia institucional.")
+
+    def test_rejection_requires_a_reason(self):
+        self.client.force_login(self.platform_admin)
+        response = self.client.post(
+            reverse("organization_verification_update", args=[self.veterinary.id]),
+            {"action": "reject"},
+        )
+
+        self.assertRedirects(response, reverse("organization_verification_list"))
+        self.veterinary.refresh_from_db()
+        self.assertEqual(self.veterinary.verification_status, Organization.VerificationStatus.PENDING)
