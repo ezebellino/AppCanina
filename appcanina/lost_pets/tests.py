@@ -677,3 +677,37 @@ class WebAdoptionInterestTests(TestCase):
         self.assertEqual(csrf_client.post(self.url, {"message": "Quiero conocer a Mora"}).status_code, 403)
         self.client.logout()
         self.assertEqual(self.client.get(self.url).status_code, 302)
+
+
+class MyAdoptionInterestsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("my-requests")
+        self.other = User.objects.create_user("other-requests")
+        self.user.groups.add(ensure_base_roles()["collaborator"])
+        self.post = AdoptionPost.objects.create(publisher=self.other, name="Mora", species="dog", area_label="Centro", status="published")
+        self.url = reverse("my_adoption_interests")
+        self.client.force_login(self.user)
+
+    def test_own_requests_and_replies_remain_visible_after_archiving(self):
+        own = AdoptionInterest.objects.create(post=self.post, applicant=self.user, message="Mi solicitud privada", staff_note="Podemos coordinar una visita", status="contact")
+        AdoptionInterest.objects.create(post=self.post, applicant=self.other, message="Mensaje privado de otra persona", staff_note="Respuesta de otra persona")
+        self.post.status = "archived"
+        self.post.save()
+        response = self.client.get(self.url, {"applicant": self.other.id})
+        self.assertEqual(list(response.context["interests"]), [own])
+        for value in ("Mora", "Mi solicitud privada", "Podemos coordinar una visita", "En conversación", "archivado"):
+            self.assertContains(response, value)
+        self.assertNotContains(response, "Mensaje privado de otra persona")
+        self.assertNotContains(response, "Respuesta de otra persona")
+
+    def test_empty_state_and_links_after_submission(self):
+        self.assertContains(self.client.get(self.url), "Todavía no enviaste solicitudes")
+        self.assertContains(self.client.get(reverse("adoption_list")), self.url)
+        self.assertContains(self.client.get(reverse("lost_pet_list")), self.url)
+        response = self.client.post(reverse("adoption_interest_create", args=[self.post.id]), {"message": "Me interesa conocer a Mora"}, follow=True)
+        self.assertContains(response, self.url)
+        self.assertContains(self.client.get(self.url), "Me interesa conocer a Mora")
+
+    def test_anonymous_access_requires_login(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(self.url).status_code, 302)

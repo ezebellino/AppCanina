@@ -134,6 +134,15 @@ def adoption_interest_create(request, post_id):
 
 
 @login_required
+@require_GET
+def my_adoption_interests(request):
+    interests = AdoptionInterest.objects.filter(applicant=request.user).select_related(
+        "post", "post__organization"
+    ).order_by("-updated_at", "-id")
+    return render(request, "lost_pets/my_adoption_interests.html", {"interests": interests})
+
+
+@login_required
 @permission_required("lost_pets.change_adoptioninterest", raise_exception=True)
 def adoption_interest_list(request):
     interests = AdoptionInterest.objects.select_related("post", "post__organization", "applicant").filter(post__organization__in=organizations_managed_by(request.user))

@@ -4,7 +4,7 @@
 <div class="page-heading"><div><p class="eyebrow">Adopción responsable</p><h1>Quiero conocer a {{ post.name }}</h1><p>{{ post.get_species_display }} · {{ post.area_label }}{% if post.organization %} · {{ post.organization.name }}{% endif %}</p></div><a class="button button-ghost" href="{% url 'adoption_list' %}">← Volver a Adopciones</a></div>
 <section class="card">
 {% if interest %}
-<h2>Tu interés ya está registrado</h2><p><strong>Estado:</strong> {{ interest.get_status_display }}</p><p>{{ interest.message }}</p>
+<h2>Tu interés ya está registrado</h2><p><a class="button" href="{% url 'my_adoption_interests' %}">Ver mis solicitudes de adopción</a></p><p><strong>Estado:</strong> {{ interest.get_status_display }}</p><p>{{ interest.message }}</p>
 {% if interest.staff_note %}<p class="review-note"><strong>Respuesta del equipo:</strong> {{ interest.staff_note }}</p>{% endif %}
 {% else %}
 <p>Contanos por qué te gustaría adoptar a {{ post.name }}. Tu mensaje no se publicará en la tarjeta. Enviar el interés no confirma una adopción.</p>
