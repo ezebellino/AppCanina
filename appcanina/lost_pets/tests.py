@@ -535,3 +535,66 @@ class MobileAdoptionPublishingAuthorizationTests(TestCase):
         ]:
             self.assertEqual(self.request_as(user, organization, name).status_code, 201)
             self.assertEqual(AdoptionPost.objects.get(name=name).status, AdoptionPost.Status.PENDING)
+
+
+class MobileShelterCaregiverTests(TestCase):
+    def setUp(self):
+        roles = ensure_base_roles()
+        self.manager = User.objects.create_user("shelter-owner")
+        self.caregiver = User.objects.create_user("caregiver")
+        for user in (self.manager, self.caregiver):
+            user.groups.add(roles["collaborator"])
+        self.shelter = Organization.objects.create(name="Refugio", kind="shelter", is_verified=True)
+        self.membership = OrganizationMembership.objects.create(organization=self.shelter, user=self.manager, role="manager")
+        self.patient = Patient.objects.create(name="Luna", species="dog", organization=self.shelter)
+        self.other = Patient.objects.create(name="Otra", species="cat", organization=Organization.objects.create(name="Otro", kind="shelter", is_verified=True))
+        self.manager_token, _ = MobileAccessToken.issue(self.manager, "test")
+        self.caregiver_token, _ = MobileAccessToken.issue(self.caregiver, "test")
+
+    def request_as(self, token, route, args=(), data=None):
+        url = reverse(route, args=args)
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        if data is None:
+            return self.client.get(url, **headers)
+        return self.client.post(url, data=data, content_type="application/json", **headers)
+
+    def invite(self):
+        response = self.request_as(self.manager_token, "mobile_family_invite_create", [self.patient.id], {})
+        self.assertEqual(response.status_code, 201)
+        return response.json()["code"]
+
+    def test_manager_shares_only_own_shelter_and_caregiver_access_is_revocable(self):
+        listing = self.request_as(self.manager_token, "mobile_my_animals").json()["animals"]
+        self.assertEqual([item["id"] for item in listing], [self.patient.id])
+        self.assertTrue(listing[0]["can_invite_caregiver"])
+        self.assertFalse(listing[0]["can_share_with_family"])
+        self.assertEqual(self.request_as(self.manager_token, "mobile_family_invite_create", [self.other.id], {}).status_code, 404)
+        code = self.invite()
+        result = self.request_as(self.caregiver_token, "mobile_family_invite_accept", data={"code": code})
+        self.assertEqual(result.status_code, 201)
+        self.assertFalse(result.json()["animal"]["can_invite_caregiver"])
+        self.assertEqual(self.request_as(self.caregiver_token, "mobile_family_invite_create", [self.patient.id], {}).status_code, 403)
+        self.assertEqual(self.request_as(self.caregiver_token, "mobile_family_invite_accept", data={"code": code}).status_code, 400)
+        access = PatientFamilyAccess.objects.get(patient=self.patient, user=self.caregiver)
+        self.assertEqual(self.request_as(self.manager_token, "mobile_family_access_revoke", [self.patient.id, access.id], {}).status_code, 200)
+        self.assertEqual(self.request_as(self.caregiver_token, "mobile_my_animal_detail", [self.patient.id]).status_code, 404)
+
+    def test_pending_shelter_or_staff_cannot_invite_or_list_institutional_patients(self):
+        self.membership.role = "staff"
+        self.membership.save()
+        self.assertEqual(self.request_as(self.manager_token, "mobile_my_animals").json()["animals"], [])
+        self.assertEqual(self.request_as(self.manager_token, "mobile_family_invite_create", [self.patient.id], {}).status_code, 404)
+        self.membership.role = "manager"
+        self.membership.save()
+        self.shelter.is_verified = False
+        self.shelter.save()
+        self.assertEqual(self.request_as(self.manager_token, "mobile_family_invite_create", [self.patient.id], {}).status_code, 404)
+
+    def test_removed_manager_cannot_leave_a_redeemable_invitation(self):
+        code = self.invite()
+        self.membership.delete()
+        self.assertEqual(self.request_as(self.caregiver_token, "mobile_family_invite_accept", data={"code": code}).status_code, 400)
+
+    def test_shelter_invitation_permission_does_not_grant_travel_consent(self):
+        self.assertEqual(self.request_as(self.manager_token, "mobile_my_animal_credential", [self.patient.id], {}).status_code, 403)
+        self.assertEqual(self.request_as(self.manager_token, "mobile_my_animal_detail", [self.patient.id], {"sharing_enabled": True}).status_code, 403)

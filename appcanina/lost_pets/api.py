@@ -187,12 +187,27 @@ def _mobile_interest_data(interest):
     return {"id": interest.id, "post_id": interest.post_id, "animal_name": interest.post.name, "species": interest.post.get_species_display(), "status": interest.status, "status_label": interest.get_status_display(), "staff_note": interest.staff_note, "message": interest.message, "updated_at": interest.updated_at.isoformat()}
 
 
+def _mobile_managed_shelter_ids(user):
+    return OrganizationMembership.objects.filter(
+        user=user, role=OrganizationMembership.Role.MANAGER,
+        organization__kind=Organization.Kind.SHELTER, organization__is_verified=True,
+    ).values_list("organization_id", flat=True)
+
+
+def _mobile_can_invite_caregiver(user, patient):
+    return patient.patientcontact_set.filter(
+        contact_id__in=OwnerAccountLink.objects.filter(user=user).values_list("contact_id", flat=True),
+        role=PatientContact.Role.RESPONSIBLE,
+    ).exists() or patient.organization_id in _mobile_managed_shelter_ids(user)
+
+
 def _mobile_patient_data(request, patient):
     contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
     can_share = patient.patientcontact_set.filter(
         contact_id__in=contact_ids,
         role=PatientContact.Role.RESPONSIBLE,
     ).exists()
+    can_invite = _mobile_can_invite_caregiver(request.mobile_user, patient)
     sharing_enabled = PatientSharingConsent.objects.filter(
         patient=patient,
         contact_id__in=contact_ids,
@@ -209,6 +224,7 @@ def _mobile_patient_data(request, patient):
         "photo_url": request.build_absolute_uri(patient.photo.url) if patient.photo else None,
         "sharing_enabled": sharing_enabled,
         "can_share_with_family": can_share,
+        "can_invite_caregiver": can_invite,
         "family_members": [
             {
                 "access_id": access.id,
@@ -217,7 +233,7 @@ def _mobile_patient_data(request, patient):
                 "joined_at": access.created_at.isoformat(),
             }
             for access in patient.family_accesses.filter(revoked_at__isnull=True).select_related("user")
-        ] if can_share else [],
+        ] if can_invite else [],
         "clinical_records": [
             {
                 "date": record.occurred_on.isoformat(),
@@ -236,7 +252,7 @@ def _mobile_owned_patient(request, patient_id):
         Q(
             patientcontact__contact_id__in=contact_ids,
             patientcontact__role__in=[PatientContact.Role.RESPONSIBLE, PatientContact.Role.ADOPTER],
-        ) | Q(family_accesses__user=request.mobile_user, family_accesses__revoked_at__isnull=True)
+        ) | Q(family_accesses__user=request.mobile_user, family_accesses__revoked_at__isnull=True) | Q(organization_id__in=_mobile_managed_shelter_ids(request.mobile_user))
     ).distinct().first()
 
 
@@ -357,7 +373,7 @@ def mobile_my_animals(request):
             Q(
                 patientcontact__contact_id__in=contact_ids,
                 patientcontact__role__in=[PatientContact.Role.RESPONSIBLE, PatientContact.Role.ADOPTER],
-            ) | Q(family_accesses__user=request.mobile_user, family_accesses__revoked_at__isnull=True)
+            ) | Q(family_accesses__user=request.mobile_user, family_accesses__revoked_at__isnull=True) | Q(organization_id__in=_mobile_managed_shelter_ids(request.mobile_user))
         )
         .distinct()
         .prefetch_related("clinical_records__professional")
@@ -398,7 +414,7 @@ def mobile_family_invite_create(request, patient_id):
     patient = _mobile_owned_patient(request, patient_id)
     if not patient:
         return JsonResponse({"detail": "Animal no encontrado o no vinculado a tu cuenta."}, status=404)
-    if not _mobile_can_share_with_family(request, patient):
+    if not _mobile_can_invite_caregiver(request.mobile_user, patient):
         return JsonResponse({"detail": "Solo el responsable principal puede compartir esta ficha."}, status=403)
     active_invites = PatientFamilyInvite.objects.filter(
         patient=patient,
@@ -434,7 +450,9 @@ def mobile_family_invite_accept(request):
     digest = hashlib.sha256(raw_code.encode()).hexdigest()
     with transaction.atomic():
         invitation = PatientFamilyInvite.objects.select_for_update().select_related("patient", "invited_by").filter(digest=digest).first()
-        if not invitation or not invitation.is_active:
+        if (not invitation or not invitation.is_active or not invitation.patient.active
+                or not invitation.invited_by.is_active
+                or not _mobile_can_invite_caregiver(invitation.invited_by, invitation.patient)):
             return JsonResponse({"detail": "El código no es válido, ya fue utilizado o venció."}, status=400)
         if invitation.invited_by_id == request.mobile_user.id:
             return JsonResponse({"detail": "No podés usar tu propio código familiar."}, status=400)
@@ -471,7 +489,7 @@ def mobile_family_access_revoke(request, patient_id, access_id):
     patient = _mobile_owned_patient(request, patient_id)
     if not patient:
         return JsonResponse({"detail": "Animal no encontrado o no vinculado a tu cuenta."}, status=404)
-    if not _mobile_can_share_with_family(request, patient):
+    if not _mobile_can_invite_caregiver(request.mobile_user, patient):
         return JsonResponse({"detail": "Solo el responsable principal puede revocar accesos familiares."}, status=403)
     access = PatientFamilyAccess.objects.filter(pk=access_id, patient=patient, revoked_at__isnull=True).first()
     if not access:
