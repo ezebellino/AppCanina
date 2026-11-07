@@ -48,7 +48,8 @@ def adoption_list(request):
     posts = AdoptionPost.objects.select_related("publisher", "organization")
     managed_organizations = _adoption_manager_organizations(request.user)
     can_manage_adoptions = managed_organizations.exists()
-    if not (request.user.has_perm("lost_pets.view_adoptionpost") or can_manage_adoptions):
+    if not (request.user.has_perm("lost_pets.view_lostpetreport")
+            or request.user.has_perm("lost_pets.view_adoptionpost") or can_manage_adoptions):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     if view_mode == "review" and can_manage_adoptions:
@@ -87,7 +88,11 @@ def adoption_create(request):
 def adoption_change_status(request, post_id):
     post = get_object_or_404(AdoptionPost, pk=post_id)
     managed_organizations = _adoption_manager_organizations(request.user)
-    if post.organization and not managed_organizations.filter(pk=post.organization_id).exists():
+    can_manage_post = (
+        managed_organizations.filter(pk=post.organization_id).exists()
+        if post.organization_id else request.user.has_perm("lost_pets.change_adoptionpost")
+    )
+    if not can_manage_post:
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     status = request.POST.get("status")

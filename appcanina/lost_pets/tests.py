@@ -598,3 +598,40 @@ class MobileShelterCaregiverTests(TestCase):
     def test_shelter_invitation_permission_does_not_grant_travel_consent(self):
         self.assertEqual(self.request_as(self.manager_token, "mobile_my_animal_credential", [self.patient.id], {}).status_code, 403)
         self.assertEqual(self.request_as(self.manager_token, "mobile_my_animal_detail", [self.patient.id], {"sharing_enabled": True}).status_code, 403)
+
+
+class CommunityAdoptionBrowsingTests(TestCase):
+    def setUp(self):
+        roles = ensure_base_roles()
+        self.user = User.objects.create_user("adoption-reader")
+        self.user.groups.add(roles["collaborator"])
+        self.shelter = Organization.objects.create(name="Refugio lector", kind="shelter", is_verified=True)
+        self.published = AdoptionPost.objects.create(publisher=self.user, organization=self.shelter, name="Visible", species="dog", area_label="Centro", status="published")
+        self.pending = AdoptionPost.objects.create(publisher=self.user, organization=self.shelter, name="Privada pendiente", species="cat", area_label="Centro", status="pending")
+        self.client.force_login(self.user)
+
+    def test_community_can_browse_only_published_posts_even_with_management_filters(self):
+        for mode in ("published", "review", "all"):
+            response = self.client.get(reverse("adoption_list"), {"view": mode})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(list(response.context["posts"]), [self.published])
+            self.assertFalse(response.context["can_manage_adoptions"])
+            self.assertNotContains(response, "Aprobar y publicar")
+            self.assertNotContains(response, "Publicar animal")
+
+    def test_read_access_does_not_allow_creation_or_status_changes(self):
+        self.assertEqual(self.client.get(reverse("adoption_create")).status_code, 403)
+        for organization in (self.shelter, None):
+            self.published.organization = organization
+            self.published.save()
+            response = self.client.post(reverse("adoption_change_status", args=[self.published.id]), {"status": "adopted"})
+            self.assertEqual(response.status_code, 403)
+            self.published.refresh_from_db()
+            self.assertEqual(self.published.status, "published")
+
+    def test_login_and_community_permission_remain_required(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("adoption_list")).status_code, 302)
+        unrelated = User.objects.create_user("without-community-permission")
+        self.client.force_login(unrelated)
+        self.assertEqual(self.client.get(reverse("adoption_list")).status_code, 403)
