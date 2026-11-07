@@ -635,3 +635,45 @@ class CommunityAdoptionBrowsingTests(TestCase):
         unrelated = User.objects.create_user("without-community-permission")
         self.client.force_login(unrelated)
         self.assertEqual(self.client.get(reverse("adoption_list")).status_code, 403)
+
+
+class WebAdoptionInterestTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("web-adopter")
+        self.user.groups.add(ensure_base_roles()["collaborator"])
+        self.publisher = User.objects.create_user("publisher")
+        self.post = AdoptionPost.objects.create(publisher=self.publisher, name="Mora", species="dog", area_label="Centro", status="published")
+        self.url = reverse("adoption_interest_create", args=[self.post.id])
+        self.client.force_login(self.user)
+
+    def test_card_opens_form_and_submission_is_private_and_not_duplicated(self):
+        self.assertContains(self.client.get(reverse("adoption_list")), self.url)
+        self.assertContains(self.client.get(self.url), "Enviar mi interés")
+        message = "Tengo un hogar preparado para recibir a Mora."
+        self.assertRedirects(self.client.post(self.url, {"message": message}), self.url)
+        interest = AdoptionInterest.objects.get(post=self.post, applicant=self.user)
+        self.assertEqual(interest.message, message)
+        self.client.post(self.url, {"message": "Otro mensaje suficientemente largo"})
+        self.assertEqual(AdoptionInterest.objects.filter(post=self.post).count(), 1)
+        self.assertContains(self.client.get(self.url), "Tu interés ya está registrado")
+        self.assertNotContains(self.client.get(reverse("adoption_list")), message)
+        self.client.force_login(self.publisher)
+        self.publisher.groups.add(ensure_base_roles()["collaborator"])
+        self.assertNotContains(self.client.get(self.url), message)
+
+    def test_invalid_messages_and_unpublished_animals_do_not_create_interest(self):
+        for message in ("", "corto", "x" * 701):
+            self.assertContains(self.client.post(self.url, {"message": message}), "entre 10 y 700")
+        self.assertFalse(AdoptionInterest.objects.exists())
+        self.post.status = "pending"
+        self.post.save()
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+        self.assertEqual(self.client.post(self.url, {"message": "Quiero conocer a Mora"}).status_code, 404)
+
+    def test_login_and_csrf_protect_submission(self):
+        from django.test import Client
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+        self.assertEqual(csrf_client.post(self.url, {"message": "Quiero conocer a Mora"}).status_code, 403)
+        self.client.logout()
+        self.assertEqual(self.client.get(self.url).status_code, 302)

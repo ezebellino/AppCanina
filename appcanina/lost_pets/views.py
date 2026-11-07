@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from patients.models import Patient
 
@@ -107,6 +107,30 @@ def adoption_change_status(request, post_id):
         post.save(update_fields=["status", "review_note", "updated_at"])
         messages.success(request, f"Publicación marcada como {post.get_status_display().lower()}.")
     return redirect("adoption_list")
+
+
+@login_required
+@permission_required("lost_pets.view_lostpetreport", raise_exception=True)
+@require_http_methods(["GET", "POST"])
+def adoption_interest_create(request, post_id):
+    post = get_object_or_404(AdoptionPost.objects.select_related("organization", "publisher"), pk=post_id, status=AdoptionPost.Status.PUBLISHED)
+    interest = AdoptionInterest.objects.filter(post=post, applicant=request.user).first()
+    message = ""
+    error = ""
+    if request.method == "POST":
+        message = (request.POST.get("message") or "").strip()
+        if interest:
+            messages.info(request, "Ya enviaste tu interés por este animal.")
+            return redirect("adoption_interest_create", post_id=post.id)
+        if not 10 <= len(message) <= 700:
+            error = "Contanos por qué te interesa adoptar, entre 10 y 700 caracteres."
+        else:
+            interest, created = AdoptionInterest.objects.get_or_create(
+                post=post, applicant=request.user, defaults={"message": message},
+            )
+            messages.success(request, "Tu interés quedó registrado de forma privada." if created else "Ya enviaste tu interés por este animal.")
+            return redirect("adoption_interest_create", post_id=post.id)
+    return render(request, "lost_pets/adoption_interest_form.html", {"post": post, "interest": interest, "message": message, "error": error})
 
 
 @login_required
