@@ -10,6 +10,12 @@
 <p class="form-help">Enviada el {{ interest.created_at|date:"d/m/Y H:i" }} · Actualizada el {{ interest.updated_at|date:"d/m/Y H:i" }}</p>
 <div><h3>Tu mensaje</h3><p>{{ interest.message|linebreaksbr }}</p></div>
 {% if interest.staff_note %}<div class="review-note"><h3>Respuesta del equipo</h3><p>{{ interest.staff_note|linebreaksbr }}</p></div>{% elif interest.status == 'received' %}<p>Tu solicitud fue recibida. Todavía no hay una respuesta del equipo.</p>{% endif %}
+<div class="review-note"><h3>Visita al refugio</h3>
+{% if interest.visit_status == 'accepted' %}<p><strong>Visita aceptada</strong></p><p>{{ interest.visit_address }}</p>{% if interest.visit_instructions %}<p>{{ interest.visit_instructions|linebreaksbr }}</p>{% endif %}<a class="button" href="https://www.google.com/maps/search/?api=1&amp;query={{ interest.visit_address|urlencode }}" target="_blank" rel="noopener noreferrer">Ver ubicación en el mapa</a>
+{% elif interest.visit_status == 'requested' %}<p>Solicitud enviada. Esperando la respuesta del refugio.</p><p class="form-help">La dirección aparecerá cuando el refugio acepte.</p>
+{% elif interest.visit_status == 'declined' %}<p>El refugio no puede recibir la visita por ahora.</p>{% if interest.visit_instructions %}<p>{{ interest.visit_instructions|linebreaksbr }}</p>{% endif %}
+{% elif interest.post.status == 'published' and interest.post.organization.kind == 'shelter' and interest.post.organization.is_verified and interest.status != 'closed' and interest.status != 'completed' %}<form method="post" action="{% url 'adoption_visit_request' interest.id %}">{% csrf_token %}<button class="button" type="submit">Coordinar visita</button></form><p class="form-help">El refugio debe aceptar antes de que puedas ver la ubicación.</p>
+{% else %}<p class="form-help">La coordinación de visitas no está disponible para esta solicitud.</p>{% endif %}</div>
 {% if interest.post.status != 'published' %}<p class="form-help">La publicación figura como {{ interest.post.get_status_display|lower }}. Tu solicitud permanece en este historial.</p>{% endif %}
 </article>
 {% empty %}<div class="empty card"><h2>Todavía no enviaste solicitudes</h2><p>Elegí un animal y tocá «Quiero conocerlo» para enviar tu interés.</p><a class="button" href="{% url 'adoption_list' %}">Explorar adopciones</a></div>{% endfor %}

@@ -7,6 +7,8 @@ from . import api
 urlpatterns = [
     path("", views.report_list, name="lost_pet_list"),
     path("adopciones/", views.adoption_list, name="adoption_list"),
+    path("adopciones/solicitudes/<int:interest_id>/visita/", views.adoption_visit_request, name="adoption_visit_request"),
+    path("adopciones/solicitudes/<int:interest_id>/visita/responder/", views.adoption_visit_respond, name="adoption_visit_respond"),
     path("adopciones/mis-solicitudes/", views.my_adoption_interests, name="my_adoption_interests"),
     path("adopciones/<int:post_id>/conocer/", views.adoption_interest_create, name="adoption_interest_create"),
     path("adopciones/nueva/", views.adoption_create, name="adoption_create"),

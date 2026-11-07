@@ -711,3 +711,81 @@ class MyAdoptionInterestsTests(TestCase):
     def test_anonymous_access_requires_login(self):
         self.client.logout()
         self.assertEqual(self.client.get(self.url).status_code, 302)
+
+
+class AdoptionVisitTests(TestCase):
+    def setUp(self):
+        roles = ensure_base_roles()
+        self.applicant = User.objects.create_user("visit-applicant")
+        self.manager = User.objects.create_user("visit-manager")
+        self.outsider = User.objects.create_user("visit-outsider")
+        for user in (self.applicant, self.manager, self.outsider):
+            user.groups.add(roles["collaborator"])
+        self.shelter = Organization.objects.create(name="Refugio visitas", kind="shelter", is_verified=True, address="Calle privada 123", locality="Avellaneda")
+        OrganizationMembership.objects.create(user=self.manager, organization=self.shelter, role="manager")
+        self.post = AdoptionPost.objects.create(publisher=self.manager, organization=self.shelter, name="Mora", species="dog", area_label="Centro", status="published")
+        self.interest = AdoptionInterest.objects.create(post=self.post, applicant=self.applicant, message="Quiero conocer a Mora")
+        self.request_url = reverse("adoption_visit_request", args=[self.interest.id])
+        self.respond_url = reverse("adoption_visit_respond", args=[self.interest.id])
+
+    def test_request_accept_and_private_location(self):
+        self.client.force_login(self.applicant)
+        self.assertContains(self.client.get(reverse("my_adoption_interests")), "Coordinar visita")
+        self.assertNotContains(self.client.get(reverse("my_adoption_interests")), self.shelter.address)
+        self.client.post(self.request_url)
+        self.interest.refresh_from_db()
+        requested_at = self.interest.visit_requested_at
+        self.assertEqual(self.interest.visit_status, "requested")
+        self.client.post(self.request_url)
+        self.interest.refresh_from_db()
+        self.assertEqual(self.interest.visit_requested_at, requested_at)
+        self.assertNotContains(self.client.get(reverse("my_adoption_interests")), self.shelter.address)
+        self.client.force_login(self.manager)
+        self.assertContains(self.client.get(reverse("adoption_interest_list")), "Aceptar visita y compartir ubicación")
+        self.client.post(self.respond_url, {"action": "accept", "visit_address": "Calle privada 123, Avellaneda", "visit_instructions": "Sábado a las 10"})
+        self.interest.refresh_from_db()
+        self.assertEqual(self.interest.visit_status, "accepted")
+        self.client.force_login(self.applicant)
+        response = self.client.get(reverse("my_adoption_interests"))
+        self.assertContains(response, "Calle privada 123, Avellaneda")
+        self.assertContains(response, "Sábado a las 10")
+        self.assertContains(response, "https://www.google.com/maps/search/")
+        self.assertNotContains(self.client.get(reverse("adoption_list")), self.shelter.address)
+        self.client.force_login(self.outsider)
+        self.assertNotContains(self.client.get(reverse("my_adoption_interests")), self.shelter.address)
+
+    def test_other_accounts_cannot_request_or_answer(self):
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.post(self.request_url).status_code, 404)
+        self.assertEqual(self.client.post(self.respond_url, {"action": "accept", "visit_address": "Ajena"}).status_code, 404)
+        self.client.force_login(self.applicant)
+        self.assertEqual(self.client.post(self.respond_url, {"action": "accept", "visit_address": "Ajena"}).status_code, 404)
+        self.assertEqual(self.client.get(self.request_url).status_code, 405)
+
+    def test_accept_requires_request_and_address_and_decline_hides_address(self):
+        self.client.force_login(self.manager)
+        self.client.post(self.respond_url, {"action": "accept", "visit_address": "Calle privada 123"})
+        self.interest.refresh_from_db()
+        self.assertEqual(self.interest.visit_status, "none")
+        self.client.force_login(self.applicant)
+        self.client.post(self.request_url)
+        self.client.force_login(self.manager)
+        self.client.post(self.respond_url, {"action": "accept", "visit_address": ""})
+        self.interest.refresh_from_db()
+        self.assertEqual(self.interest.visit_status, "requested")
+        self.client.post(self.respond_url, {"action": "decline", "visit_address": "No divulgar", "visit_instructions": "No hay disponibilidad"})
+        self.interest.refresh_from_db()
+        self.assertEqual(self.interest.visit_status, "declined")
+        self.assertEqual(self.interest.visit_address, "")
+        self.client.force_login(self.applicant)
+        response = self.client.get(reverse("my_adoption_interests"))
+        self.assertContains(response, "No hay disponibilidad")
+        self.assertNotContains(response, "No divulgar")
+
+    def test_archived_post_cannot_request_visit(self):
+        self.post.status = "archived"
+        self.post.save()
+        self.client.force_login(self.applicant)
+        self.client.post(self.request_url)
+        self.interest.refresh_from_db()
+        self.assertEqual(self.interest.visit_status, "none")

@@ -128,6 +128,12 @@ class AdoptionPost(models.Model):
 
 
 class AdoptionInterest(models.Model):
+    class VisitStatus(models.TextChoices):
+        NONE = "none", "Sin solicitar"
+        REQUESTED = "requested", "Esperando al refugio"
+        ACCEPTED = "accepted", "Visita aceptada"
+        DECLINED = "declined", "Visita no disponible"
+
     class Status(models.TextChoices):
         RECEIVED = "received", "Recibido"
         CONTACT = "contact", "En conversación"
@@ -140,6 +146,11 @@ class AdoptionInterest(models.Model):
     message = models.TextField("mensaje", max_length=700)
     status = models.CharField("estado", max_length=16, choices=Status.choices, default=Status.RECEIVED)
     staff_note = models.CharField("nota visible para la persona", max_length=280, blank=True)
+    visit_status = models.CharField(max_length=16, choices=VisitStatus.choices, default=VisitStatus.NONE)
+    visit_address = models.CharField("dirección compartida para la visita", max_length=300, blank=True)
+    visit_instructions = models.CharField("indicaciones para la visita", max_length=280, blank=True)
+    visit_requested_at = models.DateTimeField(null=True, blank=True)
+    visit_answered_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

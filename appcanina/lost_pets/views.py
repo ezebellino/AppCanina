@@ -142,18 +142,69 @@ def my_adoption_interests(request):
     return render(request, "lost_pets/my_adoption_interests.html", {"interests": interests})
 
 
+def _interest_manager_organizations(user):
+    shelters = verified_shelters_managed_by(user)
+    if user.has_perm("lost_pets.change_adoptioninterest"):
+        return (shelters | organizations_managed_by(user)).distinct()
+    return shelters
+
+
 @login_required
-@permission_required("lost_pets.change_adoptioninterest", raise_exception=True)
+@require_POST
+def adoption_visit_request(request, interest_id):
+    interest = get_object_or_404(AdoptionInterest.objects.select_related("post__organization"), pk=interest_id, applicant=request.user)
+    organization = interest.post.organization
+    if (interest.post.status != AdoptionPost.Status.PUBLISHED or not organization
+            or organization.kind != "shelter" or not organization.is_verified
+            or interest.status in (AdoptionInterest.Status.CLOSED, AdoptionInterest.Status.COMPLETED)):
+        messages.error(request, "Esta solicitud no está disponible para coordinar una visita.")
+    else:
+        changed = AdoptionInterest.objects.filter(pk=interest.pk, visit_status=AdoptionInterest.VisitStatus.NONE).update(
+            visit_status=AdoptionInterest.VisitStatus.REQUESTED, visit_requested_at=timezone.now(), updated_at=timezone.now(),
+        )
+        messages.info(request, "Solicitud de visita enviada al refugio." if changed else "La visita ya tiene una solicitud registrada.")
+    return redirect("my_adoption_interests")
+
+
+@login_required
+@require_POST
+def adoption_visit_respond(request, interest_id):
+    interest = get_object_or_404(
+        AdoptionInterest.objects.select_related("post__organization"), pk=interest_id,
+        post__organization__in=_interest_manager_organizations(request.user),
+        post__organization__kind="shelter", post__organization__is_verified=True,
+    )
+    action = request.POST.get("action")
+    address = (request.POST.get("visit_address") or "").strip()
+    instructions = (request.POST.get("visit_instructions") or "").strip()
+    if action not in ("accept", "decline") or len(instructions) > 280:
+        messages.error(request, "Revisá la respuesta y las indicaciones (hasta 280 caracteres).")
+    elif action == "accept" and (not address or len(address) > 300 or interest.post.status != AdoptionPost.Status.PUBLISHED
+            or interest.status in (AdoptionInterest.Status.CLOSED, AdoptionInterest.Status.COMPLETED)):
+        messages.error(request, "Para aceptar, indicá una dirección (hasta 300 caracteres) y verificá que la adopción siga disponible.")
+    else:
+        changed = AdoptionInterest.objects.filter(pk=interest.pk, visit_status=AdoptionInterest.VisitStatus.REQUESTED).update(
+            visit_status=AdoptionInterest.VisitStatus.ACCEPTED if action == "accept" else AdoptionInterest.VisitStatus.DECLINED,
+            visit_address=address if action == "accept" else "", visit_instructions=instructions,
+            visit_answered_at=timezone.now(), updated_at=timezone.now(),
+        )
+        messages.success(request, "Respuesta guardada. La persona la verá en Mis solicitudes." if changed else "Esta visita ya fue respondida o no fue solicitada.")
+    return redirect("adoption_interest_list")
+
+
+@login_required
 def adoption_interest_list(request):
-    interests = AdoptionInterest.objects.select_related("post", "post__organization", "applicant").filter(post__organization__in=organizations_managed_by(request.user))
+    if not _interest_manager_organizations(request.user).exists() and not request.user.has_perm("lost_pets.change_adoptioninterest"):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    interests = AdoptionInterest.objects.select_related("post", "post__organization", "applicant").filter(post__organization__in=_interest_manager_organizations(request.user))
     return render(request, "lost_pets/adoption_interest_list.html", {"interests": interests, "status_choices": AdoptionInterest.Status.choices})
 
 
 @login_required
-@permission_required("lost_pets.change_adoptioninterest", raise_exception=True)
 @require_POST
 def adoption_interest_change_status(request, interest_id):
-    interest = get_object_or_404(AdoptionInterest, pk=interest_id)
+    interest = get_object_or_404(AdoptionInterest, pk=interest_id, post__organization__in=_interest_manager_organizations(request.user))
     if interest.post.organization and not can_manage_organization(request.user, interest.post.organization):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
