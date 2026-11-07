@@ -163,3 +163,50 @@ class OrganizationVerificationTests(TestCase):
         )
 
         self.assertFalse(self.manager.groups.filter(name="Administrador").exists())
+
+
+class EmailLoginTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("zeqe-test", email="owner@example.test", password="old-password")
+
+    def test_reset_password_then_login_by_email_and_username(self):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        token = default_token_generator.make_token(self.user)
+        response = self.client.get(reverse("password_reset_confirm", args=[uid, token]))
+        response = self.client.post(response.url, {"new_password1": "new-strong-password-739!", "new_password2": "new-strong-password-739!"})
+        self.assertRedirects(response, reverse("password_reset_complete"))
+        for identifier in ("zeqe-test", "OWNER@EXAMPLE.TEST"):
+            self.client.logout()
+            response = self.client.post(reverse("login"), {"username": identifier, "password": "new-strong-password-739!"})
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(int(self.client.session["_auth_user_id"]), self.user.pk)
+
+    def test_duplicate_email_is_rejected_but_username_still_works(self):
+        from django.contrib.auth import authenticate
+        User.objects.create_user("another", email="OWNER@example.test", password="another-password")
+        self.assertIsNone(authenticate(username="owner@example.test", password="old-password"))
+        self.assertEqual(authenticate(username="zeqe-test", password="old-password"), self.user)
+
+    def test_email_cannot_override_another_accounts_username(self):
+        from django.contrib.auth import authenticate
+        other = User.objects.create_user("owner@example.test", password="another-password")
+        self.assertIsNone(authenticate(username="owner@example.test", password="old-password"))
+        self.assertEqual(authenticate(username="owner@example.test", password="another-password"), other)
+
+    def test_inactive_user_and_wrong_password_are_rejected(self):
+        from django.contrib.auth import authenticate
+        self.assertIsNone(authenticate(username=self.user.email, password="wrong"))
+        self.user.is_active = False
+        self.user.save()
+        self.assertIsNone(authenticate(username=self.user.email, password="old-password"))
+
+    def test_existing_mobile_api_accepts_email(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.user.groups.add(ensure_base_roles()["collaborator"])
+        response = self.client.post(reverse("mobile_login"), {"username": "OWNER@example.test", "password": "old-password"}, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["user"]["username"], self.user.username)

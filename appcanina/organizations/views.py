@@ -32,7 +32,7 @@ def initial_setup(request):
                 kind=form.cleaned_data["business_kind"],
                 is_business_profile=True,
             )
-        login(request, user)
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
         return redirect("platform_dashboard")
     return render(request, "organizations/initial_setup.html", {"form": form})
 
