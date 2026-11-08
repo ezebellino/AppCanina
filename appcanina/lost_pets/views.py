@@ -11,6 +11,7 @@ from .forms import AdoptionPostForm, LostPetReportForm, SightingForm
 from .models import AdoptionInterest, AdoptionPost, LostPetReport, Sighting
 from .notifications import notify_new_report, notify_new_sighting, notify_request_review
 from .adoption_email import notify_visit
+from .adoption_updates import managed_interest_organizations, read_inbox, unread_counts
 from organizations.roles import can_manage_organization, is_community_collaborator, organizations_managed_by, verified_shelters_managed_by
 
 
@@ -140,14 +141,19 @@ def my_adoption_interests(request):
     interests = AdoptionInterest.objects.filter(applicant=request.user).select_related(
         "post", "post__organization"
     ).order_by("-updated_at", "-id")
-    return render(request, "lost_pets/my_adoption_interests.html", {"interests": interests})
+    return render(request, "lost_pets/my_adoption_interests.html", {"interests": read_inbox(interests, request.user, "applicant")})
+
+
+@login_required
+@require_GET
+def adoption_update_counts(request):
+    response = JsonResponse(unread_counts(request.user))
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 def _interest_manager_organizations(user):
-    shelters = verified_shelters_managed_by(user)
-    if user.has_perm("lost_pets.change_adoptioninterest"):
-        return (shelters | organizations_managed_by(user)).distinct()
-    return shelters
+    return managed_interest_organizations(user)
 
 
 @login_required
@@ -161,7 +167,7 @@ def adoption_visit_request(request, interest_id):
         messages.error(request, "Esta solicitud no está disponible para coordinar una visita.")
     else:
         changed = AdoptionInterest.objects.filter(pk=interest.pk, visit_status=AdoptionInterest.VisitStatus.NONE).update(
-            visit_status=AdoptionInterest.VisitStatus.REQUESTED, visit_requested_at=timezone.now(), updated_at=timezone.now(),
+            visit_status=AdoptionInterest.VisitStatus.REQUESTED, visit_requested_at=timezone.now(), updated_at=timezone.now(), institution_activity_at=timezone.now(),
         )
         messages.info(request, "Solicitud de visita enviada al refugio." if changed else "La visita ya tiene una solicitud registrada.")
         if changed:
@@ -191,7 +197,7 @@ def adoption_visit_respond(request, interest_id):
         changed = AdoptionInterest.objects.filter(pk=interest.pk, visit_status=AdoptionInterest.VisitStatus.REQUESTED).update(
             visit_status=AdoptionInterest.VisitStatus.ACCEPTED if action == "accept" else AdoptionInterest.VisitStatus.DECLINED,
             visit_address=address if action == "accept" else "", visit_instructions=instructions,
-            visit_answered_at=timezone.now(), updated_at=timezone.now(),
+            visit_answered_at=timezone.now(), updated_at=timezone.now(), applicant_activity_at=timezone.now(),
         )
         messages.success(request, "Respuesta guardada. La persona la verá en Mis solicitudes." if changed else "Esta visita ya fue respondida o no fue solicitada.")
         if changed:
@@ -215,7 +221,7 @@ def adoption_interest_list(request):
         interests = interests.filter(visit_status=AdoptionInterest.VisitStatus.REQUESTED)
     else:
         view_mode = "all"
-    return render(request, "lost_pets/adoption_interest_list.html", {"interests": interests.order_by("-created_at"), "status_choices": AdoptionInterest.Status.choices, "counts": counts, "view_mode": view_mode})
+    return render(request, "lost_pets/adoption_interest_list.html", {"interests": read_inbox(interests.order_by("-created_at"), request.user, "institution"), "status_choices": AdoptionInterest.Status.choices, "counts": counts, "view_mode": view_mode})
 
 
 @login_required
@@ -229,9 +235,12 @@ def adoption_interest_change_status(request, interest_id):
     if status not in AdoptionInterest.Status.values:
         messages.error(request, "El estado indicado no es válido.")
     else:
+        note = request.POST.get("staff_note", "").strip()[:280]
+        if interest.status != status or interest.staff_note != note:
+            interest.applicant_activity_at = timezone.now()
         interest.status = status
-        interest.staff_note = request.POST.get("staff_note", "").strip()[:280]
-        interest.save(update_fields=["status", "staff_note", "updated_at"])
+        interest.staff_note = note
+        interest.save(update_fields=["status", "staff_note", "updated_at", "applicant_activity_at"])
         messages.success(request, "Estado del interés actualizado.")
     return redirect("adoption_interest_list")
 

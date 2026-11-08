@@ -5,6 +5,7 @@ from . import api
 
 
 urlpatterns = [
+    path("adopciones/novedades/", views.adoption_update_counts, name="adoption_update_counts"),
     path("", views.report_list, name="lost_pet_list"),
     path("adopciones/", views.adoption_list, name="adoption_list"),
     path("adopciones/solicitudes/<int:interest_id>/visita/", views.adoption_visit_request, name="adoption_visit_request"),

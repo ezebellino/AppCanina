@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Mis solicitudes de adopción{% endblock %}
 {% block content %}
+{% include "lost_pets/adoption_status_help.html" %}
 <div class="page-heading"><div><p class="eyebrow">Comunidad</p><h1>Mis solicitudes de adopción</h1><p>Seguí tus solicitudes y las respuestas del equipo. Solo vos podés ver este listado.</p></div><a class="button button-ghost" href="{% url 'adoption_list' %}">Ver animales en adopción</a></div>
 <section class="visit-grid">
 {% for interest in interests %}
-<article class="card visit-card">
+<article class="card visit-card{% if interest.has_new_activity %} request-has-update{% endif %}">{% if interest.has_new_activity %}<span class="request-unread-badge">Novedad</span>{% endif %}
 {% if interest.post.photo %}<img class="form-photo-preview" src="{{ interest.post.photo.url }}" alt="{{ interest.post.name }}">{% endif %}
 <div><p class="eyebrow">{{ interest.get_status_display }}</p><h2>{{ interest.post.name }}</h2><p>{{ interest.post.get_species_display }} · {{ interest.post.area_label }}</p>{% if interest.post.organization %}<p><strong>{{ interest.post.organization.name }}</strong></p>{% endif %}</div>
 <p class="form-help">Enviada el {{ interest.created_at|date:"d/m/Y H:i" }} · Actualizada el {{ interest.updated_at|date:"d/m/Y H:i" }}</p>
@@ -20,5 +21,5 @@
 </article>
 {% empty %}<div class="empty card"><h2>Todavía no enviaste solicitudes</h2><p>Elegí un animal y tocá «Quiero conocerlo» para enviar tu interés.</p><a class="button" href="{% url 'adoption_list' %}">Explorar adopciones</a></div>{% endfor %}
 </section>
-<nav class="community-bottom-nav" aria-label="Navegación de comunidad"><a href="{% url 'lost_pet_list' %}"><span>⌂</span>Perdidos</a><a href="{% url 'adoption_list' %}"><span>♡</span>Adoptar</a><a class="active" href="{% url 'my_adoption_interests' %}"><span>▤</span>Mis solicitudes</a></nav>
+<nav class="community-bottom-nav" aria-label="Navegación de comunidad"><a href="{% url 'lost_pet_list' %}"><span>⌂</span>Perdidos</a><a href="{% url 'adoption_list' %}"><span>♡</span>Adoptar</a>{% include "lost_pets/request_nav.html" %}</nav>
 {% endblock %}

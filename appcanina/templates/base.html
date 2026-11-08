@@ -9,7 +9,7 @@
 <aside class="sidebar">
   {% if user.is_staff %}
   <a class="sidebar-brand" href="{% url 'platform_dashboard' %}"><span class="brand-mark" aria-hidden="true">✦</span><span>Plataforma AppCanina</span></a>
-  <nav class="sidebar-nav" aria-label="Navegación de plataforma">
+  <nav class="sidebar-nav" aria-label="Navegación de plataforma">{% include "lost_pets/request_nav.html" %}
     <a href="{% url 'platform_dashboard' %}" class="{% if request.resolver_match.url_name == 'platform_dashboard' %}active{% endif %}"><span aria-hidden="true">⌂</span> Panel de plataforma</a>
     <a href="{% url 'organization_verification_list' %}" class="{% if request.resolver_match.url_name == 'organization_verification_list' %}active{% endif %}"><span aria-hidden="true">✓</span> Validar instituciones</a>
   </nav>
@@ -17,7 +17,8 @@
   {% else %}
   <a class="sidebar-brand" href="{% url 'dashboard' %}">{% if organization_profile and organization_profile.logo %}<img class="brand-logo" src="{{ organization_profile.logo.url }}" alt="">{% else %}<span class="brand-mark" aria-hidden="true">✦</span>{% endif %}<span>{% if organization_profile %}{{ organization_profile.name }}{% else %}Tu Veterinaria{% endif %}</span></a>
   <nav class="sidebar-nav" aria-label="Navegación principal">
-    {% if is_shelter_manager %}<a href="{% url 'adoption_interest_list' %}">Solicitudes recibidas</a><a href="{% url 'adoption_list' %}?view=all">Animales del refugio</a>{% endif %}
+    {% include "lost_pets/request_nav.html" %}
+    {% if is_shelter_manager %}<a href="{% url 'adoption_list' %}?view=all">Animales del refugio</a>{% endif %}
     <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"><span aria-hidden="true">⌂</span> Inicio</a>
     <a href="{% url 'global_search' %}" class="{% if request.resolver_match.url_name == 'global_search' %}active{% endif %}"><span aria-hidden="true">⌕</span> Buscar</a>
     {% if perms.patients.view_patient %}<a href="{% url 'patient_list' %}" class="nav-group animal-care {% if request.resolver_match.url_name == 'patient_list' or request.resolver_match.url_name == 'patient_create' or request.resolver_match.url_name == 'patient_detail' or request.resolver_match.url_name == 'patient_edit' or request.resolver_match.url_name == 'clinical_record_create' or request.resolver_match.url_name == 'care_reminder_list' %}active{% endif %}"><span aria-hidden="true">⚕</span><span><strong>Atención animal</strong><small>Fichas, consultas y cuidados</small></span><b aria-hidden="true">›</b></a>{% if perms.patients.view_carereminder %}<a href="{% url 'care_reminder_list' %}" class="nav-subitem">Recordatorios clínicos</a>{% endif %}{% if perms.visits.view_homevisit %}<a href="{% url 'home_visit_list' %}" class="nav-subitem">Visitas a domicilio</a>{% endif %}{% endif %}
@@ -28,4 +29,4 @@
   {% endif %}
 </aside>{% endif %}
 {% if messages %}<div class="toast-stack" aria-live="polite">{% for message in messages %}<div class="toast {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
-<main class="container">{% block content %}{% endblock %}</main></div></body></html>
+<main class="container">{% block content %}{% endblock %}</main></div>{% if user.is_authenticated %}<script defer src="{% static 'js/adoption-updates.js' %}" data-adoption-updates-url="{% url 'adoption_update_counts' %}"></script>{% endif %}</body></html>

@@ -95,3 +95,9 @@ input,select,textarea{min-height:48px;border-color:#bfc9c5;background:#f0f4f2;bo
 
 /* Adoption forms and institutional inbox */
 .adoption-message-form{grid-template-columns:minmax(0,1fr);max-width:860px}.adoption-message-form .form-actions{justify-content:flex-start}.adoption-inbox{display:grid;gap:1rem}.adoption-request-card{display:grid;gap:1rem;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.adoption-request-card .request-heading{grid-column:1/-1}.adoption-request-card .form-grid{grid-template-columns:minmax(0,1fr)}.adoption-request-card .form-actions{justify-content:flex-start}.adoption-request-card p{overflow-wrap:anywhere}@media(max-width:700px){.adoption-request-card{grid-template-columns:minmax(0,1fr)}.adoption-message-form .form-actions button{width:100%}}
+
+.adoption-status-help{margin-bottom:1rem}.adoption-status-help summary{cursor:pointer;font-weight:700}.adoption-status-help dl{display:grid;gap:.5rem;grid-template-columns:minmax(130px,180px) 1fr}.adoption-status-help dt{font-weight:700}.adoption-status-help dd{margin:0}.request-unread-badge{display:inline-block;background:#ffe4a3;color:#513400;border:1px solid #b98516;border-radius:999px;padding:.15rem .5rem;font-size:.75rem;font-weight:800}.sidebar-nav a.has-updates,.community-bottom-nav a.has-updates{background:#fff0ca;color:#513400}.request-has-update{border:2px solid #b98516}.community-bottom-nav .request-unread-badge{font-size:.65rem}@media(max-width:700px){.adoption-status-help dl{grid-template-columns:1fr}.adoption-status-help dd{margin-bottom:.6rem}}
+
+.request-unread-badge[hidden]{display:none}
+
+@media(max-width:720px){.community-bottom-nav{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}.community-bottom-nav a{padding:.2rem;text-align:center}}

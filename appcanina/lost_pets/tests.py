@@ -790,6 +790,60 @@ class AdoptionVisitTests(TestCase):
         self.assertEqual(self.client.get(self.request_url).status_code, 405)
         self.assertEqual(len(mail.outbox), 0)
 
+    def test_updates_are_personal_and_filtered_inbox_only_marks_visible_requests(self):
+        from .adoption_updates import unread_interests
+        from .models import AdoptionReadReceipt
+        OrganizationMembership.objects.create(user=self.outsider, organization=self.shelter, role="manager")
+        interests = AdoptionInterest.objects.filter(pk=self.interest.pk)
+        self.client.force_login(self.manager)
+        response = self.client.get(reverse("personal_profile"))
+        self.assertEqual(response.context["institution_unread_count"], 1)
+        counts_response = self.client.get(reverse("adoption_update_counts"))
+        self.assertEqual(counts_response.json()["institution_unread_count"], 1)
+        self.assertEqual(counts_response["Cache-Control"], "no-store")
+        self.assertFalse(AdoptionReadReceipt.objects.filter(user=self.manager).exists())
+        self.client.get(reverse("adoption_interest_list"), {"view": "visits"})
+        self.assertFalse(AdoptionReadReceipt.objects.filter(user=self.manager).exists())
+        response = self.client.get(reverse("adoption_interest_list"))
+        self.assertTrue(response.context["interests"][0].has_new_activity)
+        self.assertEqual(response.context["institution_unread_count"], 0)
+        self.assertEqual(unread_interests(interests, self.outsider, "institution").count(), 1)
+        self.client.force_login(self.applicant)
+        self.client.post(self.request_url)
+        self.assertEqual(unread_interests(interests, self.manager, "institution").count(), 1)
+
+    def test_response_badge_clears_on_read_and_unchanged_save_does_not_notify(self):
+        self.client.force_login(self.applicant)
+        self.assertEqual(self.client.get(reverse("personal_profile")).context["applicant_unread_count"], 0)
+        self.client.force_login(self.manager)
+        url = reverse("adoption_interest_change_status", args=[self.interest.pk])
+        data = {"status": "contact", "staff_note": "Podemos conversar sobre Mora"}
+        self.client.post(url, data)
+        self.client.force_login(self.applicant)
+        response = self.client.get(reverse("personal_profile"))
+        self.assertEqual(response.context["applicant_unread_count"], 1)
+        self.assertContains(response, "1 nueva")
+        response = self.client.get(reverse("my_adoption_interests"))
+        self.assertTrue(response.context["interests"][0].has_new_activity)
+        self.assertContains(response, "¿Qué significa cada estado?")
+        self.assertEqual(response.context["applicant_unread_count"], 0)
+        self.client.force_login(self.manager)
+        self.client.post(url, data)
+        self.client.force_login(self.applicant)
+        self.assertEqual(self.client.get(reverse("personal_profile")).context["applicant_unread_count"], 0)
+
+    def test_visit_reply_notifies_applicant_and_never_another_user(self):
+        self.client.force_login(self.applicant)
+        self.client.post(self.request_url)
+        self.client.force_login(self.manager)
+        self.client.post(self.respond_url, {"action": "decline"})
+        self.client.force_login(self.outsider)
+        response = self.client.get(reverse("personal_profile"))
+        self.assertEqual(response.context["applicant_unread_count"], 0)
+        self.assertEqual(response.context["institution_unread_count"], 0)
+        self.client.force_login(self.applicant)
+        self.assertEqual(self.client.get(reverse("personal_profile")).context["applicant_unread_count"], 1)
+
     def test_email_recipients_privacy_and_duplicate_actions(self):
         for username, email, active, role in (
             ("duplicate", "MANAGER@example.com", True, "manager"),

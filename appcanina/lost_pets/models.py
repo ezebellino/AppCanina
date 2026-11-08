@@ -146,6 +146,8 @@ class AdoptionInterest(models.Model):
     message = models.TextField("mensaje", max_length=700)
     status = models.CharField("estado", max_length=16, choices=Status.choices, default=Status.RECEIVED)
     staff_note = models.CharField("nota visible para la persona", max_length=280, blank=True)
+    applicant_activity_at = models.DateTimeField(null=True, blank=True)
+    institution_activity_at = models.DateTimeField(default=timezone.now)
     visit_status = models.CharField(max_length=16, choices=VisitStatus.choices, default=VisitStatus.NONE)
     visit_address = models.CharField("dirección compartida para la visita", max_length=300, blank=True)
     visit_instructions = models.CharField("indicaciones para la visita", max_length=280, blank=True)
@@ -159,6 +161,16 @@ class AdoptionInterest(models.Model):
         constraints = [models.UniqueConstraint(fields=["post", "applicant"], name="unique_adoption_interest_per_person")]
         verbose_name = "interés de adopción"
         verbose_name_plural = "intereses de adopción"
+
+
+class AdoptionReadReceipt(models.Model):
+    interest = models.ForeignKey(AdoptionInterest, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    audience = models.CharField(max_length=16)
+    seen_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["interest", "user", "audience"], name="unique_adoption_read_receipt")]
 
 
 class MobileAccessToken(models.Model):
