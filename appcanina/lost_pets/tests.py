@@ -735,6 +735,7 @@ class AdoptionVisitTests(TestCase):
         self.client.force_login(self.applicant)
         self.assertContains(self.client.get(reverse("my_adoption_interests")), "Coordinar visita")
         self.assertNotContains(self.client.get(reverse("my_adoption_interests")), self.shelter.address)
+
         self.client.post(self.request_url)
         self.interest.refresh_from_db()
         requested_at = self.interest.visit_requested_at
@@ -756,6 +757,29 @@ class AdoptionVisitTests(TestCase):
         self.assertNotContains(self.client.get(reverse("adoption_list")), self.shelter.address)
         self.client.force_login(self.outsider)
         self.assertNotContains(self.client.get(reverse("my_adoption_interests")), self.shelter.address)
+
+    def test_shelter_lands_on_received_requests_and_only_sees_own_animals(self):
+        other_shelter = Organization.objects.create(name="Other refuge", kind="shelter", is_verified=True)
+        other_post = AdoptionPost.objects.create(publisher=self.outsider, organization=other_shelter, name="Private animal", species="dog", status="published")
+        AdoptionInterest.objects.create(post=other_post, applicant=self.outsider, message="Other private request", visit_status="requested")
+        self.client.force_login(self.manager)
+        self.assertRedirects(self.client.get(reverse("dashboard")), reverse("adoption_interest_list"))
+        response = self.client.get(reverse("adoption_interest_list"))
+        self.assertContains(response, "Solicitudes recibidas")
+        self.assertContains(response, self.interest.message)
+        self.assertNotContains(response, "Other private request")
+        self.assertEqual(response.context["counts"], {"total": 1, "received": 1, "visits": 0})
+        response = self.client.get(reverse("adoption_interest_list"), {"view": "visits"})
+        self.assertEqual(list(response.context["interests"]), [])
+        self.interest.visit_status = "requested"
+        self.interest.save()
+        response = self.client.get(reverse("adoption_interest_list"), {"view": "visits"})
+        self.assertEqual(list(response.context["interests"]), [self.interest])
+        response = self.client.get(reverse("adoption_list"))
+        self.assertContains(response, "Solicitudes recibidas")
+        self.assertNotContains(response, "Quiero conocer a Mora")
+        self.client.force_login(self.applicant)
+        self.assertEqual(self.client.get(reverse("adoption_interest_list")).status_code, 403)
 
     def test_other_accounts_cannot_request_or_answer(self):
         self.client.force_login(self.outsider)

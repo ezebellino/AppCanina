@@ -1,4 +1,5 @@
 from .models import Organization
+from .roles import verified_shelters_managed_by
 
 
 def business_profile(request):
@@ -11,4 +12,4 @@ def business_profile(request):
         managed_profile = Organization.objects.filter(memberships__user=user).order_by("id").first()
         if managed_profile:
             profile = managed_profile
-    return {"organization_profile": profile}
+    return {"organization_profile": profile, "is_shelter_manager": bool(user and user.is_authenticated and verified_shelters_managed_by(user).exists())}

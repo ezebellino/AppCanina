@@ -207,7 +207,15 @@ def adoption_interest_list(request):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     interests = AdoptionInterest.objects.select_related("post", "post__organization", "applicant").filter(post__organization__in=_interest_manager_organizations(request.user))
-    return render(request, "lost_pets/adoption_interest_list.html", {"interests": interests, "status_choices": AdoptionInterest.Status.choices})
+    counts = {"total": interests.count(), "received": interests.filter(status=AdoptionInterest.Status.RECEIVED).count(), "visits": interests.filter(visit_status=AdoptionInterest.VisitStatus.REQUESTED).count()}
+    view_mode = request.GET.get("view", "all")
+    if view_mode == "received":
+        interests = interests.filter(status=AdoptionInterest.Status.RECEIVED)
+    elif view_mode == "visits":
+        interests = interests.filter(visit_status=AdoptionInterest.VisitStatus.REQUESTED)
+    else:
+        view_mode = "all"
+    return render(request, "lost_pets/adoption_interest_list.html", {"interests": interests.order_by("-created_at"), "status_choices": AdoptionInterest.Status.choices, "counts": counts, "view_mode": view_mode})
 
 
 @login_required

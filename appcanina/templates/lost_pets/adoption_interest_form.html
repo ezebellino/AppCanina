@@ -8,9 +8,9 @@
 {% if interest.staff_note %}<p class="review-note"><strong>Respuesta del equipo:</strong> {{ interest.staff_note }}</p>{% endif %}
 {% else %}
 <p>Contanos por qué te gustaría adoptar a {{ post.name }}. Tu mensaje no se publicará en la tarjeta. Enviar el interés no confirma una adopción.</p>
-<form method="post" class="form-grid">{% csrf_token %}
+<form method="post" class="form-grid adoption-message-form">{% csrf_token %}
 <div><label for="adoption-message">Tu mensaje</label><textarea id="adoption-message" name="message" rows="5" minlength="10" maxlength="700" required aria-describedby="message-help{% if error %} message-error{% endif %}">{{ message }}</textarea><p id="message-help" class="form-help">Entre 10 y 700 caracteres.</p>{% if error %}<p id="message-error" role="alert">{{ error }}</p>{% endif %}</div>
-<button class="button" type="submit">Enviar mi interés</button>
+<div class="form-actions"><button class="button" type="submit">Enviar mi interés</button></div>
 </form>
 {% endif %}
 </section>

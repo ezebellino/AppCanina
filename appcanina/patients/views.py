@@ -169,6 +169,9 @@ def dashboard(request):
     """Compact desktop-first landing page for the day-to-day operation."""
     if request.user.is_staff:
         return redirect("platform_dashboard")
+    from organizations.roles import verified_shelters_managed_by
+    if verified_shelters_managed_by(request.user).exists():
+        return redirect("adoption_interest_list")
     if (
         request.user.has_perm("lost_pets.view_lostpetreport")
         and not request.user.has_perm("patients.view_patient")
