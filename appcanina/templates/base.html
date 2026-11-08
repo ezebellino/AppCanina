@@ -3,8 +3,8 @@
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{% if user.is_staff %}Panel de plataforma{% else %}Tu Veterinaria{% endif %}{% endblock %}</title>
 <link rel="icon" type="image/png" href="{% if organization_profile and organization_profile.logo %}{{ organization_profile.logo.url }}{% else %}{% static 'img/default-vet-logo.png' %}{% endif %}">
-<link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261108-3">
-<link rel="stylesheet" href="{% static 'css/navigation.css' %}?v=20261108-3">
+<link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261108-4">
+<link rel="stylesheet" href="{% static 'css/navigation.css' %}?v=20261108-4">
 <script>document.title="{% if user.is_staff %}Panel de plataforma{% elif organization_profile %}{{ organization_profile.name|escapejs }}{% else %}Tu Veterinaria{% endif %}";</script></head>
 <body><div class="app-shell">{% if user.is_authenticated %}
 <aside class="sidebar">
@@ -19,4 +19,4 @@
   {% endif %}
 <details class="mobile-navigation"><summary aria-label="Abrir menú de navegación"><span aria-hidden="true">☰</span> Menú</summary><div class="mobile-navigation-panel"><p class="mobile-account-name">{{ user.username }}</p>{% if user.is_staff %}{% include "organizations/navigation_platform.html" %}<div class="mobile-account-actions"><a href="{% url 'platform_dashboard' %}">Mi panel</a><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button">Salir</button></form></div>{% else %}{% include "organizations/navigation_main.html" %}<div class="mobile-account-actions">{% if organization_profile %}<a href="{% url 'business_profile' %}">{% if organization_profile.kind == 'shelter' %}Mi institución{% else %}Mi negocio{% endif %}</a>{% else %}<a href="{% url 'personal_profile' %}">Mi perfil</a>{% endif %}{% if perms.inventory.view_supplier %}<a href="{% url 'supplier_list' %}">Proveedores</a>{% endif %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button">Salir</button></form></div>{% endif %}</div></details></aside>{% endif %}
 {% if messages %}<div class="toast-stack" aria-live="polite">{% for message in messages %}<div class="toast {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
-<main class="container">{% block content %}{% endblock %}</main></div>{% if user.is_authenticated %}<script defer src="{% static 'js/adoption-updates.js' %}?v=20261108-3" data-adoption-updates-url="{% url 'adoption_update_counts' %}"></script>{% endif %}{% include "organizations/page_loading.html" %}<script defer src="{% static 'js/page-loading.js' %}?v=20261108-3"></script></body></html>
+<main class="container">{% block content %}{% endblock %}</main></div>{% if user.is_authenticated %}<script defer src="{% static 'js/adoption-updates.js' %}?v=20261108-4" data-adoption-updates-url="{% url 'adoption_update_counts' %}"></script>{% endif %}{% include "organizations/page_loading.html" %}<script defer src="{% static 'js/page-loading.js' %}?v=20261108-4"></script></body></html>
