@@ -101,15 +101,11 @@ def my_animal_credential(request, patient_id):
     contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
     relation = patient.patientcontact_set.filter(contact_id__in=contact_ids).select_related("contact").first()
     code, credential = TravelCredential.issue(patient, relation.contact, timezone.now() + timedelta(days=7))
-    from reportlab.lib.pagesizes import A4
-    from reportlab.pdfgen import canvas
-    buffer = BytesIO(); pdf = canvas.Canvas(buffer, pagesize=A4); width, height = A4
-    pdf.setTitle(f"Credencial de viaje - {patient.name}"); pdf.setFont("Helvetica-Bold", 18); pdf.drawString(54, height - 64, "Credencial veterinaria de viaje")
-    pdf.setFont("Helvetica", 11); lines = [f"Animal: {patient.name}", f"Especie: {patient.get_species_display()}", f"Raza: {patient.breed or 'No informada'}", f"Identificación: {patient.microchip or 'No informada'}", f"Responsable: {relation.contact.full_name}", f"Válida hasta: {credential.expires_at.astimezone().strftime('%d/%m/%Y %H:%M')}", f"Código temporal: {code}", "Presentala voluntariamente en una veterinaria. No habilita acceso automático por GPS."]
-    y = height - 112
-    for line in lines: pdf.drawString(54, y, line); y -= 24
-    pdf.setFont("Helvetica-Oblique", 9); pdf.drawString(54, 58, "AppCanina - Información clínica bajo consentimiento del responsable."); pdf.save()
-    response = HttpResponse(buffer.getvalue(), content_type="application/pdf"); response["Content-Disposition"] = f'attachment; filename="credencial-{patient.name.lower()}.pdf"'; return response
+    from .credential_pdf import build_credential_pdf
+    response = HttpResponse(build_credential_pdf(patient, relation.contact, code, credential.expires_at), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="credencial-{patient.name.lower()}.pdf"'
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @login_required

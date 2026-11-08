@@ -458,7 +458,11 @@ class TravelClinicalAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
         self.assertEqual(TravelCredential.objects.filter(patient=self.patient, contact=self.contact).count(), 1)
+        self.client.force_login(self.professional)
+        self.assertEqual(self.client.get(reverse("my_animal_credential", args=[self.patient.id])).status_code, 404)
+        self.assertEqual(TravelCredential.objects.filter(patient=self.patient).count(), 1)
 
     def test_verified_veterinary_gets_audited_temporary_access_after_consent(self):
         PatientSharingConsent.objects.create(patient=self.patient, contact=self.contact, enabled=True)
