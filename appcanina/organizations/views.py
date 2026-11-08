@@ -14,6 +14,36 @@ from .setup_forms import InitialSetupForm
 from .forms import PersonalProfileForm
 
 
+def public_registration(request):
+    from django.core.cache import cache
+    from .forms import PublicRegistrationForm
+
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+    form = PublicRegistrationForm(request.POST if request.method == "POST" else None)
+    if request.method == "POST":
+        cache_key = f"mobile-register:{request.META.get('REMOTE_ADDR', 'unknown')}"
+        if cache.get(cache_key, 0) >= 3:
+            form.add_error(None, "Demasiadas cuentas creadas desde esta conexión. Probá nuevamente más tarde.")
+            return render(request, "registration/register.html", {"form": form}, status=429)
+        if form.is_valid():
+            with transaction.atomic():
+                user = form.save()
+                user.groups.add(ensure_base_roles()["collaborator"])
+                kind = form.cleaned_data["account_type"]
+                if kind != "community":
+                    organization = Organization.objects.create(
+                        name=form.cleaned_data["organization_name"], kind=kind,
+                        locality=form.cleaned_data["locality"], email=user.email,
+                    )
+                    OrganizationMembership.objects.create(organization=organization, user=user)
+            cache.set(cache_key, cache.get(cache_key, 0) + 1, 3600)
+            messages.success(request, "Tu cuenta fue creada. Ya podés ingresar." if kind == "community" else
+                             "Tu cuenta fue creada. Ya podés ingresar; tu institución o veterinaria queda pendiente de validación para habilitar sus herramientas de gestión.")
+            return redirect("login")
+    return render(request, "registration/register.html", {"form": form})
+
+
 @login_required
 def personal_profile(request):
     form = PersonalProfileForm(request.POST or None, instance=request.user)

@@ -5,10 +5,12 @@ from django.urls import reverse_lazy
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.static import serve
+from organizations.views import public_registration
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("cuenta/ingresar/", auth_views.LoginView.as_view(), name="login"),
+    path("cuenta/registrarse/", public_registration, name="register"),
     path("cuenta/salir/", auth_views.LogoutView.as_view(), name="logout"),
     path(
         "cuenta/recuperar/",

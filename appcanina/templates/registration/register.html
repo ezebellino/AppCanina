@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Crear una cuenta · AppCanina{% endblock %}
+{% block content %}
+<section class="registration-page">
+  <a class="registration-back" href="{% url 'login' %}">← Volver a ingresar</a>
+  <header class="page-heading"><div><p class="eyebrow">Sumate a AppCanina</p><h1>Creá tu cuenta</h1><p>Elegí cómo querés participar. Te acompañamos en el cuidado de los animales.</p></div></header>
+  <form method="post" class="registration-form" novalidate>{% csrf_token %}
+    {{ form.non_field_errors }}
+    <fieldset class="registration-roles"><legend>1. Elegí tu perfil</legend>
+      {{ form.account_type.errors }}
+      <div class="registration-role-grid">
+      {% for choice in form.account_type %}
+        <label class="registration-role" for="{{ choice.id_for_label }}">
+          {{ choice.tag }}
+          {% if choice.data.value == 'community' %}
+          {% include "organizations/nav_icon.html" with icon="community" %}
+          <strong>Colaborador</strong><small>Para personas y familias</small>
+          <ul><li>Ayudá con avistamientos de animales extraviados.</li><li>Consultá tus animales y su historial compartido.</li><li>Solicitá adopciones y coordiná visitas.</li></ul>
+          {% elif choice.data.value == 'shelter' %}
+          {% include "organizations/nav_icon.html" with icon="paw" %}
+          <strong>Institución</strong><small>Para refugios y perreras</small>
+          <ul><li>Presentá tu institución y los animales en adopción.</li><li>Recibí y respondé solicitudes de adoptantes.</li><li>Coordiná visitas con las familias interesadas.</li></ul>
+          {% else %}
+          {% include "organizations/nav_icon.html" with icon="care" %}
+          <strong>Negocio</strong><small>Para veterinarias</small>
+          <ul><li>Registrá el perfil de tu veterinaria.</li><li>Solicitá la habilitación de herramientas de gestión.</li><li>Participá de la comunidad de cuidado animal.</li></ul>
+          {% endif %}
+        </label>
+      {% endfor %}
+      </div>
+    </fieldset>
+    <section class="card registration-organization"><h2>Datos de tu institución o veterinaria</h2><p>Revisaremos el perfil antes de habilitar las herramientas de gestión. Mientras tanto, podés participar como colaborador.</p><div class="form-grid">
+    {% for field in form %}{% if field.name == 'organization_name' or field.name == 'locality' %}<div class="form-field">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}
+    </div></section>
+    <section class="card"><h2>2. Tus datos de acceso</h2><p>El nombre y apellido son opcionales. Completá usuario, correo y contraseña.</p><div class="form-grid">
+      {% for field in form %}{% if field.name != 'account_type' and field.name != 'organization_name' and field.name != 'locality' %}
+      <div class="form-field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<p class="form-help">{{ field.help_text }}</p>{% endif %}{{ field.errors }}</div>
+      {% endif %}{% endfor %}
+    </div><p class="form-help">Usá una contraseña de al menos 8 caracteres que no sea común ni solamente numérica.</p>
+    <div class="registration-actions"><button class="button" type="submit">Crear mi cuenta</button><a href="{% url 'login' %}">Ya tengo cuenta · Ingresar</a></div></section>
+  </form>
+</section>
+{% endblock %}

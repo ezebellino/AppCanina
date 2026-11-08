@@ -15,3 +15,7 @@ La versión de Expo en `mobile/app.json` identifica otro artefacto: actualizarla
 ## 0.2.0
 
 Botón de cuenta con flecha vectorial y estados de apertura; versión visible en escritorio y al pie del contenido en celulares.
+
+## 0.3.0
+
+Registro web público desde el login, con elección y explicación de perfiles: colaborador, institución y veterinaria. Las organizaciones nuevas quedan pendientes de validación.

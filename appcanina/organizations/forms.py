@@ -71,3 +71,34 @@ class CommunityCollaboratorForm(UserCreationForm):
         fields = ("username", "first_name", "last_name", "email", "password1", "password2")
         labels = {"username": "Usuario para iniciar sesión"}
         help_texts = {"username": "Usará este nombre para ingresar desde la app móvil."}
+
+
+class PublicRegistrationForm(CommunityCollaboratorForm):
+    account_type = forms.ChoiceField(label="Tipo de cuenta", choices=[
+        ("community", "Colaborador"), ("shelter", "Institución"),
+        ("veterinary", "Negocio · Veterinaria"),
+    ], widget=forms.RadioSelect, initial="community")
+    email = forms.EmailField(label="Correo electrónico", required=True,
+                            help_text="Para recuperar tu contraseña y recibir novedades de tus solicitudes.")
+    organization_name = forms.CharField(label="Nombre de la institución o veterinaria", max_length=160, required=False)
+    locality = forms.CharField(label="Localidad", max_length=120, required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["username"].help_text = "Podés ingresar con este usuario o con tu correo."
+        for name in ("password1", "password2"):
+            self.fields[name].widget.attrs["autocomplete"] = "new-password"
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip()
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("Este correo ya está asociado a una cuenta. Podés ingresar o recuperar tu contraseña.")
+        return email
+
+    def clean(self):
+        data = super().clean()
+        if data.get("account_type") in {"shelter", "veterinary"}:
+            for field in ("organization_name", "locality"):
+                if not data.get(field):
+                    self.add_error(field, "Completá este dato para registrar tu institución o veterinaria.")
+        return data
