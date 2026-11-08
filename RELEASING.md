@@ -19,3 +19,7 @@ Botón de cuenta con flecha vectorial y estados de apertura; versión visible en
 ## 0.3.0
 
 Registro web público desde el login, con elección y explicación de perfiles: colaborador, institución y veterinaria. Las organizaciones nuevas quedan pendientes de validación.
+
+## 0.4.0
+
+Compartir credenciales PDF desde el navegador, con descarga alternativa para WhatsApp. Invitaciones familiares de un uso, consulta compartida y revocación en web; aceptación común con el cliente móvil.

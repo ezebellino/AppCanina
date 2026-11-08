@@ -7,11 +7,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import DatabaseError, transaction
 from django.db.models import F, Q, Sum
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from .forms import CareReminderForm, ClinicalRecordForm, ContactForm, ExistingPatientContactForm, OwnerAccountLinkForm, PatientContactForm, PatientForm, TravelAccessRequestForm
+from .family import owned_animals, can_invite
 from .models import CareReminder, ClinicalHistoryAccessLog, Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent, TravelAccessRequest, TravelCredential
 from organizations.roles import organizations_managed_by
 from sales.models import CashSession, Sale
@@ -65,14 +66,16 @@ def _default_operating_organization(user):
 
 
 def _owned_patient_or_404(user, patient_id):
-    contact_ids = OwnerAccountLink.objects.filter(user=user).values_list("contact_id", flat=True)
-    return get_object_or_404(Patient.objects.prefetch_related("clinical_records__professional"), pk=patient_id, patientcontact__contact_id__in=contact_ids)
+    return get_object_or_404(owned_animals(user).prefetch_related("clinical_records__professional"), pk=patient_id)
 
 
 @login_required
 def my_animals(request):
     contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
-    patients = Patient.objects.filter(patientcontact__contact_id__in=contact_ids, active=True).distinct().prefetch_related("patientcontact_set__contact")
+    patients = owned_animals(request.user).prefetch_related("patientcontact_set__contact")
+    for patient in patients:
+        patient.can_invite_family = can_invite(request.user, patient)
+        patient.can_issue_credential = patient.patientcontact_set.filter(contact_id__in=contact_ids, role="responsible").exists()
     return render(request, "patients/my_animals.html", {"patients": patients})
 
 
@@ -81,7 +84,7 @@ def my_animal_history(request, patient_id):
     patient = _owned_patient_or_404(request.user, patient_id)
     contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
     sharing_enabled = PatientSharingConsent.objects.filter(patient=patient, contact_id__in=contact_ids, enabled=True).exists()
-    return render(request, "patients/my_animal_history.html", {"patient": patient, "sharing_enabled": sharing_enabled})
+    return render(request, "patients/my_animal_history.html", {"patient": patient, "sharing_enabled": sharing_enabled, "can_issue_credential": patient.patientcontact_set.filter(contact_id__in=contact_ids, role="responsible").exists()})
 
 
 @login_required
@@ -89,7 +92,9 @@ def my_animal_history(request, patient_id):
 def my_animal_sharing(request, patient_id):
     patient = _owned_patient_or_404(request.user, patient_id)
     contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
-    relation = patient.patientcontact_set.filter(contact_id__in=contact_ids).select_related("contact").first()
+    relation = patient.patientcontact_set.select_related("contact").filter(contact_id__in=contact_ids, role="responsible").first()
+    if relation is None:
+        raise Http404
     consent, _ = PatientSharingConsent.objects.update_or_create(patient=patient, contact=relation.contact, defaults={"enabled": request.POST.get("enabled") == "on"})
     messages.success(request, "Preferencia de historial compartido actualizada." if consent.enabled else "El acceso compartido fue desactivado.")
     return redirect("my_animal_history", patient_id=patient.id)
@@ -99,7 +104,9 @@ def my_animal_sharing(request, patient_id):
 def my_animal_credential(request, patient_id):
     patient = _owned_patient_or_404(request.user, patient_id)
     contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
-    relation = patient.patientcontact_set.filter(contact_id__in=contact_ids).select_related("contact").first()
+    relation = patient.patientcontact_set.select_related("contact").filter(contact_id__in=contact_ids, role="responsible").first()
+    if relation is None:
+        raise Http404
     code, credential = TravelCredential.issue(patient, relation.contact, timezone.now() + timedelta(days=7))
     from .credential_pdf import build_credential_pdf
     response = HttpResponse(build_credential_pdf(patient, relation.contact, code, credential.expires_at), content_type="application/pdf")

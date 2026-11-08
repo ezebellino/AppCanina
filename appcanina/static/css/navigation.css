@@ -65,3 +65,5 @@
 .sidebar-nav .nav-group{grid-template-columns:36px minmax(0,1fr) auto}.sidebar-nav a>.request-link-label{text-align:left}.sidebar-nav a{gap:.75rem}
 .community-bottom-nav a{position:relative}.community-bottom-nav a>.nav-icon{width:24px;height:24px;min-width:24px;background:transparent;color:inherit;box-shadow:none;border-radius:0}.community-bottom-nav .nav-icon svg{width:22px;height:22px}.community-bottom-nav a>.request-unread-badge{position:absolute;top:2px;right:4px}
 @media(max-width:1024px){.mobile-navigation-panel .sidebar-nav a{gap:.75rem}.mobile-navigation-panel .sidebar-nav a>.nav-icon{width:36px;height:36px;min-width:36px}}
+
+#credential-sharing{margin-top:1.5rem}#credential-sharing[hidden],#credential-sharing [hidden]{display:none!important}

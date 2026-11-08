@@ -447,38 +447,14 @@ def mobile_family_invite_accept(request):
     raw_code = (payload.get("code") or "").strip()
     if not raw_code:
         return JsonResponse({"detail": "Ingresá el código familiar."}, status=400)
-    digest = hashlib.sha256(raw_code.encode()).hexdigest()
-    with transaction.atomic():
-        invitation = PatientFamilyInvite.objects.select_for_update().select_related("patient", "invited_by").filter(digest=digest).first()
-        if (not invitation or not invitation.is_active or not invitation.patient.active
-                or not invitation.invited_by.is_active
-                or not _mobile_can_invite_caregiver(invitation.invited_by, invitation.patient)):
-            return JsonResponse({"detail": "El código no es válido, ya fue utilizado o venció."}, status=400)
-        if invitation.invited_by_id == request.mobile_user.id:
-            return JsonResponse({"detail": "No podés usar tu propio código familiar."}, status=400)
-        contact = _mobile_user_contact(request.mobile_user)
-        PatientContact.objects.get_or_create(
-            patient=invitation.patient,
-            contact=contact,
-            role=PatientContact.Role.CUSTODIAN,
-            defaults={"is_primary": False},
-        )
-        PatientFamilyAccess.objects.update_or_create(
-            patient=invitation.patient,
-            user=request.mobile_user,
-            defaults={
-                "contact": contact,
-                "granted_by": invitation.invited_by,
-                "invitation": invitation,
-                "revoked_at": None,
-            },
-        )
-        invitation.accepted_by = request.mobile_user
-        invitation.accepted_at = timezone.now()
-        invitation.save(update_fields=["accepted_by", "accepted_at"])
+    from patients.family import accept_invitation
+    try:
+        patient = accept_invitation(request.mobile_user, raw_code)
+    except ValueError as error:
+        return JsonResponse({"detail": str(error)}, status=400)
     return JsonResponse({
-        "detail": f"{invitation.patient.name} ya está vinculada a tu cuenta familiar.",
-        "animal": _mobile_patient_data(request, invitation.patient),
+        "detail": f"{patient.name} ya está vinculada a tu cuenta familiar.",
+        "animal": _mobile_patient_data(request, patient),
     }, status=201)
 
 

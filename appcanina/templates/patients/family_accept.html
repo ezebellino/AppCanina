@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block content %}
+<section class="card" style="max-width:640px;margin:auto"><p class="eyebrow">Mi familia animal</p><h1>Agregar con código familiar</h1><p>Ingresá el código que te compartió el responsable. El animal aparecerá en tu perfil con su misma ficha e historial, sin duplicarlo.</p><form method="post">{% csrf_token %}{{ form.as_p }}<p>Al aceptar, quedás vinculado como responsable familiar con acceso de consulta. Quien te invitó puede quitar ese acceso.</p><button type="submit">Aceptar invitación y agregar animal</button></form><p><a href="{% url 'my_animals' %}">← Mis animales</a></p></section>
+{% endblock %}

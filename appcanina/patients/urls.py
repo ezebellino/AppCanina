@@ -1,7 +1,10 @@
 from django.urls import path
-from . import views
+from . import views, family_views
 
 urlpatterns = [
+    path("mis-animales/agregar-con-codigo/", family_views.family_accept, name="family_accept"),
+    path("mis-animales/<int:patient_id>/familia/", family_views.family_manage, name="family_manage"),
+    path("mis-animales/<int:patient_id>/familia/anular/", family_views.family_revoke, name="family_revoke"),
     path("", views.dashboard, name="dashboard"),
     path("mis-animales/", views.my_animals, name="my_animals"),
     path("mis-animales/<int:patient_id>/", views.my_animal_history, name="my_animal_history"),
