@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Mi perfil · AppCanina{% endblock %}
 {% block content %}
+<p><a class="button button-ghost" href="{% url 'my_animals' %}">🐾 Mis animales</a></p>
 <div class="page-heading"><div><p class="eyebrow">Mi cuenta</p><h1>Mi perfil</h1><p>Actualizá tus datos personales y el correo donde recibís los avisos.</p></div></div>
 <section class="card"><p><strong>Usuario:</strong> {{ user.username }}</p><form method="post" class="form-grid">{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<div class="form-actions"><button>Guardar mi perfil</button></div></form></section>
 {% if not organization_profile and not user.is_staff %}<section class="card"><h2>Tu espacio en la comunidad</h2><p>Podés colaborar con animales extraviados, conocer animales en adopción y seguir tus solicitudes.</p><a class="button button-ghost" href="{% url 'my_adoption_interests' %}">Mis solicitudes de adopción</a></section>{% endif %}
