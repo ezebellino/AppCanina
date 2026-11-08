@@ -1,5 +1,19 @@
 /* Compact navigation for phones/tablets, including landscape. */
 .mobile-navigation{display:none}
+.sidebar .account-menu summary{min-height:52px;padding:.7rem .75rem;border:1px solid #ffffff30;border-radius:14px;background:#ffffff0d;gap:.65rem;transition:background .18s,border-color .18s}
+.sidebar .account-menu summary:hover,.sidebar .account-menu[open] summary{background:#ffffff1c;border-color:#ffffff60}
+.account-menu summary:focus-visible{outline:3px solid #b3eedf;outline-offset:3px}
+.account-menu summary>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-chevron{width:20px;height:20px;flex:none;margin-left:auto;color:#b3eedf;transition:transform .18s}
+.account-menu[open] .account-chevron{transform:rotate(180deg)}
+.sidebar .account-menu>div{bottom:calc(100% + .6rem);width:100%;min-width:0}
+.app-version{font-size:.72rem;line-height:1.6;font-weight:500;letter-spacing:.015em}
+.app-version span{display:block}
+.sidebar-version{color:#c3ddd6;padding:0 .75rem;margin-top:-.85rem}
+.page-version{color:#526b64;text-align:center;margin-top:2.5rem;padding:1rem;border-top:1px solid #d4e3dc}
+@media(min-width:1025px){.app-shell:has(>.sidebar) .page-version{display:none}}
+@media(max-width:1024px){.sidebar>.sidebar-version{display:none}}
+@media(prefers-reduced-motion:reduce){.account-chevron,.sidebar .account-menu summary{transition:none}}
 .sidebar-nav a>.request-link-label{display:block;width:auto;min-width:0;font-size:inherit;flex:1}
 .sidebar-nav a>.request-unread-badge,.community-bottom-nav a>.request-unread-badge,.request-unread-badge{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:1.65rem;width:auto;height:1.65rem;padding:0 .4rem;line-height:1;font-size:.75rem;white-space:nowrap;text-align:center}
 .request-unread-badge[hidden],.sidebar-nav a>.request-unread-badge[hidden],.community-bottom-nav a>.request-unread-badge[hidden]{display:none!important}

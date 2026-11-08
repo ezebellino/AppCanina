@@ -2,6 +2,12 @@ from .models import Organization
 from .roles import verified_shelters_managed_by
 
 
+def application_version(request):
+    from django.conf import settings
+
+    return {"app_version": settings.APP_VERSION}
+
+
 def business_profile(request):
     """Expose the institution relevant to the current session in the app shell."""
     profile = None

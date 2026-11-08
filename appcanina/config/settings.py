@@ -5,6 +5,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+APP_VERSION = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip()
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
@@ -68,6 +69,7 @@ TEMPLATES = [{
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
         "organizations.context_processors.business_profile",
+        "organizations.context_processors.application_version",
     ]},
 }]
 WSGI_APPLICATION = "config.wsgi.application"
