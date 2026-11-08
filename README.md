@@ -37,3 +37,9 @@ La capa HTTPS prepara la app para acceso móvil seguro; la autenticación de col
 ### Datos para una demostración operativa
 
 Con un administrador ya creado, ejecutá `docker compose exec appcanina python manage.py seed_operational_demo`. Agrega 50 productos, 50 pacientes, turnos, servicios y ventas de muestra sin tocar ni duplicar tus registros existentes.
+
+### Avisos por correo para visitas de adopción
+
+Las nuevas solicitudes de visita avisan a los responsables activos del refugio que tengan un correo válido en su cuenta. Aceptar o rechazar una visita avisa al solicitante. Se utiliza la misma configuración SMTP que para recuperar contraseñas, con un tiempo de espera de conexión de 10 segundos.
+
+Los correos incluyen un enlace a la bandeja privada; la dirección y las indicaciones de visita solo se consultan al iniciar sesión. Los destinatarios se ocultan y los clics repetidos no vuelven a enviar el aviso. Si falta un correo o falla el envío, la acción queda guardada y se muestra una advertencia. No hay reintentos automáticos: la bandeja de solicitudes sigue siendo la fuente de información. La aceptación SMTP no confirma la recepción en la casilla.

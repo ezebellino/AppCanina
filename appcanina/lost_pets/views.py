@@ -10,6 +10,7 @@ from patients.models import Patient
 from .forms import AdoptionPostForm, LostPetReportForm, SightingForm
 from .models import AdoptionInterest, AdoptionPost, LostPetReport, Sighting
 from .notifications import notify_new_report, notify_new_sighting, notify_request_review
+from .adoption_email import notify_visit
 from organizations.roles import can_manage_organization, is_community_collaborator, organizations_managed_by, verified_shelters_managed_by
 
 
@@ -163,6 +164,10 @@ def adoption_visit_request(request, interest_id):
             visit_status=AdoptionInterest.VisitStatus.REQUESTED, visit_requested_at=timezone.now(), updated_at=timezone.now(),
         )
         messages.info(request, "Solicitud de visita enviada al refugio." if changed else "La visita ya tiene una solicitud registrada.")
+        if changed:
+            interest.refresh_from_db()
+            if not notify_visit(interest, request):
+                messages.warning(request, "La visita quedó solicitada, pero no pudimos enviar el aviso por correo. El refugio puede verla en su bandeja de solicitudes.")
     return redirect("my_adoption_interests")
 
 
@@ -189,6 +194,10 @@ def adoption_visit_respond(request, interest_id):
             visit_answered_at=timezone.now(), updated_at=timezone.now(),
         )
         messages.success(request, "Respuesta guardada. La persona la verá en Mis solicitudes." if changed else "Esta visita ya fue respondida o no fue solicitada.")
+        if changed:
+            interest.refresh_from_db()
+            if not notify_visit(interest, request):
+                messages.warning(request, "La respuesta quedó guardada, pero no pudimos enviar el aviso por correo. La persona puede verla en Mis solicitudes.")
     return redirect("adoption_interest_list")
 
 

@@ -1,9 +1,11 @@
 from decimal import Decimal
 from io import BytesIO
+from unittest.mock import patch
 
 from django.contrib.auth.models import Permission, User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.core import mail
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
@@ -713,11 +715,12 @@ class MyAdoptionInterestsTests(TestCase):
         self.assertEqual(self.client.get(self.url).status_code, 302)
 
 
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class AdoptionVisitTests(TestCase):
     def setUp(self):
         roles = ensure_base_roles()
-        self.applicant = User.objects.create_user("visit-applicant")
-        self.manager = User.objects.create_user("visit-manager")
+        self.applicant = User.objects.create_user("visit-applicant", email="applicant@example.com")
+        self.manager = User.objects.create_user("visit-manager", email="manager@example.com")
         self.outsider = User.objects.create_user("visit-outsider")
         for user in (self.applicant, self.manager, self.outsider):
             user.groups.add(roles["collaborator"])
@@ -761,6 +764,71 @@ class AdoptionVisitTests(TestCase):
         self.client.force_login(self.applicant)
         self.assertEqual(self.client.post(self.respond_url, {"action": "accept", "visit_address": "Ajena"}).status_code, 404)
         self.assertEqual(self.client.get(self.request_url).status_code, 405)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_email_recipients_privacy_and_duplicate_actions(self):
+        for username, email, active, role in (
+            ("duplicate", "MANAGER@example.com", True, "manager"),
+            ("inactive", "inactive@example.com", False, "manager"),
+            ("staff", "staff@example.com", True, "staff"),
+            ("invalid", "invalid", True, "manager"),
+        ):
+            user = User.objects.create_user(username, email=email, is_active=active)
+            OrganizationMembership.objects.create(user=user, organization=self.shelter, role=role)
+        self.client.force_login(self.applicant)
+        self.client.post(self.request_url)
+        self.client.post(self.request_url)
+        self.assertEqual(len(mail.outbox), 1)
+        alert = mail.outbox[0]
+        self.assertEqual(alert.bcc, ["manager@example.com"])
+        self.assertEqual(alert.to, [])
+        self.assertIn("http://testserver" + reverse("adoption_interest_list"), alert.body)
+        self.assertIn("Mora", alert.body)
+        self.client.force_login(self.manager)
+        data = {"action": "accept", "visit_address": self.shelter.address, "visit_instructions": "Sábado a las 10"}
+        self.client.post(self.respond_url, data)
+        self.client.post(self.respond_url, data)
+        self.assertEqual(len(mail.outbox), 2)
+        reply = mail.outbox[1]
+        self.assertEqual(reply.bcc, ["applicant@example.com"])
+        self.assertIn("Visita aceptada", reply.subject)
+        self.assertIn("http://testserver" + reverse("my_adoption_interests"), reply.body)
+        for message in mail.outbox:
+            self.assertNotIn(self.shelter.address, message.body)
+            self.assertNotIn("Sábado a las 10", message.body)
+
+    def test_declined_visit_sends_response_email(self):
+        self.client.force_login(self.applicant)
+        self.client.post(self.request_url)
+        self.client.force_login(self.manager)
+        self.client.post(self.respond_url, {"action": "decline"})
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertIn("no pudo aceptar", mail.outbox[-1].body)
+
+    def test_email_failure_preserves_request_and_response_without_logging_secrets(self):
+        with patch("lost_pets.adoption_email.EmailMessage.send", side_effect=OSError("private SMTP detail")):
+            with self.assertLogs("lost_pets.adoption_email", level="WARNING") as logs:
+                self.client.force_login(self.applicant)
+                response = self.client.post(self.request_url, follow=True)
+                self.assertContains(response, "no pudimos enviar")
+                self.interest.refresh_from_db()
+                self.assertEqual(self.interest.visit_status, "requested")
+                self.client.force_login(self.manager)
+                response = self.client.post(self.respond_url, {"action": "decline"}, follow=True)
+                self.assertContains(response, "no pudimos enviar")
+                self.interest.refresh_from_db()
+                self.assertEqual(self.interest.visit_status, "declined")
+            self.assertNotIn("private SMTP detail", str(logs.output))
+
+    def test_missing_email_preserves_visit_and_warns(self):
+        self.manager.email = ""
+        self.manager.save()
+        self.client.force_login(self.applicant)
+        response = self.client.post(self.request_url, follow=True)
+        self.assertContains(response, "no pudimos enviar")
+        self.interest.refresh_from_db()
+        self.assertEqual(self.interest.visit_status, "requested")
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_accept_requires_request_and_address_and_decline_hides_address(self):
         self.client.force_login(self.manager)
@@ -789,3 +857,4 @@ class AdoptionVisitTests(TestCase):
         self.client.post(self.request_url)
         self.interest.refresh_from_db()
         self.assertEqual(self.interest.visit_status, "none")
+        self.assertEqual(len(mail.outbox), 0)
