@@ -4,6 +4,7 @@ import hashlib
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.urls import reverse
 
 from organizations.models import OrganizationMembership
 from .models import Contact, OwnerAccountLink, Patient, PatientContact, PatientFamilyAccess, PatientFamilyInvite
@@ -27,7 +28,7 @@ def can_invite(user, patient):
 
 
 @transaction.atomic
-def accept_invitation(user, code):
+def accept_invitation(user, code, request=None):
     digest = hashlib.sha256(code.strip().encode()).hexdigest()
     invite = PatientFamilyInvite.objects.select_for_update().select_related("patient", "invited_by").filter(digest=digest).first()
     if (not invite or not invite.is_active or not invite.patient.active
@@ -48,4 +49,9 @@ def accept_invitation(user, code):
     PatientFamilyAccess.objects.update_or_create(patient=invite.patient, user=user, defaults={
         "contact": contact, "granted_by": invite.invited_by, "invitation": invite, "revoked_at": None,
     })
+    if request is not None:
+        from .family_email import notify_family_accepted
+        manage_url = request.build_absolute_uri(reverse("family_manage", args=[invite.patient_id]))
+        animals_url = request.build_absolute_uri(reverse("my_animals"))
+        transaction.on_commit(lambda: notify_family_accepted(invite, user, manage_url, animals_url))
     return invite.patient

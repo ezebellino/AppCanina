@@ -66,3 +66,24 @@ class PublicRegistrationTests(TestCase):
         cache.clear()
         self.assertEqual(Client(enforce_csrf_checks=True).post(reverse("register"), self.data).status_code, 403)
         self.assertFalse(User.objects.exists())
+
+    def test_registration_then_login_returns_to_family_acceptance(self):
+        from urllib.parse import urlencode
+        target = reverse("family_accept")
+        response = self.client.get(reverse("login"), {"next": target})
+        self.assertContains(response, "?next=")
+        response = self.client.get(reverse("register"), {"next": target})
+        self.assertEqual(response.context["next"], target)
+        invalid = self.client.post(reverse("register"), {"next": target})
+        self.assertEqual(invalid.context["next"], target)
+        response = self.client.post(reverse("register"), dict(self.data, next=target))
+        self.assertRedirects(response, reverse("login") + "?" + urlencode({"next": target}))
+        response = self.client.post(reverse("login"), {
+            "username": self.data["username"], "password": self.data["password1"], "next": target,
+        })
+        self.assertRedirects(response, target)
+
+    def test_external_registration_redirect_is_rejected(self):
+        for target in ("https://attacker.example/", "//attacker.example/", "/\\attacker.example/"):
+            response = self.client.get(reverse("register"), {"next": target})
+            self.assertEqual(response.context["next"], "")

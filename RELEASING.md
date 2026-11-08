@@ -23,3 +23,7 @@ Registro web público desde el login, con elección y explicación de perfiles: 
 ## 0.4.0
 
 Compartir credenciales PDF desde el navegador, con descarga alternativa para WhatsApp. Invitaciones familiares de un uso, consulta compartida y revocación en web; aceptación común con el cliente móvil.
+
+## 0.4.1
+
+Confirmaciones por correo al aceptar una invitación familiar en web o móvil, después de guardar el acceso. El registro conserva el destino de regreso al iniciar sesión.

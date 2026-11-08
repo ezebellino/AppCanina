@@ -449,7 +449,7 @@ def mobile_family_invite_accept(request):
         return JsonResponse({"detail": "Ingresá el código familiar."}, status=400)
     from patients.family import accept_invitation
     try:
-        patient = accept_invitation(request.mobile_user, raw_code)
+        patient = accept_invitation(request.mobile_user, raw_code, request=request)
     except ValueError as error:
         return JsonResponse({"detail": str(error)}, status=400)
     return JsonResponse({

@@ -57,7 +57,7 @@ def family_accept(request):
         else:
             cache.set(key, attempts + 1, 900)
             try:
-                patient = accept_invitation(request.user, form.cleaned_data["code"])
+                patient = accept_invitation(request.user, form.cleaned_data["code"], request=request)
             except ValueError as error:
                 form.add_error("code", str(error))
             else:

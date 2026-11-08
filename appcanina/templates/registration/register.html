@@ -2,9 +2,9 @@
 {% block title %}Crear una cuenta · AppCanina{% endblock %}
 {% block content %}
 <section class="registration-page">
-  <a class="registration-back" href="{% url 'login' %}">← Volver a ingresar</a>
+  <a class="registration-back" href="{{ login_url }}">← Volver a ingresar</a>
   <header class="page-heading"><div><p class="eyebrow">Sumate a AppCanina</p><h1>Creá tu cuenta</h1><p>Elegí cómo querés participar. Te acompañamos en el cuidado de los animales.</p></div></header>
-  <form method="post" class="registration-form" novalidate>{% csrf_token %}
+  <form method="post" class="registration-form" novalidate>{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
     {{ form.non_field_errors }}
     <fieldset class="registration-roles"><legend>1. Elegí tu perfil</legend>
       {{ form.account_type.errors }}
@@ -37,7 +37,7 @@
       <div class="form-field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<p class="form-help">{{ field.help_text }}</p>{% endif %}{{ field.errors }}</div>
       {% endif %}{% endfor %}
     </div><p class="form-help">Usá una contraseña de al menos 8 caracteres que no sea común ni solamente numérica.</p>
-    <div class="registration-actions"><button class="button" type="submit">Crear mi cuenta</button><a href="{% url 'login' %}">Ya tengo cuenta · Ingresar</a></div></section>
+    <div class="registration-actions"><button class="button" type="submit">Crear mi cuenta</button><a href="{{ login_url }}">Ya tengo cuenta · Ingresar</a></div></section>
   </form>
 </section>
 {% endblock %}

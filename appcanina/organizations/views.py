@@ -16,16 +16,24 @@ from .forms import PersonalProfileForm
 
 def public_registration(request):
     from django.core.cache import cache
+    from django.urls import reverse
+    from django.utils.http import url_has_allowed_host_and_scheme
+    from urllib.parse import urlencode
     from .forms import PublicRegistrationForm
 
+    next_url = request.POST.get("next", request.GET.get("next", ""))
+    if not (next_url.startswith("/") and not next_url.startswith("//")
+            and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure())):
+        next_url = ""
+    login_url = reverse("login") + ("?" + urlencode({"next": next_url}) if next_url else "")
     if request.user.is_authenticated:
-        return redirect("dashboard")
+        return redirect(next_url or "dashboard")
     form = PublicRegistrationForm(request.POST if request.method == "POST" else None)
     if request.method == "POST":
         cache_key = f"mobile-register:{request.META.get('REMOTE_ADDR', 'unknown')}"
         if cache.get(cache_key, 0) >= 3:
             form.add_error(None, "Demasiadas cuentas creadas desde esta conexión. Probá nuevamente más tarde.")
-            return render(request, "registration/register.html", {"form": form}, status=429)
+            return render(request, "registration/register.html", {"form": form, "next": next_url, "login_url": login_url}, status=429)
         if form.is_valid():
             with transaction.atomic():
                 user = form.save()
@@ -40,8 +48,8 @@ def public_registration(request):
             cache.set(cache_key, cache.get(cache_key, 0) + 1, 3600)
             messages.success(request, "Tu cuenta fue creada. Ya podés ingresar." if kind == "community" else
                              "Tu cuenta fue creada. Ya podés ingresar; tu institución o veterinaria queda pendiente de validación para habilitar sus herramientas de gestión.")
-            return redirect("login")
-    return render(request, "registration/register.html", {"form": form})
+            return redirect(login_url)
+    return render(request, "registration/register.html", {"form": form, "next": next_url, "login_url": login_url})
 
 
 @login_required
