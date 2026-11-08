@@ -1,19 +1,19 @@
 {% load static %}
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}{% if user.is_staff %}Panel de plataforma{% else %}Tu Veterinaria{% endif %}{% endblock %}</title>
+<title>{% block title %}{% if user.is_staff %}Panel de plataforma{% else %}{{ app_name }}{% endif %}{% endblock %}</title>
 <link rel="icon" type="image/png" href="{% if organization_profile and organization_profile.logo %}{{ organization_profile.logo.url }}{% else %}{% static 'img/default-vet-logo.png' %}{% endif %}">
 <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ app_version }}">
 <link rel="stylesheet" href="{% static 'css/navigation.css' %}?v={{ app_version }}">
-<script>document.title="{% if user.is_staff %}Panel de plataforma{% elif organization_profile %}{{ organization_profile.name|escapejs }}{% else %}Tu Veterinaria{% endif %}";</script></head>
+<script>document.title="{% if user.is_staff %}Panel de plataforma{% elif organization_profile %}{{ organization_profile.name|escapejs }}{% else %}{{ app_name|escapejs }}{% endif %}";</script></head>
 <body><div class="app-shell">{% if user.is_authenticated %}
 <aside class="sidebar">
   {% if user.is_staff %}
-  <a class="sidebar-brand" href="{% url 'platform_dashboard' %}"><span class="brand-mark" aria-hidden="true">✦</span><span>Plataforma AppCanina</span></a>
+  <a class="sidebar-brand" href="{% url 'platform_dashboard' %}"><span class="brand-mark" aria-hidden="true">✦</span><span>Plataforma {{ app_name }}</span></a>
   {% include "organizations/navigation_platform.html" %}
   <details class="account-menu"><summary><span class="user-avatar" aria-hidden="true">{{ user.username|first|upper }}</span><span>{{ user.username }}</span><svg class="account-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 14 5-5 5 5"/></svg></summary><div><a href="{% url 'platform_dashboard' %}">Mi panel</a><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button">Salir</button></form></div></details>
   {% else %}
-  <a class="sidebar-brand" href="{% url 'dashboard' %}">{% if organization_profile and organization_profile.logo %}<img class="brand-logo" src="{{ organization_profile.logo.url }}" alt="">{% else %}<span class="brand-mark" aria-hidden="true">✦</span>{% endif %}<span>{% if organization_profile %}{{ organization_profile.name }}{% else %}Tu Veterinaria{% endif %}</span></a>
+  <a class="sidebar-brand" href="{% url 'dashboard' %}">{% if organization_profile and organization_profile.logo %}<img class="brand-logo" src="{{ organization_profile.logo.url }}" alt="">{% else %}<span class="brand-mark" aria-hidden="true">✦</span>{% endif %}<span>{% if organization_profile %}{{ organization_profile.name }}{% else %}{{ app_name }}{% endif %}</span></a>
   {% include "organizations/navigation_main.html" %}
   <details class="account-menu"><summary><span class="user-avatar" aria-hidden="true">{{ user.username|first|upper }}</span><span>{{ user.username }}</span><svg class="account-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 14 5-5 5 5"/></svg></summary><div>{% if organization_profile %}<a href="{% url 'business_profile' %}">{% if organization_profile.kind == 'shelter' %}Mi institución{% else %}Mi negocio{% endif %}</a>{% else %}<a href="{% url 'personal_profile' %}">Mi perfil</a>{% endif %}{% if perms.inventory.view_supplier %}<a href="{% url 'supplier_list' %}">Proveedores</a>{% endif %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button">Salir</button></form></div></details>
   {% endif %}

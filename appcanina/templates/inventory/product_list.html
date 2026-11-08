@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Inventario · Tu Veterinaria{% endblock %}
+{% block title %}Inventario · {{ app_name }}{% endblock %}
 {% block content %}
 <section class="inventory-hero"><div><p class="eyebrow">Comercio</p><h1>Inventario{% if selected_supplier %} · {{ selected_supplier.name }}{% endif %}</h1><p>{% if selected_supplier %}Productos activos provistos por este proveedor.{% else %}Catálogo, stock y precios listos para la venta diaria.{% endif %}</p></div><div class="page-actions">{% if selected_supplier %}<a class="button button-ghost" href="{% url 'supplier_list' %}"><span aria-hidden="true">←</span> Proveedores</a>{% endif %}<a class="button inventory-alert-button" href="{% url 'inventory_alerts' %}"><span aria-hidden="true">⚠</span> Alertas{% if alert_count %}<span class="button-counter">{{ alert_count }}</span>{% endif %}</a>{% if perms.inventory.add_product %}<a class="button button-ghost" href="{% url 'product_import' %}">Importar Excel</a><a class="button" href="{% url 'product_create' %}"><span aria-hidden="true">＋</span> Producto</a>{% endif %}</div></section>
 

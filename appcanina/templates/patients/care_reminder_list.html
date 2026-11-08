@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Recordatorios · AppCanina{% endblock %}
+{% block title %}Recordatorios · {{ app_name }}{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Pacientes</p><h1>Recordatorios clínicos</h1><p>Vacunas, antiparasitarios, controles y tratamientos.</p></div></div>
 <section class="agenda-toolbar card"><div class="agenda-view-switch"><a class="{% if view_mode == 'pending' %}active{% endif %}" href="{% url 'care_reminder_list' %}">Pendientes</a><a class="{% if view_mode == 'done' %}active{% endif %}" href="?view=done">Realizados</a><a class="{% if view_mode == 'all' %}active{% endif %}" href="?view=all">Todos</a></div></section>

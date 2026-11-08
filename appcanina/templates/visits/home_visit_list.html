@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Visitas a domicilio · Tu Veterinaria{% endblock %}
+{% block title %}Visitas a domicilio · {{ app_name }}{% endblock %}
 {% block content %}
 <section class="visit-hero"><div><p class="eyebrow">Atención animal</p><h1>Agenda de visitas</h1><p>Consultas, controles y entregas organizados fuera del local.</p></div><div class="page-actions"><a class="button button-ghost" href="{% url 'daily_animal_care' %}">Plan de hoy</a>{% if perms.visits.add_homevisit %}<a class="button" href="{% url 'home_visit_create' %}">＋ Nueva visita</a>{% endif %}</div></section>
 

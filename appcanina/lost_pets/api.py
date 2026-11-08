@@ -1,3 +1,4 @@
+from config.public_urls import public_url
 import hashlib
 import json
 from datetime import timedelta
@@ -146,7 +147,7 @@ def _mobile_report_data(request, report):
         "last_seen_at": report.last_seen_at.isoformat(),
         "status": report.status,
         "status_label": report.get_status_display(),
-        "photo_url": request.build_absolute_uri(report.photo.url) if report.photo else None,
+        "photo_url": public_url(request, report.photo.url) if report.photo else None,
     }
 
 
@@ -171,12 +172,12 @@ def _mobile_adoption_data(request, post):
         "id": post.id, "name": post.name, "species": post.get_species_display(), "breed": post.breed,
         "age": post.age_label, "description": post.description, "area": post.area_label,
         "status": post.status, "status_label": post.get_status_display(), "review_note": post.review_note,
-        "photo_url": request.build_absolute_uri(post.photo.url) if post.photo else None,
+        "photo_url": public_url(request, post.photo.url) if post.photo else None,
         "editable": post.status in {AdoptionPost.Status.PENDING, AdoptionPost.Status.REJECTED},
         "organization": {
             "id": organization.id,
             "name": organization.name,
-            "logo_url": request.build_absolute_uri(organization.logo.url) if organization and organization.logo else None,
+            "logo_url": public_url(request, organization.logo.url) if organization and organization.logo else None,
             "donation_alias": organization.donation_alias,
             "donation_message": donation_message,
         } if organization else None,
@@ -221,7 +222,7 @@ def _mobile_patient_data(request, patient):
         "birth_date": patient.birth_date.isoformat() if patient.birth_date else None,
         "microchip": patient.microchip,
         "allergies": patient.allergies,
-        "photo_url": request.build_absolute_uri(patient.photo.url) if patient.photo else None,
+        "photo_url": public_url(request, patient.photo.url) if patient.photo else None,
         "sharing_enabled": sharing_enabled,
         "can_share_with_family": can_share,
         "can_invite_caregiver": can_invite,
@@ -709,7 +710,7 @@ def mobile_notifications(request):
             "species": item.report.get_species_display(),
             "description": description,
             "area": area,
-            "photo_url": request.build_absolute_uri(photo.url) if photo else None,
+            "photo_url": public_url(request, photo.url) if photo else None,
             "created_at": item.created_at.isoformat(),
         })
     return JsonResponse({"notifications": notifications})

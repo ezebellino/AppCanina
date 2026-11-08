@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Crear una cuenta · AppCanina{% endblock %}
+{% block title %}Crear una cuenta · {{ app_name }}{% endblock %}
 {% block content %}
 <section class="registration-page">
   <a class="registration-back" href="{{ login_url }}">← Volver a ingresar</a>
-  <header class="page-heading"><div><p class="eyebrow">Sumate a AppCanina</p><h1>Creá tu cuenta</h1><p>Elegí cómo querés participar. Te acompañamos en el cuidado de los animales.</p></div></header>
+  <header class="page-heading"><div><p class="eyebrow">Sumate a {{ app_name }}</p><h1>Creá tu cuenta</h1><p>Elegí cómo querés participar. Te acompañamos en el cuidado de los animales.</p></div></header>
   <form method="post" class="registration-form" novalidate>{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
     {{ form.non_field_errors }}
     <fieldset class="registration-roles"><legend>1. Elegí tu perfil</legend>

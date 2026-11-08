@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ patient.name }} · Tu Veterinaria{% endblock %}
+{% block title %}{{ patient.name }} · {{ app_name }}{% endblock %}
 {% block content %}
 <section class="patient-hero">
   <div class="patient-avatar{% if patient.photo %} has-photo{% endif %}" style="font-size: 3.5rem">

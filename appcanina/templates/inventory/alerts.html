@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Alertas de inventario · AppCanina{% endblock %}
+{% block title %}Alertas de inventario · {{ app_name }}{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Inventario</p><h1>Alertas operativas</h1><p>Priorizá reposición y control de vencimientos antes de la próxima venta.</p></div><a class="button button-ghost" href="{% url 'inventory_list' %}">Volver al inventario</a></div>
 <section class="alert-grid">

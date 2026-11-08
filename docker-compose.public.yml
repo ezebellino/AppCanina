@@ -8,6 +8,7 @@ services:
       DJANGO_ALLOWED_HOSTS: "${APP_DOMAIN}"
       DJANGO_CSRF_TRUSTED_ORIGINS: "https://${APP_DOMAIN}"
       DJANGO_FORCE_HTTPS: "1"
+      PUBLIC_BASE_URL: "https://${APP_DOMAIN}"
       DJANGO_DB_PATH: "/data/db.sqlite3"
       DJANGO_MEDIA_ROOT: "/data/media"
       DJANGO_SERVE_MEDIA: "1"
@@ -18,7 +19,7 @@ services:
       DJANGO_EMAIL_USE_TLS: "${DJANGO_EMAIL_USE_TLS:-1}"
       DJANGO_EMAIL_HOST_USER: "${DJANGO_EMAIL_HOST_USER:-}"
       DJANGO_EMAIL_HOST_PASSWORD: "${DJANGO_EMAIL_HOST_PASSWORD:-}"
-      DJANGO_DEFAULT_FROM_EMAIL: "${DJANGO_DEFAULT_FROM_EMAIL:-Tu Veterinaria <no-reply@localhost>}"
+      DJANGO_DEFAULT_FROM_EMAIL: "${DJANGO_DEFAULT_FROM_EMAIL:-Lazuna <no-reply@localhost>}"
     volumes:
       - appcanina_data:/data
     restart: unless-stopped

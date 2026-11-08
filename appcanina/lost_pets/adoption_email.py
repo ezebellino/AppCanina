@@ -1,4 +1,6 @@
 """Private visit alerts; mail failures never roll back a saved visit."""
+from config.public_urls import public_url
+from django.conf import settings
 import logging
 
 from django.core.exceptions import ValidationError
@@ -38,11 +40,11 @@ def notify_visit(interest, request):
         return False
     # Keep personal text out of headers, and location/instructions out of email.
     body = (f"{interest.post.name} — {interest.post.organization.name}\n\n{detail}\n\n"
-            f"{request.build_absolute_uri(reverse(route))}\n\n"
+            f"{public_url(request, reverse(route))}\n\n"
             "Iniciá sesión con la cuenta correspondiente para ver la solicitud.")
     try:
         sent = EmailMessage(
-            subject=f"AppCanina: {title}", body=body, bcc=sorted(recipients),
+            subject=f"{settings.APP_NAME}: {title}", body=body, bcc=sorted(recipients),
         ).send(fail_silently=False)
     except Exception:
         # SMTP responses and exception strings may contain private data.

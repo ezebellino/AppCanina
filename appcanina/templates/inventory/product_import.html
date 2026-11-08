@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Importar productos · AppCanina{% endblock %}
+{% block title %}Importar productos · {{ app_name }}{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Inventario</p><h1>Importar productos desde Excel</h1><p>Subí un `.xlsx`, revisá los resultados y confirmá sólo cuando todas las filas estén correctas.</p></div><a class="button button-ghost" href="{% url 'inventory_list' %}">Volver al inventario</a></div>
 {% if not preview_rows %}<section class="card import-guide"><h2>Columnas obligatorias</h2><p><strong>Nombre, Categoría, Marca, Proveedor y Precio.</strong> También podés incluir Código interno, Stock, Stock mínimo, Lote, Vencimiento, Precio promocional y Requiere receta.</p><p class="form-help">Categorías aceptadas: Alimento, Juguete, Abrigo, Cama, Accesorio, Higiene, Shampoo, Medicamento, Pipeta/Antiparasitario u Otro.</p><form method="post" enctype="multipart/form-data" class="single-form">{% csrf_token %}<input type="hidden" name="action" value="preview"><label>{{ form.file.label }}</label>{{ form.file }}{{ form.file.errors }}<div class="form-actions"><button>Revisar archivo</button></div></form></section>{% endif %}

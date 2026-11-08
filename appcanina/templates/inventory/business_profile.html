@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if is_shelter_profile %}Mi institución{% else %}Mi negocio{% endif %} · AppCanina{% endblock %}
+{% block title %}{% if is_shelter_profile %}Mi institución{% else %}Mi negocio{% endif %} · {{ app_name }}{% endblock %}
 {% block content %}
 <p><a href="{% url 'personal_profile' %}">Mis datos personales y correo</a></p>
 <div class="page-heading"><div><p class="eyebrow">Administración</p><h1>{% if profile %}{{ profile.name }}{% else %}Mi negocio{% endif %}</h1><p>Identidad visible de la veterinaria, refugio o comercio.</p></div></div>

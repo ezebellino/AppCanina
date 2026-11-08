@@ -27,3 +27,9 @@ Compartir credenciales PDF desde el navegador, con descarga alternativa para Wha
 ## 0.4.1
 
 Confirmaciones por correo al aceptar una invitación familiar en web o móvil, después de guardar el acceso. El registro conserva el destino de regreso al iniciar sesión.
+
+## 0.5.0 — Lazuna
+
+Marca pública centralizada en APP_NAME, nueva URL pública centralizada en PUBLIC_BASE_URL, y nombres actualizados en web, correos, credenciales y cliente Expo. Identificadores internos, base de datos, volumen, paquete Android y proyecto EAS conservados para no perder datos ni crear otra app.
+
+El destino propuesto es https://lazuna.up.railway.app (sujeto a disponibilidad). El corte de dominio reemplaza la URL gratuita anterior: requiere coordinar el uso del APK instalado y los enlaces viejos. No activar PUBLIC_BASE_URL con un dominio sin verificar.

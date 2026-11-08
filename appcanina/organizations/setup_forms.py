@@ -5,7 +5,7 @@ from .models import Organization
 
 
 class InitialSetupForm(forms.Form):
-    business_name = forms.CharField(label="Nombre del negocio", max_length=160, initial="Tu Veterinaria")
+    business_name = forms.CharField(label="Nombre del negocio", max_length=160, widget=forms.TextInput(attrs={"placeholder": "Nombre de tu veterinaria o refugio"}))
     business_kind = forms.ChoiceField(label="Tipo de negocio", choices=Organization.Kind.choices, initial=Organization.Kind.VETERINARY)
     username = forms.CharField(label="Usuario administrador", max_length=150)
     email = forms.EmailField(label="Correo electrónico", required=False)

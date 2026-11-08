@@ -1,4 +1,5 @@
 """A portable, two-sided animal credential. Issuance/permissions stay in views."""
+from django.conf import settings
 from io import BytesIO
 from xml.sax.saxutils import escape
 
@@ -32,7 +33,7 @@ def build_credential_pdf(patient, contact, code, expires_at):
     buffer = BytesIO()
     pdf = Canvas(buffer, pagesize=SIZE)
     pdf.setTitle(f"Credencial veterinaria - {patient.name}")
-    pdf.setAuthor("AppCanina")
+    pdf.setAuthor(settings.APP_NAME)
     expiry = timezone.localtime(expires_at).strftime("%d/%m/%Y %H:%M")
 
     def background(side):
@@ -40,7 +41,7 @@ def build_credential_pdf(patient, contact, code, expires_at):
         pdf.rect(0, 0, *SIZE, fill=1, stroke=0)
         pdf.setFillColor(GREEN)
         pdf.rect(0, 242, 420, 56, fill=1, stroke=0)
-        _text(pdf, "AppCanina", 20, 282, 160, 22, 17, True, HexColor("#FFFFFF"))
+        _text(pdf, settings.APP_NAME, 20, 282, 160, 22, 17, True, HexColor("#FFFFFF"))
         _text(pdf, "CREDENCIAL VETERINARIA DE VIAJE", 20, 259, 350, 14, 8, False, HexColor("#C9E9DE"))
         _text(pdf, side, 350, 280, 50, 14, 8, False, HexColor("#C9E9DE"))
 

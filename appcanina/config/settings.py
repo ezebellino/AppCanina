@@ -1,10 +1,16 @@
 import os
 import sys
+from urllib.parse import urlsplit
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+APP_NAME = "Lazuna"
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+if PUBLIC_BASE_URL and (urlsplit(PUBLIC_BASE_URL).scheme != "https" or not urlsplit(PUBLIC_BASE_URL).hostname or urlsplit(PUBLIC_BASE_URL).path or urlsplit(PUBLIC_BASE_URL).query or urlsplit(PUBLIC_BASE_URL).fragment or urlsplit(PUBLIC_BASE_URL).username):
+    raise ImproperlyConfigured("PUBLIC_BASE_URL debe ser un origen HTTPS sin rutas ni credenciales.")
+
 APP_VERSION = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip()
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
@@ -22,6 +28,10 @@ if not SECRET_KEY:
         raise ImproperlyConfigured("DJANGO_SECRET_KEY es obligatoria cuando DJANGO_DEBUG=0.")
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()]
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()]
+if PUBLIC_BASE_URL:
+    ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, urlsplit(PUBLIC_BASE_URL).hostname]))
+    CSRF_TRUSTED_ORIGINS = list(dict.fromkeys([*CSRF_TRUSTED_ORIGINS, PUBLIC_BASE_URL]))
+
 FORCE_HTTPS = os.environ.get("DJANGO_FORCE_HTTPS", "0") == "1"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
@@ -111,7 +121,7 @@ EMAIL_TIMEOUT = 10
 EMAIL_USE_TLS = os.environ.get("DJANGO_EMAIL_USE_TLS", "1") == "1"
 EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("DJANGO_EMAIL_HOST_PASSWORD", "")
-DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_DEFAULT_FROM_EMAIL", "Tu Veterinaria <no-reply@localhost>")
+DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_DEFAULT_FROM_EMAIL", "Lazuna <no-reply@localhost>")
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 if FORCE_HTTPS:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

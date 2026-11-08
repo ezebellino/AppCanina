@@ -5,7 +5,7 @@ from .roles import verified_shelters_managed_by
 def application_version(request):
     from django.conf import settings
 
-    return {"app_version": settings.APP_VERSION}
+    return {"app_version": settings.APP_VERSION, "app_name": settings.APP_NAME}
 
 
 def business_profile(request):

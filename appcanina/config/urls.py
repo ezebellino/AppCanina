@@ -18,6 +18,7 @@ urlpatterns = [
             template_name="registration/password_reset_form.html",
             email_template_name="registration/password_reset_email.html",
             subject_template_name="registration/password_reset_subject.txt",
+            extra_email_context={"app_name": settings.APP_NAME, "public_base_url": settings.PUBLIC_BASE_URL},
             success_url=reverse_lazy("password_reset_done"),
         ),
         name="password_reset",

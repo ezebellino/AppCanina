@@ -245,7 +245,7 @@ export default function App() {
 
   const unlockWithBiometrics = async () => {
     try {
-      const result = await LocalAuthentication.authenticateAsync({promptMessage: "Ingresar a Tu Veterinaria Comunidad", cancelLabel: "Cancelar", fallbackLabel: "Usar contraseña"});
+      const result = await LocalAuthentication.authenticateAsync({promptMessage: "Ingresar a Lazuna", cancelLabel: "Cancelar", fallbackLabel: "Usar contraseña"});
       if (!result.success) { setMessage("No se pudo validar la huella. Podés usar tu usuario y contraseña."); return; }
       const savedToken = pendingBiometricToken || await SecureStore.getItemAsync("community-token");
       if (!savedToken) { setPendingBiometricToken(""); return; }
@@ -568,7 +568,7 @@ export default function App() {
         await Clipboard.setStringAsync(familyInvite.code);
         setMessage("Código copiado. Ya podés pegarlo en WhatsApp.");
       } else {
-        await Share.share({message: `Te comparto la ficha de ${familyInvite.animalName} en Tu Veterinaria Comunidad.\n\nCódigo: ${familyInvite.code}\n\nAbrí la app, entrá en Veterinaria → Vincular mascota familiar y pegá el código para ver la ficha y su historial.\n\nVence el ${new Date(familyInvite.expires_at).toLocaleString()} y se usa una sola vez. Es un acceso privado: no lo reenvíes.`});
+        await Share.share({message: `Te comparto la ficha de ${familyInvite.animalName} en Lazuna.\n\nCódigo: ${familyInvite.code}\n\nAbrí la app, entrá en Veterinaria → Vincular mascota familiar y pegá el código para ver la ficha y su historial.\n\nVence el ${new Date(familyInvite.expires_at).toLocaleString()} y se usa una sola vez. Es un acceso privado: no lo reenvíes.`});
       }
     } catch (error) {
       setMessage(copyOnly ? "No se pudo copiar el código. Podés mantenerlo presionado para copiarlo manualmente." : "No se pudo abrir el menú para compartir. Probá copiar el código.");
@@ -583,7 +583,7 @@ export default function App() {
         post.area ? `Zona: ${post.area}` : "",
         post.description,
         post.organization?.name ? `Refugio: ${post.organization.name}` : "",
-        `Para expresar interés, abrí Tu Veterinaria Comunidad → Comunidad → Adopciones y buscá a ${post.name}.`,
+        `Para expresar interés, abrí Lazuna → Comunidad → Adopciones y buscá a ${post.name}.`,
       ].filter(Boolean).join("\n\n")});
     } catch (error) {
       setMessage("No se pudo abrir el menú para compartir. Intentá nuevamente.");
@@ -694,7 +694,7 @@ export default function App() {
 
   return <SafeAreaView style={styles.screen}>
     <ScrollView contentContainerStyle={styles.content}>
-      {!token ? <><Text style={styles.title}>Tu Veterinaria</Text><Text style={styles.subtitle}>Comunidad · animales extraviados</Text></> : null}
+      {!token ? <><Text style={styles.title}>Lazuna</Text><Text style={styles.subtitle}>Comunidad · animales extraviados</Text></> : null}
       {!token ? isRestoringSession ? <View style={styles.stack}><Text style={styles.help}>Preparando tu sesión segura…</Text></View> : pendingBiometricToken ? <View style={styles.stack}><Text style={styles.sectionTitle}>Volvé a ingresar</Text><Text style={styles.help}>Tu sesión está guardada en este teléfono y protegida con biometría.</Text><Button title="Ingresar con huella" onPress={unlockWithBiometrics}/><Button title="Usar otra cuenta" onPress={() => setPendingBiometricToken("")}/></View> : <View style={styles.stack}>
       {isRegistering ? <><Text style={styles.help}>Elegí cómo vas a participar: como colaborador/a para ayudar o adoptar, o en representación de una veterinaria o refugio. Las instituciones necesitan aprobación para administrar publicaciones o datos clínicos.</Text><View style={styles.field}><Text style={styles.fieldLabel}>Quiero registrarme como</Text><View style={styles.filterRow}><FilterPill active={accountType === "community"} label="Colaborador/a" onPress={() => setAccountType("community")}/><FilterPill active={accountType === "veterinary"} label="Veterinaria" onPress={() => setAccountType("veterinary")}/><FilterPill active={accountType === "shelter"} label="Refugio" onPress={() => setAccountType("shelter")}/></View></View></> : null}
       {isRegistering ? <View style={styles.field}><Text style={styles.fieldLabel}>Nombre <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: Sofía" placeholderTextColor="#6c8378" value={firstName} onChangeText={setFirstName} style={styles.input}/></View> : null}
@@ -708,7 +708,7 @@ export default function App() {
     </View> : <View style={styles.stack}>
       <View style={styles.appHeader}>
         <View style={styles.appHeaderTop}>
-          <View style={styles.brandGroup}><View style={styles.brandMark}><Text style={styles.brandMarkText}>✚</Text></View><View><Text style={styles.appBrand}>Tu Veterinaria</Text><Text style={styles.appContext}>{workspace === "community" ? "Comunidad" : "Veterinaria"}</Text></View></View>
+          <View style={styles.brandGroup}><View style={styles.brandMark}><Text style={styles.brandMarkText}>✚</Text></View><View><Text style={styles.appBrand}>Lazuna</Text><Text style={styles.appContext}>{workspace === "community" ? "Comunidad" : "Veterinaria"}</Text></View></View>
           <Pressable accessibilityRole="button" accessibilityLabel="Abrir menú" onPress={() => setMenuOpen(true)} style={({pressed}) => [styles.menuTrigger, pressed && styles.pressed]}><Text style={styles.menuTriggerText}>☰</Text></Pressable>
         </View>
         <WorkspaceSwitcher active={workspace} onSelect={switchWorkspace}/>

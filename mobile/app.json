@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Tu Veterinaria Comunidad",
+    "name": "Lazuna",
     "slug": "tu-veterinaria-comunidad",
     "version": "0.1.0",
     "icon": "./assets/icon.png",
@@ -9,21 +9,21 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Tu Veterinaria usa tu ubicación solo cuando elegís compartir el lugar de un avistamiento."
+          "locationWhenInUsePermission": "Lazuna usa tu ubicación solo cuando elegís compartir el lugar de un avistamiento."
         }
       ],
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Tu Veterinaria usa la cámara solo para adjuntar una foto a un aviso o avistamiento.",
-          "photosPermission": "Tu Veterinaria necesita acceso a tus fotos solo cuando elegís adjuntar una imagen."
+          "cameraPermission": "Lazuna usa la cámara solo para adjuntar una foto a un aviso o avistamiento.",
+          "photosPermission": "Lazuna necesita acceso a tus fotos solo cuando elegís adjuntar una imagen."
         }
       ],
       "expo-notifications"
       ,[
         "expo-local-authentication",
         {
-          "faceIDPermission": "Tu Veterinaria usa la biometría solo para desbloquear tu sesión guardada en este teléfono."
+          "faceIDPermission": "Lazuna usa la biometría solo para desbloquear tu sesión guardada en este teléfono."
         }
       ]
     ],

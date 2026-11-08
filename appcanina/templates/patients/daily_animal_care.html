@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Atención animal · Tu Veterinaria{% endblock %}
+{% block title %}Atención animal · {{ app_name }}{% endblock %}
 {% block content %}
 <section class="animal-care-hero"><div><p class="eyebrow">Atención animal</p><h1>Plan de hoy</h1><p>{{ today|date:"d/m/Y" }} · Priorizá los cuidados y visitas que requieren atención.</p></div><div class="page-actions"><a class="button button-ghost" href="{% url 'patient_list' %}">Pacientes</a>{% if perms.visits.add_homevisit %}<a class="button" href="{% url 'home_visit_create' %}">＋ Visita</a>{% endif %}</div></section>
 <section class="animal-care-insights"><article class="card animal-care-insight urgent"><span aria-hidden="true">!</span><div><strong>{{ overdue_reminders }}</strong><p>recordatorio{{ overdue_reminders|pluralize:"s" }} vencido{{ overdue_reminders|pluralize:"s" }}</p></div></article><article class="card animal-care-insight"><span aria-hidden="true">◷</span><div><strong>{{ today_reminders }}</strong><p>cuidado{{ today_reminders|pluralize:"s" }} para hoy</p></div></article><article class="card animal-care-insight visit"><span aria-hidden="true">⌖</span><div><strong>{{ visits|length }}</strong><p>visita{{ visits|length|pluralize:"s" }} programada{{ visits|length|pluralize:"s" }}</p></div></article></section>

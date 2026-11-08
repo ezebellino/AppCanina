@@ -1,4 +1,5 @@
 """Household invitations shared by web and mobile clients."""
+from config.public_urls import public_url
 import hashlib
 
 from django.db import transaction
@@ -51,7 +52,7 @@ def accept_invitation(user, code, request=None):
     })
     if request is not None:
         from .family_email import notify_family_accepted
-        manage_url = request.build_absolute_uri(reverse("family_manage", args=[invite.patient_id]))
-        animals_url = request.build_absolute_uri(reverse("my_animals"))
+        manage_url = public_url(request, reverse("family_manage", args=[invite.patient_id]))
+        animals_url = public_url(request, reverse("my_animals"))
         transaction.on_commit(lambda: notify_family_accepted(invite, user, manage_url, animals_url))
     return invite.patient

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Nueva venta · Tu Veterinaria{% endblock %}
+{% block title %}Nueva venta · {{ app_name }}{% endblock %}
 {% block content %}
 <section class="sale-hero" id="onboarding-sale-heading"><div><p class="eyebrow">{% if linked_appointment %}Cobro de peluquería{% else %}Mostrador{% endif %}</p><h1>{% if linked_appointment %}Turno de {{ linked_appointment.patient.name }}{% else %}Nueva venta{% endif %}</h1><p>Sumá productos y servicios a un único cobro, sin perder el contexto de la atención.</p></div><div class="page-actions"><button type="button" class="button button-ghost onboarding-trigger" data-onboarding-start="sale"><span aria-hidden="true">?</span> Guía</button><a class="button button-ghost" href="{% url 'sale_list' %}"><span aria-hidden="true">↶</span> Historial</a></div></section>
 {% if linked_appointment %}<div class="appointment-sale-banner"><strong>Paciente asociado: {{ linked_appointment.patient.name }}</strong><span>Servicios del turno ya incluidos. Podés sumar productos al mismo cobro.</span></div>{% elif linked_consultation_patient %}<div class="appointment-sale-banner"><strong>Consulta asociada a: {{ linked_consultation_patient.name }}</strong><span>Podés sumar productos si el paciente los necesita antes de confirmar el cobro.</span></div>{% endif %}

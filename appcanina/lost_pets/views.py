@@ -1,3 +1,4 @@
+from config.public_urls import public_url
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
@@ -270,8 +271,8 @@ def map_data(request):
             "has_approximate_location": coordinates is not None,
             "public_latitude": coordinates[0] if coordinates else None,
             "public_longitude": coordinates[1] if coordinates else None,
-            "detail_url": request.build_absolute_uri(f"/extraviados/{report.id}/"),
-            "photo_url": request.build_absolute_uri(report.photo.url) if report.photo else None,
+            "detail_url": public_url(request, f"/extraviados/{report.id}/"),
+            "photo_url": public_url(request, report.photo.url) if report.photo else None,
         })
     return JsonResponse({"markers": markers})
 

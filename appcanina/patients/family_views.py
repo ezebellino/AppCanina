@@ -1,3 +1,5 @@
+from config.public_urls import public_url
+from django.conf import settings
 from datetime import timedelta
 from urllib.parse import urlencode
 
@@ -36,7 +38,7 @@ def family_manage(request, patient_id):
             code, invitation = PatientFamilyInvite.issue(patient, request.user, timezone.now() + timedelta(minutes=15))
     text = ""
     if code:
-        text = f"Te invito a cuidar a {patient.name} conmigo en AppCanina. Ingresá o creá tu cuenta, abrí Mis animales → Agregar con código y usá: {code}\nVence en 15 minutos y se usa una sola vez. Vas a poder consultar su ficha e historial.\n{request.build_absolute_uri(reverse('family_accept'))}"
+        text = f"Te invito a cuidar a {patient.name} conmigo en {settings.APP_NAME}. Ingresá o creá tu cuenta, abrí Mis animales → Agregar con código y usá: {code}\nVence en 15 minutos y se usa una sola vez. Vas a poder consultar su ficha e historial.\n{public_url(request, reverse('family_accept'))}"
     return render(request, "patients/family_manage.html", {
         "patient": patient, "code": code, "invitation": invitation,
         "share_text": text, "whatsapp_url": "https://wa.me/?" + urlencode({"text": text}) if code else "",
