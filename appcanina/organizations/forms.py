@@ -6,6 +6,19 @@ from .models import Organization
 from .models import OrganizationMembership
 
 
+class PersonalProfileForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "email"]
+        labels = {"first_name": "Nombre", "last_name": "Apellido", "email": "Correo electrónico"}
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip()
+        if email and User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("Este correo ya está asociado a otra cuenta.")
+        return email
+
+
 class BusinessProfileForm(forms.ModelForm):
     class Meta:
         model = Organization

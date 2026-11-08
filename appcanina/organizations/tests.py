@@ -8,6 +8,57 @@ from .models import Organization, OrganizationMembership
 from .roles import COMMUNITY_COLLABORATOR_GROUP, ensure_base_roles
 
 
+class PersonalProfileTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("profile-user", email="original@example.com")
+        self.client.force_login(self.user)
+
+    def test_community_menu_and_legacy_business_url_do_not_show_unrelated_business(self):
+        Organization.objects.create(name="Unrelated private business", kind="veterinary", is_business_profile=True)
+        response = self.client.get(reverse("personal_profile"))
+        self.assertContains(response, "Mi perfil")
+        self.assertNotContains(response, "Mi perfil y negocio")
+        self.assertNotContains(response, "Unrelated private business")
+        self.assertRedirects(self.client.get(reverse("business_profile")), reverse("personal_profile"))
+        self.assertRedirects(self.client.post(reverse("business_profile"), {"name": "Changed"}), reverse("personal_profile"))
+        self.assertTrue(Organization.objects.filter(name="Unrelated private business").exists())
+
+    def test_menu_matches_institution_even_before_approval(self):
+        for kind, label in (("shelter", "Mi institución"), ("veterinary", "Mi negocio")):
+            with self.subTest(kind=kind):
+                organization = Organization.objects.create(name=kind, kind=kind)
+                membership = OrganizationMembership.objects.create(user=self.user, organization=organization)
+                response = self.client.get(reverse("personal_profile"))
+                self.assertContains(response, label)
+                self.assertContains(response, reverse("business_profile"))
+                membership.delete()
+
+    def test_profile_updates_only_current_users_personal_fields(self):
+        other = User.objects.create_user("other-profile", email="other@example.com")
+        self.client.post(reverse("personal_profile"), {
+            "first_name": "Ana", "last_name": "Pérez", "email": "ana@example.com",
+            "id": other.pk, "is_staff": "on", "is_superuser": "on", "username": "changed",
+        })
+        self.user.refresh_from_db()
+        other.refresh_from_db()
+        self.assertEqual(self.user.email, "ana@example.com")
+        self.assertEqual(other.email, "other@example.com")
+        self.assertEqual(self.user.username, "profile-user")
+        self.assertFalse(self.user.is_staff or self.user.is_superuser)
+        response = self.client.post(reverse("personal_profile"), {"email": "OTHER@example.com"})
+        self.assertContains(response, "ya está asociado")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "ana@example.com")
+
+    def test_profile_requires_login_and_csrf(self):
+        from django.test import Client
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+        self.assertEqual(csrf_client.post(reverse("personal_profile"), {"email": "new@example.com"}).status_code, 403)
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("personal_profile")).status_code, 302)
+
+
 class InitialSetupTests(TestCase):
     def test_first_setup_creates_owner_and_business_profile(self):
         response = self.client.post(reverse("initial_setup"), {"business_name": "Veterinaria Nala", "business_kind": "veterinary", "username": "nala-admin", "email": "nala@example.test", "password1": "clave-segura-123", "password2": "clave-segura-123"})

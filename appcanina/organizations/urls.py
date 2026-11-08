@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("cuenta/perfil/", views.personal_profile, name="personal_profile"),
     path("configuracion-inicial/", views.initial_setup, name="initial_setup"),
     path("plataforma/", views.platform_dashboard, name="platform_dashboard"),
     path("comunidad/colaboradores/", views.community_collaborators, name="community_collaborators"),

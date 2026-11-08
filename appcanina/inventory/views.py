@@ -253,6 +253,8 @@ def brand_create(request):
 @login_required
 def business_profile(request):
     membership = OrganizationMembership.objects.filter(user=request.user).select_related("organization").order_by("organization_id").first()
+    if not membership and not request.user.has_perm("organizations.add_organization") and not request.user.is_staff:
+        return redirect("personal_profile")
     profile = membership.organization if membership else Organization.objects.filter(is_business_profile=True).first()
     form = BusinessProfileForm(request.POST or None, request.FILES or None, instance=profile)
     can_edit = bool(membership and membership.role == OrganizationMembership.Role.MANAGER) or (

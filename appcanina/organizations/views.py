@@ -11,6 +11,17 @@ from .forms import CommunityCollaboratorForm, OrganizationMembershipForm, Shelte
 from .models import Organization, OrganizationMembership
 from .roles import can_manage_organization, ensure_base_roles
 from .setup_forms import InitialSetupForm
+from .forms import PersonalProfileForm
+
+
+@login_required
+def personal_profile(request):
+    form = PersonalProfileForm(request.POST or None, instance=request.user)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Tu perfil fue actualizado.")
+        return redirect("personal_profile")
+    return render(request, "organizations/personal_profile.html", {"form": form})
 
 
 def initial_setup(request):
