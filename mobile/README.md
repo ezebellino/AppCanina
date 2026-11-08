@@ -24,4 +24,4 @@ Para invitar a un cuidador: el responsable del refugio verificado abre una ficha
 
 Entrega pendiente: publicar el backend actualizado antes de distribuir la nueva APK y validar ambos recorridos en dos cuentas reales de prueba. No se generó un build EAS con este cambio.
 
-La URL gratuita nueva está pendiente de coordinar el corte. El valor predeterminado del cliente conserva por ahora el servidor vigente; cambiarlo y revisar EXPO_PUBLIC_API_URL en EAS al preparar el siguiente APK. No cambiar slug, android.package ni extra.eas.projectId: identifican la aplicación existente.
+URL pública: https://lazuna.up.railway.app. Los APK anteriores al cambio de dominio necesitan actualizarse. Conservamos slug, android.package y extra.eas.projectId porque identifican la aplicación existente.

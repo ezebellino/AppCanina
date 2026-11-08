@@ -9,7 +9,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
 
-const API = process.env.EXPO_PUBLIC_API_URL || "https://appcanina-production.up.railway.app/extraviados/api/v1";
+const API = process.env.EXPO_PUBLIC_API_URL || "https://lazuna.up.railway.app/extraviados/api/v1";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true}),

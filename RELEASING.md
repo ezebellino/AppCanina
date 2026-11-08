@@ -32,4 +32,6 @@ Confirmaciones por correo al aceptar una invitación familiar en web o móvil, d
 
 Marca pública centralizada en APP_NAME, nueva URL pública centralizada en PUBLIC_BASE_URL, y nombres actualizados en web, correos, credenciales y cliente Expo. Identificadores internos, base de datos, volumen, paquete Android y proyecto EAS conservados para no perder datos ni crear otra app.
 
-El destino propuesto es https://lazuna.up.railway.app (sujeto a disponibilidad). El corte de dominio reemplaza la URL gratuita anterior: requiere coordinar el uso del APK instalado y los enlaces viejos. No activar PUBLIC_BASE_URL con un dominio sin verificar.
+URL verificada: https://lazuna.up.railway.app. Railway fue renombrado y PUBLIC_BASE_URL actualizado. El corte reemplaza la URL gratuita anterior: los enlaces viejos dejan de funcionar y el APK anterior debe actualizarse. El usuario autorizó expresamente el corte y un nuevo build después de las pruebas. No se compraron dominios ni se modificó DNS de Hostinger.
+
+Validación: 141 pruebas Django, exportación Android local y respuesta HTTPS 200 del nuevo login. EAS preview fija la nueva API y aumenta el versionCode; conserva paquete y credenciales de firma.

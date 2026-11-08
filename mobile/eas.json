@@ -9,10 +9,18 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://lazuna.up.railway.app/extraviados/api/v1"
+      },
+      "autoIncrement": true,
+      "environment": "preview"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://lazuna.up.railway.app/extraviados/api/v1"
+      }
     }
   },
   "submit": {
