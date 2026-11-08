@@ -822,7 +822,7 @@ class AdoptionVisitTests(TestCase):
         self.client.force_login(self.applicant)
         response = self.client.get(reverse("personal_profile"))
         self.assertEqual(response.context["applicant_unread_count"], 1)
-        self.assertContains(response, "1 nueva")
+        self.assertContains(response, 'aria-label="1 solicitudes con novedades"')
         response = self.client.get(reverse("my_adoption_interests"))
         self.assertTrue(response.context["interests"][0].has_new_activity)
         self.assertContains(response, "¿Qué significa cada estado?")

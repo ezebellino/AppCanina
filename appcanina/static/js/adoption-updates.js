@@ -15,7 +15,7 @@
         const badge = link.querySelector('.request-unread-badge');
         link.classList.toggle('has-updates', count > 0);
         badge.hidden = count === 0;
-        badge.textContent = `${count} ${count === 1 ? 'nueva' : 'nuevas'}`;
+        badge.textContent = String(count);
         badge.setAttribute('aria-label', `${count} solicitudes con novedades`);
       });
     } catch (_) {

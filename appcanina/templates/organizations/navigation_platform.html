@@ -1,0 +1,4 @@
+<nav class="sidebar-nav" aria-label="Navegación de plataforma">{% include "lost_pets/request_nav.html" %}
+    <a href="{% url 'platform_dashboard' %}" class="{% if request.resolver_match.url_name == 'platform_dashboard' %}active{% endif %}"><span aria-hidden="true">⌂</span> Panel de plataforma</a>
+    <a href="{% url 'organization_verification_list' %}" class="{% if request.resolver_match.url_name == 'organization_verification_list' %}active{% endif %}"><span aria-hidden="true">✓</span> Validar instituciones</a>
+  </nav>

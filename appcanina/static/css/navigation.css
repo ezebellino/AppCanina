@@ -1,0 +1,39 @@
+/* Compact navigation for phones/tablets, including landscape. */
+.mobile-navigation{display:none}
+.sidebar-nav a>.request-link-label{display:block;width:auto;min-width:0;font-size:inherit;flex:1}
+.sidebar-nav a>.request-unread-badge,.community-bottom-nav a>.request-unread-badge,.request-unread-badge{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:1.65rem;width:auto;height:1.65rem;padding:0 .4rem;line-height:1;font-size:.75rem;white-space:nowrap;text-align:center}
+.request-unread-badge[hidden],.sidebar-nav a>.request-unread-badge[hidden],.community-bottom-nav a>.request-unread-badge[hidden]{display:none!important}
+.community-bottom-nav a>.request-link-label{font-size:inherit;line-height:1.25}
+.page-loading[hidden]{display:none!important}
+.page-loading{position:fixed;inset:0;z-index:100;background:rgb(240 250 247/.97);display:grid;place-items:center;padding:1rem;overflow:auto}
+.page-loading-content{width:min(100%,760px)}
+.loading-cards{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.loading-card{background:#fff;padding:1.3rem;border:1px solid #d9e5e1;border-radius:16px}
+.skeleton{background:linear-gradient(100deg,#e3ede9 25%,#f4f8f6 45%,#e3ede9 65%);background-size:200% 100%;animation:skeleton-shimmer 1.4s linear infinite;border-radius:8px;height:1rem;margin-bottom:1rem}
+.skeleton-heading{height:1.8rem;width:65%}.skeleton-photo{height:140px}.skeleton-short{width:60%}
+@keyframes skeleton-shimmer{to{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.skeleton{animation:none}}
+@media(max-width:1024px){
+ .app-shell .sidebar{position:sticky;top:0;left:auto;bottom:auto;width:100%;height:auto;min-height:64px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:.75rem;padding:.7rem 1rem;overflow:visible;z-index:30}
+ .sidebar>.sidebar-nav,.sidebar>.account-menu{display:none}
+ .sidebar .sidebar-brand{flex:1;min-width:0;margin:0;max-width:calc(100% - 100px);font-size:1rem}
+ .sidebar-brand>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .sidebar .brand-logo,.sidebar .brand-mark{width:36px;height:36px;flex:none}
+ .app-shell>.container{width:calc(100% - 2rem);max-width:none;margin:1.5rem auto}
+ .mobile-navigation{display:block;flex:none;position:static;margin:0}
+ .mobile-navigation>summary{display:flex;gap:.4rem;align-items:center;cursor:pointer;list-style:none;color:#fff;min-height:44px;padding:.5rem .65rem;border:1px solid #83aaa0;border-radius:12px;font-weight:750}
+ .mobile-navigation>summary::-webkit-details-marker{display:none}
+ .mobile-navigation-panel{position:absolute;right:.75rem;top:calc(100% + .4rem);width:min(360px,calc(100vw - 1.5rem));max-height:calc(100dvh - 88px);overflow-y:auto;background:#fff;color:#153e35;border:1px solid #cadbd5;border-radius:16px;padding:1rem;box-shadow:0 12px 32px #00352c30}
+ .mobile-account-name{font-weight:750;overflow-wrap:anywhere;border-bottom:1px solid #dbe6e1;padding-bottom:.7rem;margin-bottom:.5rem}
+ .mobile-navigation-panel .sidebar-nav{display:flex;flex-direction:column;align-items:stretch;overflow:visible;white-space:normal;margin:0;padding:0;gap:.25rem}
+ .mobile-navigation-panel .sidebar-nav a,.mobile-account-actions>a{display:flex;align-items:center;gap:.5rem;color:#153e35;width:100%;min-height:44px;padding:.65rem;border-radius:9px;text-decoration:none;font-size:.92rem;font-weight:700;background:transparent;margin:0}
+ .mobile-navigation-panel .sidebar-nav a.has-updates{background:#fff0ca}
+ .mobile-navigation-panel .sidebar-nav .nav-group small,.mobile-navigation-panel .sidebar-nav .nav-group b{display:none}
+ .mobile-navigation-panel .sidebar-nav .nav-subitem{display:flex;padding-left:1.5rem}
+ .mobile-account-actions{border-top:1px solid #dbe6e1;margin-top:.5rem;padding-top:.5rem}
+ .mobile-account-actions form{margin:.25rem 0 0}.mobile-account-actions button{color:#b3261e;min-height:44px;width:100%;justify-content:flex-start;padding:.65rem}
+ .mobile-navigation-panel a{white-space:normal}
+ .mobile-navigation-panel a:hover{background:#e7f4ef}
+ .page-heading{flex-wrap:wrap}.page-heading>div{min-width:0}
+}
+@media(max-width:540px){.loading-cards{grid-template-columns:1fr}.loading-card:nth-child(2){display:none}}
