@@ -15,9 +15,11 @@ def send_expo_push(notifications):
     if not notifications:
         return
     notification_by_user = {notification.recipient_id: notification for notification in notifications}
-    devices = MobilePushDevice.objects.filter(user_id__in=notification_by_user, active=True)
+    devices = MobilePushDevice.objects.filter(user_id__in=notification_by_user, active=True).select_related("access_token__user")
     messages = []
     for device in devices:
+        if not device.access_token or device.access_token.user_id != device.user_id or not device.access_token.is_valid():
+            continue
         notification = notification_by_user[device.user_id]
         messages.append({
             "to": device.token,

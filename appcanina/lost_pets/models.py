@@ -2,11 +2,13 @@ import hashlib
 import math
 import secrets
 from decimal import Decimal
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.crypto import constant_time_compare
 
 from patients.models import Patient
 
@@ -173,6 +175,10 @@ class AdoptionReadReceipt(models.Model):
         constraints = [models.UniqueConstraint(fields=["interest", "user", "audience"], name="unique_adoption_read_receipt")]
 
 
+def mobile_token_expiry():
+    return timezone.now() + timedelta(days=30)
+
+
 class MobileAccessToken(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="mobile_access_tokens")
     label = models.CharField(max_length=80, default="Dispositivo móvil")
@@ -180,16 +186,34 @@ class MobileAccessToken(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(default=mobile_token_expiry)
+    password_fingerprint = models.CharField(max_length=64, default="", editable=False)
+
+    def is_valid(self):
+        return bool(
+            self.user.is_active and not self.revoked_at and self.expires_at > timezone.now()
+            and self.password_fingerprint
+            and constant_time_compare(self.password_fingerprint, self.user.get_session_auth_hash())
+        )
 
     @classmethod
     def issue(cls, user, label):
         raw_token = secrets.token_urlsafe(32)
-        token = cls.objects.create(user=user, label=(label or "Dispositivo móvil")[:80], digest=hashlib.sha256(raw_token.encode()).hexdigest())
+        token = cls.objects.create(user=user, label=(label or "Dispositivo móvil")[:80], digest=hashlib.sha256(raw_token.encode()).hexdigest(), password_fingerprint=user.get_session_auth_hash())
         return raw_token, token
 
     @classmethod
     def from_raw_token(cls, raw_token):
-        return cls.objects.select_related("user").filter(digest=hashlib.sha256(raw_token.encode()).hexdigest(), revoked_at__isnull=True).first()
+        token = cls.objects.select_related("user").filter(
+            digest=hashlib.sha256(raw_token.encode()).hexdigest(),
+            revoked_at__isnull=True, expires_at__gt=timezone.now(), user__is_active=True,
+        ).first()
+        if not token or not token.password_fingerprint:
+            return None
+        if not token.is_valid():
+            cls.objects.filter(pk=token.pk, revoked_at__isnull=True).update(revoked_at=timezone.now())
+            return None
+        return token
 
 
 class MobilePushDevice(models.Model):
@@ -199,6 +223,7 @@ class MobilePushDevice(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="mobile_push_devices")
     token = models.CharField(max_length=255, unique=True)
+    access_token = models.ForeignKey(MobileAccessToken, on_delete=models.SET_NULL, null=True, blank=True, related_name="push_devices")
     platform = models.CharField(max_length=12, choices=Platform.choices)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

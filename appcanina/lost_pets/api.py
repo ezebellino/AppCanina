@@ -35,8 +35,10 @@ def token_required(permission):
             if not header.startswith("Bearer "):
                 return JsonResponse({"detail": "Token requerido."}, status=401)
             token = MobileAccessToken.from_raw_token(header[7:])
-            if not token or not token.user.has_perm(permission):
-                return JsonResponse({"detail": "Token inválido o sin permiso."}, status=403)
+            if not token:
+                return JsonResponse({"detail": "Tu sesión venció o fue cerrada. Volvé a ingresar.", "code": "session_invalid"}, status=401)
+            if permission and not token.user.has_perm(permission):
+                return JsonResponse({"detail": "No tenés permiso para esta acción."}, status=403)
             token.last_used_at = timezone.now()
             token.save(update_fields=["last_used_at"])
             request.mobile_user = token.user
@@ -62,8 +64,21 @@ def mobile_login(request):
         cache.set(cache_key, cache.get(cache_key, 0) + 1, 900)
         return JsonResponse({"detail": "Credenciales inválidas."}, status=401)
     cache.delete(cache_key)
-    raw_token, _ = MobileAccessToken.issue(user, payload.get("device_name", "Dispositivo móvil"))
-    return JsonResponse({"token": raw_token, "token_type": "Bearer", "user": {"username": user.username}})
+    raw_token, token = MobileAccessToken.issue(user, payload.get("device_name", "Dispositivo móvil"))
+    return JsonResponse({"token": raw_token, "token_type": "Bearer", "expires_at": token.expires_at.isoformat(), "user": {"username": user.username}})
+
+
+@csrf_exempt
+@require_POST
+def mobile_logout(request):
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer ") or not header[7:]:
+        return JsonResponse({"detail": "Token requerido."}, status=401)
+    # Idempotent, permission-independent, and scoped only to the presented token.
+    MobileAccessToken.objects.filter(
+        digest=hashlib.sha256(header[7:].encode()).hexdigest(), revoked_at__isnull=True,
+    ).update(revoked_at=timezone.now())
+    return JsonResponse({"detail": "Sesión cerrada."})
 
 
 @csrf_exempt
@@ -124,13 +139,14 @@ def mobile_register(request):
                 role=OrganizationMembership.Role.MANAGER,
             )
     cache.set(cache_key, cache.get(cache_key, 0) + 1, 3600)
-    raw_token, _ = MobileAccessToken.issue(collaborator, payload.get("device_name", "Dispositivo móvil"))
+    raw_token, token = MobileAccessToken.issue(collaborator, payload.get("device_name", "Dispositivo móvil"))
     message = "Cuenta creada."
     if organization:
         message = "Solicitud institucional recibida. El perfil queda pendiente de validación antes de habilitar herramientas de gestión."
     return JsonResponse({
         "token": raw_token,
         "token_type": "Bearer",
+        "expires_at": token.expires_at.isoformat(),
         "detail": message,
         "user": {"username": collaborator.username, "account_type": account_type},
         "organization": {"id": organization.id, "name": organization.name, "verified": organization.is_verified} if organization else None,
@@ -731,7 +747,7 @@ def mobile_push_device_register(request):
         return JsonResponse({"detail": "Plataforma de dispositivo inválida."}, status=400)
     device, created = MobilePushDevice.objects.update_or_create(
         token=push_token,
-        defaults={"user": request.mobile_user, "platform": platform, "active": True},
+        defaults={"user": request.mobile_user, "platform": platform, "active": True, "access_token": request.mobile_token},
     )
     return JsonResponse({"id": device.id, "registered": created})
 

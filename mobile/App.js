@@ -8,6 +8,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
+import {createSessionClient} from "./session-client.cjs";
 
 const API = process.env.EXPO_PUBLIC_API_URL || "https://lazuna.up.railway.app/extraviados/api/v1";
 
@@ -105,6 +106,19 @@ function AdoptionCard({post, onInterest, onShare}) {
 }
 
 export default function App() {
+  const [session, setSession] = useState({generation: 0, notice: "Ingresá para colaborar."});
+  return <CommunityApp key={session.generation} initialNotice={session.notice} allowRestore={session.generation === 0}
+    onSessionEnd={notice => setSession(current => ({generation: current.generation + 1, notice}))}/>;
+}
+
+function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
+  const authenticating = useRef(false);
+  const clientRef = useRef(null);
+  if (!clientRef.current) clientRef.current = createSessionClient({
+    fetchImpl: fetch, storage: SecureStore, onEnd: onSessionEnd, logoutUrl: `${API}/sesion/cerrar/`,
+  });
+  const sessionClient = clientRef.current;
+  const sessionRequest = sessionClient.request;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
@@ -118,7 +132,7 @@ export default function App() {
   const [donationAlias, setDonationAlias] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [token, setToken] = useState("");
-  const [message, setMessage] = useState("Ingresá para colaborar.");
+  const [message, setMessage] = useState(initialNotice);
   const [photoUri, setPhotoUri] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [screen, setScreen] = useState("panel");
@@ -169,7 +183,7 @@ export default function App() {
   const [devicePermissions, setDevicePermissions] = useState({camera: "unknown", location: "unknown", notifications: "unknown"});
 
   const loadNotifications = async (accessToken = token) => {
-    const response = await fetch(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
+    const response = await sessionRequest(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
     const data = await response.json();
     if (!response.ok) throw Error(data.detail || "No se pudieron consultar las notificaciones.");
     setNotifications(data.notifications);
@@ -180,7 +194,7 @@ export default function App() {
     let deviceKey = await SecureStore.getItemAsync("community-device-key");
     if (!deviceKey) {
       deviceKey = `device-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-      await SecureStore.setItemAsync("community-device-key", deviceKey);
+      await sessionClient.store("community-device-key", deviceKey);
     }
     return deviceKey;
   };
@@ -196,7 +210,7 @@ export default function App() {
         Notifications.getPermissionsAsync(),
         getDeviceKey(),
       ]);
-      const response = await fetch(`${API}/dispositivos/permisos/`, {
+      const response = await sessionRequest(`${API}/dispositivos/permisos/`, {
         method: "POST",
         headers: {"Content-Type": "application/json", Authorization: `Bearer ${accessToken}`},
         body: JSON.stringify({device_key: deviceKey, device_name: Device.modelName || "Dispositivo móvil", platform: Platform.OS, camera: permissionStatus(camera), location: permissionStatus(location), notifications: permissionStatus(notifications)}),
@@ -210,10 +224,16 @@ export default function App() {
   };
 
   const activateSession = async (accessToken, successMessage) => {
-    await SecureStore.setItemAsync("community-token", accessToken);
+    sessionClient.assertActive();
+    const response = await sessionRequest(`${API}/avisos/`, {headers: {Authorization: `Bearer ${accessToken}`}});
+    const data = await response.json();
+    if (!response.ok) throw Error(data.detail || "No se pudo validar la sesión.");
+    await sessionClient.store("community-token", accessToken);
+    sessionClient.assertActive();
+    setPassword(""); setPasswordConfirmation("");
+    setReports(data.reports);
     setToken(accessToken); setScreen("panel");
     try {
-      await loadReports(accessToken);
       await loadNotifications(accessToken);
       await syncDevicePermissions(accessToken);
       if (successMessage) setMessage(successMessage);
@@ -226,6 +246,7 @@ export default function App() {
     try {
       const savedToken = await SecureStore.getItemAsync("community-token");
       const wantsBiometric = await SecureStore.getItemAsync("community-biometric-enabled");
+      sessionClient.assertActive();
       setBiometricEnabled(wantsBiometric === "true");
       if (!savedToken) return;
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
@@ -241,7 +262,10 @@ export default function App() {
     } finally { setIsRestoringSession(false); }
   };
 
-  useEffect(() => { restoreSession(); }, []);
+  useEffect(() => {
+    if (allowRestore) restoreSession(); else setIsRestoringSession(false);
+    return () => sessionClient.dispose();
+  }, []);
 
   const unlockWithBiometrics = async () => {
     try {
@@ -260,20 +284,19 @@ export default function App() {
     if (!isEnrolled) { setMessage("No hay huella, rostro o bloqueo biométrico configurado en este teléfono."); return; }
     const result = await LocalAuthentication.authenticateAsync({promptMessage: "Confirmá para activar el acceso biométrico", cancelLabel: "Cancelar"});
     if (!result.success) { setMessage("No se activó el acceso biométrico."); return; }
-    await SecureStore.setItemAsync("community-biometric-enabled", "true"); setBiometricEnabled(true); setMessage("Acceso con huella activado para este teléfono.");
+    await sessionClient.store("community-biometric-enabled", "true"); setBiometricEnabled(true); setMessage("Acceso con huella activado para este teléfono.");
   };
 
   const logout = async () => {
-    await SecureStore.deleteItemAsync("community-token"); await SecureStore.deleteItemAsync("community-biometric-enabled");
-    setFamilyInvite(null); setSelectedAnimal(null); setFamilyCode("");
-    setToken(""); setPendingBiometricToken(""); setBiometricEnabled(false); setReports([]); setNotifications([]); setMessage("Sesión cerrada en este teléfono.");
+    setPassword(""); setPasswordConfirmation(""); setMessage("Cerrando sesión…");
+    await sessionClient.end("Sesión cerrada en este teléfono.", token || pendingBiometricToken);
   };
 
   const loadReports = async (accessToken = token, state = reportState, query = reportQuery) => {
     try {
       const params = new URLSearchParams({estado: state});
       if (query.trim()) params.set("q", query.trim());
-      const response = await fetch(`${API}/avisos/?${params.toString()}`, {headers: {Authorization: `Bearer ${accessToken}`}});
+      const response = await sessionRequest(`${API}/avisos/?${params.toString()}`, {headers: {Authorization: `Bearer ${accessToken}`}});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudieron cargar los avisos.");
       setReports(data.reports);
@@ -307,7 +330,7 @@ export default function App() {
     }
     try {
       const pushToken = (await Notifications.getExpoPushTokenAsync({projectId})).data;
-      const response = await fetch(`${API}/dispositivos/push/`, {
+      const response = await sessionRequest(`${API}/dispositivos/push/`, {
         method: "POST",
         headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`},
         body: JSON.stringify({push_token: pushToken, platform: Platform.OS}),
@@ -322,8 +345,10 @@ export default function App() {
   };
 
   const login = async () => {
+    if (authenticating.current) return;
+    authenticating.current = true;
     try {
-      const response = await fetch(`${API}/sesion/`, {
+      const response = await sessionRequest(`${API}/sesion/`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({username, password, device_name: "App móvil"}),
@@ -333,12 +358,14 @@ export default function App() {
       await activateSession(data.token, `Sesión iniciada: ${data.user.username}`);
     } catch (error) {
       setMessage(error.message);
-    }
+    } finally { authenticating.current = false; setPassword(""); setPasswordConfirmation(""); }
   };
 
   const register = async () => {
+    if (authenticating.current) return;
+    authenticating.current = true;
     try {
-      const response = await fetch(`${API}/registro/`, {
+      const response = await sessionRequest(`${API}/registro/`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
@@ -361,7 +388,7 @@ export default function App() {
       await activateSession(data.token, data.detail || `Cuenta creada. ¡Gracias por colaborar, ${data.user.username}!`);
     } catch (error) {
       setMessage(error.message);
-    }
+    } finally { authenticating.current = false; setPassword(""); setPasswordConfirmation(""); }
   };
 
   const shareLocation = async () => {
@@ -432,7 +459,7 @@ export default function App() {
         form.append("latitude", String(sightingLocation.latitude)); form.append("longitude", String(sightingLocation.longitude));
       }
       if (sightingPhoto?.uri) form.append("photo", {uri: sightingPhoto.uri, name: sightingPhoto.fileName || "avistamiento.jpg", type: sightingPhoto.mimeType || "image/jpeg"});
-      const response = await fetch(`${API}/avisos/${selectedReport.id}/avistamientos/`, {method: "POST", headers: {Authorization: `Bearer ${token}`}, body: form});
+      const response = await sessionRequest(`${API}/avisos/${selectedReport.id}/avistamientos/`, {method: "POST", headers: {Authorization: `Bearer ${token}`}, body: form});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo compartir el avistamiento.");
       resetSighting(); setScreen("panel"); setMessage(data.detail); await loadReports();
@@ -443,7 +470,7 @@ export default function App() {
 
   const loadMySearchRequests = async (accessToken = token) => {
     try {
-      const response = await fetch(`${API}/solicitudes-busqueda/mias/`, {headers: {Authorization: `Bearer ${accessToken}`}});
+      const response = await sessionRequest(`${API}/solicitudes-busqueda/mias/`, {headers: {Authorization: `Bearer ${accessToken}`}});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudieron cargar tus solicitudes.");
       setMyRequests(data.requests);
@@ -454,7 +481,7 @@ export default function App() {
 
   const loadAdoptions = async () => {
     try {
-      const response = await fetch(`${API}/adopciones/`, {headers: {Authorization: `Bearer ${token}`}});
+      const response = await sessionRequest(`${API}/adopciones/`, {headers: {Authorization: `Bearer ${token}`}});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudieron cargar las adopciones.");
       setAdoptions(data.adoptions);
@@ -467,7 +494,7 @@ export default function App() {
       form.append("name", adoptionName); form.append("species", adoptionSpecies); form.append("breed", adoptionBreed);
       form.append("age", adoptionAge); form.append("area", adoptionArea); form.append("description", adoptionDescription);
       if (adoptionPhoto?.uri) form.append("photo", {uri: adoptionPhoto.uri, name: adoptionPhoto.fileName || "adopcion.jpg", type: adoptionPhoto.mimeType || "image/jpeg"});
-      const response = await fetch(`${API}/adopciones/solicitar/`, {method: "POST", headers: {Authorization: `Bearer ${token}`}, body: form});
+      const response = await sessionRequest(`${API}/adopciones/solicitar/`, {method: "POST", headers: {Authorization: `Bearer ${token}`}, body: form});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo enviar la publicación.");
       setAdoptionName(""); setAdoptionSpecies(""); setAdoptionBreed(""); setAdoptionAge(""); setAdoptionArea(""); setAdoptionDescription(""); setAdoptionPhoto(null);
@@ -477,7 +504,7 @@ export default function App() {
 
   const loadAdoptionInterests = async () => {
     try {
-      const response = await fetch(`${API}/adopciones/mis-intereses/`, {headers: {Authorization: `Bearer ${token}`}});
+      const response = await sessionRequest(`${API}/adopciones/mis-intereses/`, {headers: {Authorization: `Bearer ${token}`}});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo cargar tu actividad.");
       setAdoptionInterests(data.interests);
@@ -486,7 +513,7 @@ export default function App() {
 
   const loadMyAnimals = async (accessToken = token) => {
     try {
-      const response = await fetch(`${API}/mis-animales/`, {headers: {Authorization: `Bearer ${accessToken}`}});
+      const response = await sessionRequest(`${API}/mis-animales/`, {headers: {Authorization: `Bearer ${accessToken}`}});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudieron cargar tus animales.");
       setMyAnimals(data.animals);
@@ -505,7 +532,7 @@ export default function App() {
       form.append("breed", newAnimalBreed); form.append("birth_date", newAnimalBirthDate);
       form.append("microchip", newAnimalMicrochip); form.append("allergies", newAnimalAllergies);
       if (newAnimalPhoto?.uri) form.append("photo", {uri: newAnimalPhoto.uri, name: newAnimalPhoto.fileName || "mi-animal.jpg", type: newAnimalPhoto.mimeType || "image/jpeg"});
-      const response = await fetch(`${API}/mis-animales/`, {method: "POST", headers: {Authorization: `Bearer ${token}`}, body: form});
+      const response = await sessionRequest(`${API}/mis-animales/`, {method: "POST", headers: {Authorization: `Bearer ${token}`}, body: form});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo agregar tu animal.");
       resetNewAnimal(); setMyAnimals(current => [...current, data.animal].sort((a, b) => a.name.localeCompare(b.name)));
@@ -520,7 +547,7 @@ export default function App() {
   const updateSharingConsent = async (sharingEnabled) => {
     if (!selectedAnimal) return;
     try {
-      const response = await fetch(`${API}/mis-animales/${selectedAnimal.id}/`, {
+      const response = await sessionRequest(`${API}/mis-animales/${selectedAnimal.id}/`, {
         method: "POST",
         headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`},
         body: JSON.stringify({sharing_enabled: sharingEnabled}),
@@ -536,7 +563,7 @@ export default function App() {
   const createTravelCredential = async () => {
     if (!selectedAnimal) return;
     try {
-      const response = await fetch(`${API}/mis-animales/${selectedAnimal.id}/credencial/`, {
+      const response = await sessionRequest(`${API}/mis-animales/${selectedAnimal.id}/credencial/`, {
         method: "POST", headers: {Authorization: `Bearer ${token}`},
       });
       const data = await response.json();
@@ -548,7 +575,7 @@ export default function App() {
   const createFamilyInvite = async () => {
     if (!selectedAnimal) return;
     try {
-      const response = await fetch(`${API}/mis-animales/${selectedAnimal.id}/invitaciones-familiares/`, {
+      const response = await sessionRequest(`${API}/mis-animales/${selectedAnimal.id}/invitaciones-familiares/`, {
         method: "POST", headers: {Authorization: `Bearer ${token}`},
       });
       const data = await response.json();
@@ -593,7 +620,7 @@ export default function App() {
 
   const acceptFamilyInvite = async () => {
     try {
-      const response = await fetch(`${API}/familia/aceptar-invitacion/`, {
+      const response = await sessionRequest(`${API}/familia/aceptar-invitacion/`, {
         method: "POST",
         headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`},
         body: JSON.stringify({code: familyCode.trim()}),
@@ -608,7 +635,7 @@ export default function App() {
   const revokeFamilyAccess = async (accessId, memberName) => {
     if (!selectedAnimal) return;
     try {
-      const response = await fetch(`${API}/mis-animales/${selectedAnimal.id}/familia/${accessId}/revocar/`, {
+      const response = await sessionRequest(`${API}/mis-animales/${selectedAnimal.id}/familia/${accessId}/revocar/`, {
         method: "POST", headers: {Authorization: `Bearer ${token}`},
       });
       const data = await response.json();
@@ -622,7 +649,7 @@ export default function App() {
   const submitAdoptionInterest = async () => {
     if (!selectedAdoption) return;
     try {
-      const response = await fetch(`${API}/adopciones/${selectedAdoption.id}/intereses/`, {method: "POST", headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`}, body: JSON.stringify({message: interestMessage})});
+      const response = await sessionRequest(`${API}/adopciones/${selectedAdoption.id}/intereses/`, {method: "POST", headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`}, body: JSON.stringify({message: interestMessage})});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo enviar tu interés.");
       setInterestMessage(""); setScreen("mi-actividad"); setMessage(data.detail); await loadAdoptionInterests();
@@ -650,7 +677,7 @@ export default function App() {
       if (requestPhoto?.uri) {
         form.append("photo", {uri: requestPhoto.uri, name: requestPhoto.fileName || "animal.jpg", type: requestPhoto.mimeType || "image/jpeg"});
       }
-      const response = await fetch(`${API}/solicitudes-busqueda/${editingRequest ? `${editingRequest.id}/editar/` : ""}`, {
+      const response = await sessionRequest(`${API}/solicitudes-busqueda/${editingRequest ? `${editingRequest.id}/editar/` : ""}`, {
         method: "POST",
         headers: {Authorization: `Bearer ${token}`},
         body: form,
@@ -696,7 +723,7 @@ export default function App() {
   return <SafeAreaView style={styles.screen}>
     <ScrollView contentContainerStyle={styles.content}>
       {!token ? <><Text style={styles.title}>Lazuna</Text><Text style={styles.subtitle}>Comunidad · animales extraviados</Text></> : null}
-      {!token ? isRestoringSession ? <View style={styles.stack}><Text style={styles.help}>Preparando tu sesión segura…</Text></View> : pendingBiometricToken ? <View style={styles.stack}><Text style={styles.sectionTitle}>Volvé a ingresar</Text><Text style={styles.help}>Tu sesión está guardada en este teléfono y protegida con biometría.</Text><Button title="Ingresar con huella" onPress={unlockWithBiometrics}/><Button title="Usar otra cuenta" onPress={() => setPendingBiometricToken("")}/></View> : <View style={styles.stack}>
+      {!token ? isRestoringSession ? <View style={styles.stack}><Text style={styles.help}>Preparando tu sesión segura…</Text></View> : pendingBiometricToken ? <View style={styles.stack}><Text style={styles.sectionTitle}>Volvé a ingresar</Text><Text style={styles.help}>Tu sesión está guardada en este teléfono y protegida con biometría.</Text><Button title="Ingresar con huella" onPress={unlockWithBiometrics}/><Button title="Usar otra cuenta" onPress={logout}/></View> : <View style={styles.stack}>
       {isRegistering ? <><Text style={styles.help}>Elegí cómo vas a participar: como colaborador/a para ayudar o adoptar, o en representación de una veterinaria o refugio. Las instituciones necesitan aprobación para administrar publicaciones o datos clínicos.</Text><View style={styles.field}><Text style={styles.fieldLabel}>Quiero registrarme como</Text><View style={styles.filterRow}><FilterPill active={accountType === "community"} label="Colaborador/a" onPress={() => setAccountType("community")}/><FilterPill active={accountType === "veterinary"} label="Veterinaria" onPress={() => setAccountType("veterinary")}/><FilterPill active={accountType === "shelter"} label="Refugio" onPress={() => setAccountType("shelter")}/></View></View></> : null}
       {isRegistering ? <View style={styles.field}><Text style={styles.fieldLabel}>Nombre <Text style={styles.optional}>(opcional)</Text></Text><TextInput placeholder="Ej.: Sofía" placeholderTextColor="#6c8378" value={firstName} onChangeText={setFirstName} style={styles.input}/></View> : null}
       <View style={styles.field}><Text style={styles.fieldLabel}>Usuario</Text><TextInput placeholder="Elegí un usuario" placeholderTextColor="#6c8378" value={username} onChangeText={setUsername} autoCapitalize="none" style={styles.input}/></View>
