@@ -112,7 +112,7 @@ class WebFamilyTests(TestCase):
         target = reverse("family_accept")
         preview = self.client.get(target)
         self.assertEqual(preview.status_code, 200)
-        self.assertEqual(preview["Referrer-Policy"], "no-referrer")
+        self.assertEqual(preview["Referrer-Policy"], "same-origin")
         self.assertIn("no-store", preview["Cache-Control"])
         self.assertFalse(PatientFamilyAccess.objects.exists())
         response = self.client.post(target, {"action": "prepare", "code": code})
@@ -148,10 +148,11 @@ class WebFamilyTests(TestCase):
         browser = Client(enforce_csrf_checks=True)
         target = reverse("family_accept")
         self.assertEqual(browser.post(target, {"action": "prepare", "code": code}).status_code, 403)
-        response = browser.get(target, {"code": code})
+        response = browser.get(target, {"code": code}, secure=True)
         self.assertEqual(response.context["form"].initial["code"], "")
         csrf = browser.cookies["csrftoken"].value
-        response = browser.post(target, {"action": "prepare", "code": code, "csrfmiddlewaretoken": csrf})
+        response = browser.post(target, {"action": "prepare", "code": code, "csrfmiddlewaretoken": csrf},
+                                secure=True, HTTP_REFERER="https://testserver" + target)
         self.assertEqual(response.status_code, 302)
         self.assertFalse(PatientFamilyInvite.objects.get().accepted_at)
         self.assertFalse(PatientFamilyAccess.objects.exists())

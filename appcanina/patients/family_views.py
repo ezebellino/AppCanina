@@ -87,7 +87,9 @@ def family_accept(request):
         "form": form, "login_url": reverse("login") + next_query,
         "register_url": reverse("register") + next_query,
     })
-    response["Referrer-Policy"] = "no-referrer"
+    # Django's HTTPS CSRF check needs same-origin Origin/Referer on form POST.
+    # The fragment is never included, and external sites receive no Referer.
+    response["Referrer-Policy"] = "same-origin"
     return response
 
 
