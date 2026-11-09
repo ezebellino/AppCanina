@@ -1,3 +1,20 @@
-{% extends "base.html" %}{% block content %}
-<section class="card" style="max-width:640px;margin:auto"><p class="eyebrow">Mi familia animal</p><h1>Agregar con código familiar</h1><p>Ingresá el código que te compartió el responsable. El animal aparecerá en tu perfil con su misma ficha e historial, sin duplicarlo.</p><form method="post">{% csrf_token %}{{ form.as_p }}<p>Al aceptar, quedás vinculado como responsable familiar con acceso de consulta. Quien te invitó puede quitar ese acceso.</p><button type="submit">Aceptar invitación y agregar animal</button></form><p><a href="{% url 'my_animals' %}">← Mis animales</a></p></section>
+{% extends "base.html" %}{% load static %}
+{% block title %}Invitación familiar · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="card" style="max-width:640px;margin:auto">
+  <p class="eyebrow">Mi familia animal</p><h1>Agregar con código familiar</h1>
+  <p id="family-link-status" role="status">Si abriste una invitación, dejamos el código listo. Solo falta confirmar. También podés pegarlo manualmente.</p>
+  {% if not user.is_authenticated %}
+  <p>Ingresá o creá tu cuenta para agregar el animal a tu perfil. Conservaremos la invitación mientras lo hacés.</p>
+  <div class="family-animal-actions"><a class="button" href="{{ login_url }}">Ingresar</a><a class="button button-ghost" href="{{ register_url }}">Crear una cuenta</a></div>
+  {% endif %}
+  <form method="post">{% csrf_token %}{{ form.as_p }}
+    <p>Al aceptar, quedás vinculado como responsable familiar con acceso de consulta a la misma ficha e historial. Quien te invitó puede quitar ese acceso.</p>
+    <button type="submit">{% if user.is_authenticated %}Aceptar invitación y agregar animal{% else %}Continuar con este código{% endif %}</button>
+  </form>
+  <form id="family-link-prepare" method="post" hidden>{% csrf_token %}<input type="hidden" name="action" value="prepare"><input type="hidden" name="code"></form>
+  <noscript><p>Para continuar, pegá el código que acompaña al enlace.</p></noscript>
+  {% if user.is_authenticated %}<p><a href="{% url 'my_animals' %}">← Mis animales</a></p>{% endif %}
+</section>
+<script src="{% static 'js/family-invitation.js' %}?v={{ app_version }}"></script>
 {% endblock %}

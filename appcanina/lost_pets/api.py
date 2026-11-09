@@ -431,8 +431,12 @@ def mobile_family_invite_create(request, patient_id):
         invited_by=request.mobile_user,
         expires_at=timezone.now() + timedelta(minutes=15),
     )
+    from patients.family import invitation_share
+    share_url, share_text = invitation_share(request, patient, code)
     return JsonResponse({
         "code": code,
+        "share_url": share_url,
+        "share_text": share_text,
         "expires_at": invitation.expires_at.isoformat(),
         "detail": "Código familiar creado. Compartilo solo con una persona de confianza; vence en 15 minutos y se usa una sola vez.",
     }, status=201)

@@ -1,6 +1,9 @@
 """Household invitations shared by web and mobile clients."""
 from config.public_urls import public_url
 import hashlib
+from urllib.parse import urlencode
+
+from django.conf import settings
 
 from django.db import transaction
 from django.db.models import Q
@@ -9,6 +12,17 @@ from django.urls import reverse
 
 from organizations.models import OrganizationMembership
 from .models import Contact, OwnerAccountLink, Patient, PatientContact, PatientFamilyAccess, PatientFamilyInvite
+
+
+def invitation_share(request, patient, code):
+    # Fragments stay out of HTTP access logs and Referer headers.
+    url = public_url(request, reverse("family_accept")) + "#" + urlencode({"code": code})
+    text = (f"Te invito a cuidar a {patient.name} conmigo en {settings.APP_NAME}.\n\n"
+            f"Abrí este enlace, ingresá o creá tu cuenta y confirmá la invitación:\n{url}\n\n"
+            f"Si necesitás ingresarlo manualmente, el código es: {code}\n"
+            "Vence en 15 minutos y se usa una sola vez. Permite consultar la ficha e historial. "
+            "Compartilo solo con una persona de confianza.")
+    return url, text
 
 
 def owned_animals(user):

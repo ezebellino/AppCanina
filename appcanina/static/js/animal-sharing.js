@@ -1,4 +1,10 @@
 (() => {
+  const copyInvite = document.querySelector('[data-copy-invite]');
+  copyInvite?.addEventListener('click', async () => {
+    const status = document.querySelector('[data-copy-status]');
+    try { await navigator.clipboard.writeText(copyInvite.dataset.copyInvite); status.textContent = 'Enlace copiado. Ya podés enviarlo.'; }
+    catch { status.textContent = 'No se pudo copiar el enlace. Usá Enviar invitación por WhatsApp o copiá el código.'; }
+  });
   const copy = document.querySelector('[data-copy-code]');
   copy?.addEventListener('click', async () => {
     const input = document.querySelector('#family-code');
