@@ -65,3 +65,13 @@ La veterinaria abre Atenciones autorizadas. Cada lectura y escritura exige perte
 Las credenciales de viaje siguen siendo de consulta. Se revalidan consentimiento, credencial, pertenencia y verificación institucional al abrir el historial; desactivar el consentimiento anula los códigos anteriores para evitar que revivan al reactivarlo.
 
 La migración patients.0011 agrega autorizaciones, auditoría de consulta y procedencia de registros. Flujo disponible en web responsive, sin nuevo APK. El APK existente recibe las nuevas atenciones mediante la API compatible; la gestión de permisos se realiza en la web. No se enviaron correos ni se alteraron cuentas reales en las pruebas.
+
+## 0.7.0 — Buscar veterinarias por nombre y cercanía
+
+El selector de autorización permite buscar por nombre, localidad y dirección, sin distinguir tildes ni mayúsculas. “Usar mi ubicación” solicita permiso al navegador y ordena por distancia aproximada en línea recta, con filtros de 5, 10, 25 y 50 km. No elige una institución automáticamente; si un filtro oculta la selección actual, la limpia. Nombre, ciudad y dirección siguen visibles para distinguir instituciones homónimas.
+
+La posición del usuario se mantiene solo en memoria en esa pantalla, sin enviarla al servidor ni guardarla. La ubicación es opcional: ante rechazo, error o falta de coordenadas se mantiene la búsqueda textual. Las veterinarias sin coordenadas figuran al final al ordenar y quedan excluidas al aplicar un radio; “Todas las distancias” vuelve a incluirlas.
+
+La migración organizations.0007 agrega coordenadas opcionales del local, validadas como par y con límites geográficos. Desde Mi negocio, el responsable puede usar la ubicación estando físicamente en la veterinaria y guardarla como ubicación pública del local. Modificar dirección o localidad requiere volver a marcarla. No se geocodifican direcciones automáticamente ni se inventan coordenadas para registros existentes.
+
+Validación: 182 pruebas Django, 3 pruebas Node de búsqueda/distancias, validación de migraciones y navegador a 390 px (sin desbordamiento), rechazo de ubicación, cercanía simulada y limpieza de selección al cambiar filtros. No requiere ni genera un APK; mejora de la web.

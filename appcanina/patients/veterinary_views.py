@@ -22,8 +22,19 @@ class VeterinaryChoiceField(forms.ModelChoiceField):
         return ' · '.join(part for part in [obj.name, obj.locality, obj.address] if part)
 
 
+class VeterinarySelect(forms.Select):
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        if value and hasattr(value, 'instance'):
+            org = value.instance
+            if org.latitude is not None and org.longitude is not None:
+                option['attrs']['data-latitude'] = str(org.latitude)
+                option['attrs']['data-longitude'] = str(org.longitude)
+        return option
+
+
 class AuthorizationForm(forms.Form):
-    organization = VeterinaryChoiceField(label='Veterinaria', queryset=Organization.objects.none(), empty_label='Seleccioná una veterinaria', help_text='Verificá el nombre, la localidad y la dirección antes de autorizar.')
+    organization = VeterinaryChoiceField(label='Veterinaria', widget=VeterinarySelect, queryset=Organization.objects.none(), empty_label='Seleccioná una veterinaria', help_text='Verificá el nombre, la localidad y la dirección antes de autorizar.')
     mode = forms.ChoiceField(label='Qué puede hacer', choices=VeterinaryAuthorization.Mode.choices)
     hours = forms.TypedChoiceField(label='Duración', coerce=int, choices=[(24, '24 horas'), (72, '3 días'), (168, '7 días')], initial=24)
 

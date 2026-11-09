@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class Organization(models.Model):
@@ -20,6 +21,8 @@ class Organization(models.Model):
     email = models.EmailField("correo electrónico", blank=True)
     address = models.CharField("dirección", max_length=220, blank=True)
     locality = models.CharField("localidad", max_length=120, blank=True)
+    latitude = models.DecimalField('latitud del local', max_digits=9, decimal_places=6, null=True, blank=True, validators=[MinValueValidator(-90), MaxValueValidator(90)])
+    longitude = models.DecimalField('longitud del local', max_digits=9, decimal_places=6, null=True, blank=True, validators=[MinValueValidator(-180), MaxValueValidator(180)])
     is_verified = models.BooleanField("perfil institucional verificado", default=False)
     verification_status = models.CharField(
         "estado de validación",
@@ -44,6 +47,10 @@ class Organization(models.Model):
     )
 
     class Meta:
+        constraints = [models.CheckConstraint(condition=(
+            models.Q(latitude__isnull=True, longitude__isnull=True)
+            | models.Q(latitude__isnull=False, longitude__isnull=False, latitude__gte=-90, latitude__lte=90, longitude__gte=-180, longitude__lte=180)
+        ), name='organization_valid_coordinates')]
         verbose_name = "organización"
         verbose_name_plural = "organizaciones"
 

@@ -20,9 +20,21 @@ class PersonalProfileForm(forms.ModelForm):
 
 
 class BusinessProfileForm(forms.ModelForm):
+    location_confirmed = forms.BooleanField(required=False, widget=forms.HiddenInput())
+    def clean(self):
+        data = super().clean()
+        lat, lon = data.get('latitude'), data.get('longitude')
+        if (lat is None) != (lon is None):
+            raise forms.ValidationError('La ubicación debe incluir latitud y longitud. Volvé a marcar el local.')
+        if (self.instance.pk and any(field in self.changed_data for field in ['address', 'locality'])
+                and not data.get('location_confirmed')):
+            data['latitude'] = data['longitude'] = None
+        return data
+
     class Meta:
         model = Organization
-        fields = ["name", "kind", "logo", "phone", "email", "address", "donation_alias", "donation_message"]
+        fields = ["name", "kind", "logo", "phone", "email", "address", "locality", "latitude", "longitude", "donation_alias", "donation_message"]
+        widgets = {'latitude': forms.HiddenInput(), 'longitude': forms.HiddenInput()}
         labels = {
             "name": "Nombre de la institución",
             "kind": "Tipo de institución",
