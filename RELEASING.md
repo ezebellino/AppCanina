@@ -75,3 +75,9 @@ La posición del usuario se mantiene solo en memoria en esa pantalla, sin enviar
 La migración organizations.0007 agrega coordenadas opcionales del local, validadas como par y con límites geográficos. Desde Mi negocio, el responsable puede usar la ubicación estando físicamente en la veterinaria y guardarla como ubicación pública del local. Modificar dirección o localidad requiere volver a marcarla. No se geocodifican direcciones automáticamente ni se inventan coordenadas para registros existentes.
 
 Validación: 182 pruebas Django, 3 pruebas Node de búsqueda/distancias, validación de migraciones y navegador a 390 px (sin desbordamiento), rechazo de ubicación, cercanía simulada y limpieza de selección al cambiar filtros. No requiere ni genera un APK; mejora de la web.
+
+## 0.7.1 — Exploración desde administración
+
+Las cuentas de plataforma con staff pueden explorar el catálogo publicado de adopciones sin necesitar un grupo institucional o comunitario. El menú de plataforma incorpora Explorar adopciones junto al panel y la validación. Los filtros de gestión no revelan publicaciones pendientes a una cuenta staff sin institución; tampoco conceden creación o cambios de estado. Los permisos clínicos y comerciales mantienen su alcance.
+
+Validación: 41 pruebas de organizaciones y navegación de adopciones, incluyendo staff sin grupos, filtros, bloqueo de escritura y acceso de usuarios sin permisos. Sin migraciones ni nuevo APK.

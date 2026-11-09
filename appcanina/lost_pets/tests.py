@@ -638,6 +638,23 @@ class CommunityAdoptionBrowsingTests(TestCase):
         self.client.force_login(unrelated)
         self.assertEqual(self.client.get(reverse("adoption_list")).status_code, 403)
 
+    def test_platform_staff_without_groups_can_browse_published_adoptions(self):
+        staff = User.objects.create_user("platform-reader", is_staff=True)
+        self.client.force_login(staff)
+        for mode in ("published", "review", "all"):
+            response = self.client.get(reverse("adoption_list"), {"view": mode})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(list(response.context["posts"]), [self.published])
+            self.assertFalse(response.context["can_manage_adoptions"])
+            self.assertContains(response, "Explorar adopciones")
+            self.assertContains(response, "Panel de plataforma")
+            self.assertNotContains(response, "Aprobar y publicar")
+        self.assertEqual(self.client.get(reverse("adoption_create")).status_code, 403)
+        response = self.client.post(reverse("adoption_change_status", args=[self.published.id]), {"status": "adopted"})
+        self.assertEqual(response.status_code, 403)
+        self.published.refresh_from_db()
+        self.assertEqual(self.published.status, "published")
+
 
 class WebAdoptionInterestTests(TestCase):
     def setUp(self):

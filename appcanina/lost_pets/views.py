@@ -51,7 +51,7 @@ def adoption_list(request):
     posts = AdoptionPost.objects.select_related("publisher", "organization")
     managed_organizations = _adoption_manager_organizations(request.user)
     can_manage_adoptions = managed_organizations.exists()
-    if not (request.user.has_perm("lost_pets.view_lostpetreport")
+    if not (request.user.is_staff or request.user.has_perm("lost_pets.view_lostpetreport")
             or request.user.has_perm("lost_pets.view_adoptionpost") or can_manage_adoptions):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
