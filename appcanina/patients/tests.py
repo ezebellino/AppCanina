@@ -444,6 +444,7 @@ class TravelClinicalAccessTests(TestCase):
         OwnerAccountLink.objects.create(contact=self.contact, user=self.owner).patients.add(self.patient)
         self.organization = Organization.objects.create(
             name="Veterinaria Capital",
+            is_verified=True,
             kind=Organization.Kind.VETERINARY,
             locality="Capital Federal",
         )

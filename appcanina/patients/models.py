@@ -120,6 +120,12 @@ class PatientSharingConsent(models.Model):
     enabled = models.BooleanField("autoriza compartir historial clínico", default=False)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.enabled:
+            # Re-enabling sharing must not revive a previously withdrawn code.
+            TravelCredential.objects.filter(patient=self.patient, contact=self.contact, revoked_at__isnull=True).update(revoked_at=timezone.now())
+
     class Meta:
         constraints = [models.UniqueConstraint(fields=["patient", "contact"], name="unique_patient_sharing_consent")]
 
@@ -156,7 +162,18 @@ class TravelAccessRequest(models.Model):
 
     @property
     def is_active(self):
-        return self.status == self.Status.APPROVED and self.expires_at and self.expires_at > timezone.now()
+        now = timezone.now()
+        return bool(
+            self.status == self.Status.APPROVED and self.expires_at and self.expires_at > now
+            and self.patient.active and self.requester.is_active
+            and not self.credential.revoked_at and self.credential.expires_at > now
+            and self.credential.patient_id == self.patient_id
+            and PatientSharingConsent.objects.filter(
+                patient=self.patient, contact=self.credential.contact, enabled=True,
+            ).exists()
+            and self.organization.kind == 'veterinary' and self.organization.is_verified
+            and self.organization.memberships.filter(user=self.requester).exists()
+        )
 
 
 class ClinicalHistoryAccessLog(models.Model):
@@ -181,6 +198,8 @@ class ClinicalRecord(models.Model):
     reason = models.CharField("motivo de consulta", max_length=180)
     notes = models.TextField("observaciones")
     professional = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="clinical_records")
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, null=True, blank=True, related_name='clinical_records')
+    authorization = models.ForeignKey('VeterinaryAuthorization', on_delete=models.PROTECT, null=True, blank=True, related_name='clinical_records')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -190,6 +209,39 @@ class ClinicalRecord(models.Model):
 
     def __str__(self):
         return f"{self.patient} · {self.reason}"
+
+
+class VeterinaryAuthorization(models.Model):
+    class Mode(models.TextChoices):
+        READ = 'read', 'Solo consultar'
+        ATTEND = 'attend', 'Consultar y agregar atenciones'
+
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='veterinary_authorizations')
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name='patient_authorizations')
+    granted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='veterinary_authorizations')
+    mode = models.CharField(max_length=10, choices=Mode.choices, default=Mode.READ)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_active(self):
+        from .ownership import owner_relations
+        return bool(
+            not self.revoked_at and self.expires_at > timezone.now()
+            and self.patient.active and self.granted_by.is_active
+            and self.organization.kind == 'veterinary' and self.organization.is_verified
+            and owner_relations(self.granted_by).filter(patient=self.patient, role='responsible').exists()
+        )
+
+
+class VeterinaryAccessLog(models.Model):
+    authorization = models.ForeignKey(VeterinaryAuthorization, on_delete=models.CASCADE, related_name='access_logs')
+    professional = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    first_accessed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['authorization', 'professional'], name='unique_veterinary_access_log')]
 
 
 class CareReminder(models.Model):

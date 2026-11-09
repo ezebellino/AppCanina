@@ -55,3 +55,13 @@ La vinculación de cuentas autoriza una ficha concreta, no todos los animales de
 Se limitan contactos, agenda y edición de turnos, búsqueda de productos, proyecciones de ventas y selectores de cobro a las instituciones autorizadas. Las superposiciones de peluquería se comprueban dentro de cada institución. El catálogo común de servicios no cambia en este bloque.
 
 No requiere un nuevo APK. La API mantiene el contrato de la versión instalada. Antes de publicar: suite Django completa, migración de vínculos históricos, pruebas de aislamiento entre dos instituciones y revisión independiente del parche. Al desplegar, confirmar `patients.0010` aplicada y versión web 0.5.3. La migración conserva permisos históricos; no determina retrospectivamente si alguna vinculación anterior fue indebida.
+
+## 0.6.0 — Atenciones veterinarias autorizadas
+
+Desde Mis animales → Historial → Autorizar veterinaria, el responsable principal elige una institución verificada, solo consulta o consulta y nuevas atenciones, durante 24 horas, 3 días o 7 días. Un nuevo permiso para la misma institución reemplaza el anterior; retirar el permiso corta acceso y escritura, conservando el historial existente. Los familiares con acceso de consulta no pueden conceder permisos clínicos.
+
+La veterinaria abre Atenciones autorizadas. Cada lectura y escritura exige pertenencia actual a la institución, permisos clínicos, vigencia del permiso y autoridad actual de quien lo concedió. Las nuevas atenciones guardan paciente, profesional, institución y autorización desde el servidor; no existe edición de registros anteriores en este flujo. Los registros históricos sin institución conocida se conservan sin inventar su procedencia.
+
+Las credenciales de viaje siguen siendo de consulta. Se revalidan consentimiento, credencial, pertenencia y verificación institucional al abrir el historial; desactivar el consentimiento anula los códigos anteriores para evitar que revivan al reactivarlo.
+
+La migración patients.0011 agrega autorizaciones, auditoría de consulta y procedencia de registros. Flujo disponible en web responsive, sin nuevo APK. El APK existente recibe las nuevas atenciones mediante la API compatible; la gestión de permisos se realiza en la web. No se enviaron correos ni se alteraron cuentas reales en las pruebas.

@@ -1,7 +1,11 @@
 from django.urls import path
-from . import views, family_views
+from . import views, family_views, veterinary_views
 
 urlpatterns = [
+    path('mis-animales/<int:patient_id>/veterinarias/', veterinary_views.authorizations, name='veterinary_authorizations'),
+    path('mis-animales/<int:patient_id>/veterinarias/<int:authorization_id>/revocar/', veterinary_views.revoke_authorization, name='veterinary_authorization_revoke'),
+    path('atenciones-autorizadas/', veterinary_views.authorized_patients, name='veterinary_authorized_patients'),
+    path('atenciones-autorizadas/<int:authorization_id>/', veterinary_views.authorized_history, name='veterinary_authorized_history'),
     path("mis-animales/agregar-con-codigo/", family_views.family_accept, name="family_accept"),
     path("mis-animales/<int:patient_id>/familia/", family_views.family_manage, name="family_manage"),
     path("mis-animales/<int:patient_id>/familia/anular/", family_views.family_revoke, name="family_revoke"),

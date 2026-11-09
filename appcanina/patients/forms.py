@@ -56,7 +56,7 @@ class ClinicalRecordForm(forms.ModelForm):
         model = ClinicalRecord
         fields = ["occurred_on", "reason", "notes"]
         widgets = {
-            "occurred_on": forms.DateInput(attrs={"type": "date"}),
+            "occurred_on": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
             "notes": forms.Textarea(attrs={"rows": 5}),
         }
 

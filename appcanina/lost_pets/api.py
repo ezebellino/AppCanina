@@ -242,6 +242,7 @@ def _mobile_patient_data(request, patient):
                 "reason": record.reason,
                 "notes": record.notes,
                 "professional": record.professional.get_full_name() or record.professional.username,
+                "organization": record.organization.name if record.organization else None,
             }
             for record in patient.clinical_records.select_related("professional").all()
         ],

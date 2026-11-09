@@ -31,4 +31,5 @@ class OwnerGrantMigrationTests(TransactionTestCase):
             migrated = apps.get_model('patients', 'OwnerAccountLink').objects.get(pk=link.pk)
             self.assertEqual(set(migrated.patients.values_list('pk', flat=True)), expected)
         finally:
-            MigrationExecutor(connection).migrate(latest)
+            executor = MigrationExecutor(connection)
+            executor.migrate(executor.loader.graph.leaf_nodes())

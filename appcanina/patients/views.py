@@ -9,6 +9,7 @@ from django.db import DatabaseError, transaction
 from django.db.models import F, Prefetch, Q, Sum
 from django.http import HttpResponse, Http404
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from .forms import CareReminderForm, ClinicalRecordForm, ContactForm, ExistingPatientContactForm, OwnerAccountLinkForm, PatientContactForm, PatientForm, TravelAccessRequestForm
@@ -149,13 +150,13 @@ def patient_owner_account_link(request, patient_id):
 @permission_required("patients.view_clinicalrecord", raise_exception=True)
 def travel_access_request(request):
     form = TravelAccessRequestForm(request.POST or None)
-    organizations = organizations_managed_by(request.user).filter(kind="veterinary")
+    organizations = organizations_managed_by(request.user).filter(kind="veterinary", is_verified=True, memberships__user=request.user)
     organization = organizations.first()
     if request.method == "POST" and form.is_valid():
         code = form.cleaned_data["credential_code"].strip()
         credential = TravelCredential.objects.select_related("patient", "contact").filter(digest=hashlib.sha256(code.encode()).hexdigest(), revoked_at__isnull=True).first()
         locality = form.cleaned_data["locality"].strip()
-        allowed = bool(credential and organization and credential.expires_at > timezone.now() and organization.locality.strip().casefold() == locality.casefold() and PatientSharingConsent.objects.filter(patient=credential.patient, contact=credential.contact, enabled=True).exists())
+        allowed = bool(credential and organization and credential.patient.active and credential.expires_at > timezone.now() and organization.locality.strip().casefold() == locality.casefold() and PatientSharingConsent.objects.filter(patient=credential.patient, contact=credential.contact, enabled=True).exists())
         request_entry = TravelAccessRequest.objects.create(patient=credential.patient if credential else Patient.objects.none().first(), credential=credential, organization=organization, requester=request.user, locality=locality, purpose=form.cleaned_data["purpose"], status=TravelAccessRequest.Status.APPROVED if allowed else TravelAccessRequest.Status.DENIED, expires_at=min(credential.expires_at, timezone.now() + timedelta(hours=24)) if allowed else None) if credential and organization else None
         if not request_entry:
             messages.error(request, "No se pudo validar la credencial o la veterinaria solicitante.")
@@ -168,6 +169,7 @@ def travel_access_request(request):
 
 @login_required
 @permission_required("patients.view_clinicalrecord", raise_exception=True)
+@never_cache
 def travel_access_history(request, request_id):
     access = get_object_or_404(TravelAccessRequest.objects.select_related("patient", "organization"), pk=request_id, requester=request.user)
     if not access.is_active:
@@ -534,6 +536,7 @@ def clinical_record_create(request, patient_id):
         record = form.save(commit=False)
         record.patient = patient
         record.professional = request.user
+        record.organization = patient.organization
         record.save()
         return redirect("patient_detail", patient_id=patient.id)
     return render(request, "patients/clinical_record_form.html", {"patient": patient, "form": form})
