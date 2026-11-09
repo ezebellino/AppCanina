@@ -1,18 +1,18 @@
 from django.contrib.auth.decorators import login_required, permission_required
-from django.contrib.auth import get_user_model
 from datetime import timedelta
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from .forms import GroomingAppointmentForm, GroomingServiceForm
 from .models import GroomingAppointment, GroomingService
+from .scope import visible_appointments, visible_employees
 
 @login_required
 @permission_required("grooming.view_groomingappointment", raise_exception=True)
 def agenda(request):
     today = timezone.localdate()
     now = timezone.now()
-    all_appointments = GroomingAppointment.objects.select_related("patient", "service", "sale", "assigned_to").prefetch_related("additional_services")
+    all_appointments = visible_appointments(request.user).select_related("patient", "service", "sale", "assigned_to").prefetch_related("additional_services")
     active_appointments = all_appointments.exclude(status__in=[GroomingAppointment.Status.DONE, GroomingAppointment.Status.CANCELED])
     today_appointments = active_appointments.filter(starts_at__date=today)
     delayed_appointments = today_appointments.filter(starts_at__lt=now)
@@ -39,13 +39,13 @@ def agenda(request):
         appointments = appointments.filter(assigned_to_id=selected_employee)
     else:
         selected_employee = ""
-    employees = get_user_model().objects.filter(is_active=True).order_by("username")
+    employees = visible_employees(request.user)
     return render(request, "grooming/agenda.html", {"appointments": appointments, "appointment_count": appointments.count(), "today_appointments": today_appointments, "delayed_appointments": delayed_appointments, "next_appointment": next_appointment, "view_mode": view_mode, "selected_status": selected_status, "selected_employee": selected_employee, "employees": employees, "status_choices": GroomingAppointment.Status.choices})
 
 @login_required
 @permission_required("grooming.add_groomingappointment", raise_exception=True)
 def appointment_create(request):
-    form = GroomingAppointmentForm(request.POST or None)
+    form = GroomingAppointmentForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         form.save()
         return redirect("grooming_agenda")
@@ -54,8 +54,8 @@ def appointment_create(request):
 @login_required
 @permission_required("grooming.change_groomingappointment", raise_exception=True)
 def appointment_edit(request, appointment_id):
-    appointment = get_object_or_404(GroomingAppointment, pk=appointment_id)
-    form = GroomingAppointmentForm(request.POST or None, instance=appointment)
+    appointment = get_object_or_404(visible_appointments(request.user), pk=appointment_id)
+    form = GroomingAppointmentForm(request.POST or None, instance=appointment, user=request.user)
     if request.method == "POST" and form.is_valid():
         form.save()
         return redirect("grooming_agenda")
@@ -65,7 +65,7 @@ def appointment_edit(request, appointment_id):
 @permission_required("grooming.change_groomingappointment", raise_exception=True)
 @require_POST
 def appointment_status(request, appointment_id, status):
-    appointment = get_object_or_404(GroomingAppointment, pk=appointment_id)
+    appointment = get_object_or_404(visible_appointments(request.user), pk=appointment_id)
     valid_statuses = {GroomingAppointment.Status.DONE, GroomingAppointment.Status.CANCELED, GroomingAppointment.Status.CONFIRMED}
     if status in valid_statuses:
         appointment.status = status

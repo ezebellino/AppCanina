@@ -63,9 +63,10 @@ class PatientContact(models.Model):
 
 
 class OwnerAccountLink(models.Model):
-    """Explicitly links a real system account to a contact record."""
+    """Contact identity plus explicit, patient-scoped ownership grants."""
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name="account_links")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="owner_contact_links")
+    patients = models.ManyToManyField(Patient, blank=True, related_name="owner_account_links")
     verified_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

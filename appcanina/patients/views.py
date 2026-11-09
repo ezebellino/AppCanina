@@ -6,14 +6,15 @@ from io import BytesIO
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import DatabaseError, transaction
-from django.db.models import F, Q, Sum
+from django.db.models import F, Prefetch, Q, Sum
 from django.http import HttpResponse, Http404
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from .forms import CareReminderForm, ClinicalRecordForm, ContactForm, ExistingPatientContactForm, OwnerAccountLinkForm, PatientContactForm, PatientForm, TravelAccessRequestForm
 from .family import owned_animals, can_invite
-from .models import CareReminder, ClinicalHistoryAccessLog, Contact, OwnerAccountLink, Patient, PatientContact, PatientSharingConsent, TravelAccessRequest, TravelCredential
+from .ownership import grant_ownership, owner_contact_ids
+from .models import CareReminder, ClinicalHistoryAccessLog, Contact, OwnerAccountLink, Patient, PatientContact, PatientFamilyAccess, PatientSharingConsent, TravelAccessRequest, TravelCredential
 from organizations.roles import organizations_managed_by
 from sales.models import CashSession, Sale
 from inventory.models import Product
@@ -47,6 +48,22 @@ def _patients_visible_to(user):
     return Patient.objects.filter(organization__in=_operating_organizations(user))
 
 
+def _contacts_visible_to(user):
+    return Contact.objects.filter(patients__in=_patients_visible_to(user)).distinct()
+
+
+def _sales_visible_to(user):
+    if user.is_superuser:
+        return Sale.objects.all()
+    return Sale.objects.filter(organization__in=_operating_organizations(user))
+
+
+def _products_visible_to(user):
+    if user.is_superuser:
+        return Product.objects.all()
+    return Product.objects.filter(organization__in=_operating_organizations(user))
+
+
 def _patient_or_404_for(user, patient_id, *, active_only=False):
     patients = _patients_visible_to(user)
     if active_only:
@@ -71,9 +88,9 @@ def _owned_patient_or_404(user, patient_id):
 
 @login_required
 def my_animals(request):
-    contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
     patients = owned_animals(request.user).prefetch_related("patientcontact_set__contact")
     for patient in patients:
+        contact_ids = owner_contact_ids(request.user, patient)
         patient.can_invite_family = can_invite(request.user, patient)
         patient.can_issue_credential = patient.patientcontact_set.filter(contact_id__in=contact_ids, role="responsible").exists()
     return render(request, "patients/my_animals.html", {"patients": patients})
@@ -82,7 +99,7 @@ def my_animals(request):
 @login_required
 def my_animal_history(request, patient_id):
     patient = _owned_patient_or_404(request.user, patient_id)
-    contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
+    contact_ids = owner_contact_ids(request.user, patient)
     sharing_enabled = PatientSharingConsent.objects.filter(patient=patient, contact_id__in=contact_ids, enabled=True).exists()
     return render(request, "patients/my_animal_history.html", {"patient": patient, "sharing_enabled": sharing_enabled, "can_issue_credential": patient.patientcontact_set.filter(contact_id__in=contact_ids, role="responsible").exists()})
 
@@ -91,7 +108,7 @@ def my_animal_history(request, patient_id):
 @require_POST
 def my_animal_sharing(request, patient_id):
     patient = _owned_patient_or_404(request.user, patient_id)
-    contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
+    contact_ids = owner_contact_ids(request.user, patient)
     relation = patient.patientcontact_set.select_related("contact").filter(contact_id__in=contact_ids, role="responsible").first()
     if relation is None:
         raise Http404
@@ -103,7 +120,7 @@ def my_animal_sharing(request, patient_id):
 @login_required
 def my_animal_credential(request, patient_id):
     patient = _owned_patient_or_404(request.user, patient_id)
-    contact_ids = OwnerAccountLink.objects.filter(user=request.user).values_list("contact_id", flat=True)
+    contact_ids = owner_contact_ids(request.user, patient)
     relation = patient.patientcontact_set.select_related("contact").filter(contact_id__in=contact_ids, role="responsible").first()
     if relation is None:
         raise Http404
@@ -122,8 +139,8 @@ def patient_owner_account_link(request, patient_id):
     form = OwnerAccountLinkForm(request.POST or None)
     relation = patient.patientcontact_set.select_related("contact").filter(role__in=[PatientContact.Role.RESPONSIBLE, PatientContact.Role.ADOPTER]).first()
     if request.method == "POST" and relation and form.is_valid():
-        OwnerAccountLink.objects.get_or_create(contact=relation.contact, user=form.cleaned_data["user"])
-        messages.success(request, "Cuenta vinculada. La persona ya puede consultar sus animales desde Mis animales.")
+        grant_ownership(form.cleaned_data["user"], relation.contact, patient)
+        messages.success(request, "Cuenta vinculada a esta ficha. La persona ya puede consultarla desde Mis animales.")
         return redirect("patient_detail", patient_id=patient.id)
     return render(request, "patients/owner_account_link.html", {"patient": patient, "relation": relation, "form": form})
 
@@ -206,7 +223,7 @@ def dashboard(request):
         if low_stock:
             attention.append({"value": low_stock, "label": "productos con stock bajo", "url": "inventory_alerts"})
     if request.user.has_perm("sales.view_sale"):
-        sales_total = Sale.objects.filter(created_at__date=today).aggregate(total=Sum("total"))["total"] or 0
+        sales_total = _sales_visible_to(request.user).filter(created_at__date=today).aggregate(total=Sum("total"))["total"] or 0
         metrics.append({"value": f"${sales_total:,.0f}", "label": "ventas de hoy", "url": "daily_report", "tone": "teal"})
     return render(request, "patients/dashboard.html", {"metrics": metrics, "attention": attention})
 
@@ -312,9 +329,9 @@ def global_search(request):
     if query and request.user.has_perm("patients.view_patient"):
         visible_patients = _patients_visible_to(request.user).filter(active=True)
         patient_results = visible_patients.filter(Q(name__icontains=query) | Q(breed__icontains=query) | Q(microchip__icontains=query) | Q(contacts__full_name__icontains=query) | Q(contacts__phone__icontains=query) | Q(contacts__email__icontains=query)).prefetch_related("patientcontact_set__contact").distinct()[:12]
-        contact_results = Contact.objects.filter(patients__in=visible_patients).filter(Q(full_name__icontains=query) | Q(phone__icontains=query) | Q(email__icontains=query)).prefetch_related("patients").distinct()[:12]
+        contact_results = Contact.objects.filter(patients__in=visible_patients).filter(Q(full_name__icontains=query) | Q(phone__icontains=query) | Q(email__icontains=query)).prefetch_related(Prefetch("patients", queryset=visible_patients)).distinct()[:12]
     if query and request.user.has_perm("inventory.view_product"):
-        product_results = Product.objects.filter(active=True).filter(Q(name__icontains=query) | Q(commercial_name__icontains=query) | Q(sku__icontains=query) | Q(brand__name__icontains=query) | Q(supplier__name__icontains=query)).select_related("brand", "supplier")[:12]
+        product_results = _products_visible_to(request.user).filter(active=True).filter(Q(name__icontains=query) | Q(commercial_name__icontains=query) | Q(sku__icontains=query) | Q(brand__name__icontains=query) | Q(supplier__name__icontains=query)).select_related("brand", "supplier")[:12]
     return render(request, "patients/global_search.html", {"query": query, "patient_results": patient_results, "contact_results": contact_results, "product_results": product_results})
 
 
@@ -333,7 +350,7 @@ def patient_create(request):
             patient.organization = organization
             patient.save()
             contact_data = contact_form.cleaned_data
-            contact = Contact.objects.filter(full_name__iexact=contact_data["full_name"].strip(), kind=contact_data["kind"], phone=contact_data["phone"], email__iexact=contact_data["email"].strip()).first()
+            contact = _contacts_visible_to(request.user).filter(full_name__iexact=contact_data["full_name"].strip(), kind=contact_data["kind"], phone=contact_data["phone"], email__iexact=contact_data["email"].strip()).first()
             if not contact:
                 contact = contact_form.save()
             PatientContact.objects.create(patient=patient, contact=contact, role=PatientContact.Role.RESPONSIBLE, is_primary=True)
@@ -350,9 +367,9 @@ def patient_detail(request, patient_id):
     )
     commercial_context = {"patient_sales": [], "responsible_sales": [], "patient_total": 0, "responsible_total": 0, "completed_grooming_count": 0}
     if request.user.has_perm("sales.view_sale"):
-        patient_sales = Sale.objects.filter(patient=patient).select_related("contact", "seller").prefetch_related("lines")
+        patient_sales = _sales_visible_to(request.user).filter(patient=patient).select_related("contact", "seller").prefetch_related("lines")
         contact_ids = patient.patientcontact_set.values_list("contact_id", flat=True)
-        responsible_sales = Sale.objects.filter(contact_id__in=contact_ids).exclude(patient=patient).select_related("patient", "contact", "seller").prefetch_related("lines")
+        responsible_sales = _sales_visible_to(request.user).filter(contact_id__in=contact_ids).exclude(patient=patient).select_related("patient", "contact", "seller").prefetch_related("lines")
         commercial_context = {"patient_sales": patient_sales[:8], "responsible_sales": responsible_sales[:5], "patient_total": patient_sales.aggregate(total=Sum("total"))["total"] or 0, "responsible_total": responsible_sales.aggregate(total=Sum("total"))["total"] or 0, "completed_grooming_count": patient.grooming_appointments.filter(status="done").count()}
     return render(request, "patients/patient_detail.html", {"patient": patient, "today": timezone.localdate(), **commercial_context})
 
@@ -407,7 +424,21 @@ def patient_edit(request, patient_id):
         try:
             with transaction.atomic():
                 patient = patient_form.save()
-                contact = contact_form.save()
+                if (primary_relation and contact_form.has_changed() and
+                        primary_relation.contact.patients.exclude(organization_id=patient.organization_id).exists()):
+                    # Editing a local file must not mutate a contact reused elsewhere.
+                    old_contact_id = primary_relation.contact_id
+                    contact = Contact.objects.create(**contact_form.cleaned_data)
+                    links = OwnerAccountLink.objects.filter(contact_id=old_contact_id, patients=patient)
+                    for link in links:
+                        grant_ownership(link.user, contact, patient)
+                        link.patients.remove(patient)
+                    PatientContact.objects.filter(patient=patient, contact_id=old_contact_id).update(contact=contact)
+                    PatientFamilyAccess.objects.filter(patient=patient, contact_id=old_contact_id).update(contact=contact)
+                    PatientSharingConsent.objects.filter(patient=patient, contact_id=old_contact_id).update(contact=contact)
+                    TravelCredential.objects.filter(patient=patient, contact_id=old_contact_id).update(contact=contact)
+                else:
+                    contact = contact_form.save()
                 if primary_relation:
                     primary_relation.contact = contact
                     primary_relation.save(update_fields=["contact"])
@@ -431,7 +462,7 @@ def patient_contact_create(request, patient_id):
     patient = _patient_or_404_for(request.user, patient_id)
     contact_form = ContactForm(request.POST or None, prefix="contact")
     relation_form = PatientContactForm(request.POST or None, prefix="relation")
-    existing_form = ExistingPatientContactForm(request.POST or None, prefix="existing")
+    existing_form = ExistingPatientContactForm(request.POST or None, prefix="existing", contact_queryset=_contacts_visible_to(request.user))
     if request.method == "POST" and request.POST.get("action") == "existing" and existing_form.is_valid():
         with transaction.atomic():
             contact = existing_form.cleaned_data["contact"]
@@ -445,7 +476,7 @@ def patient_contact_create(request, patient_id):
     if request.method == "POST" and contact_form.is_valid() and relation_form.is_valid():
         with transaction.atomic():
             contact_data = contact_form.cleaned_data
-            contact = Contact.objects.filter(full_name__iexact=contact_data["full_name"].strip(), kind=contact_data["kind"], phone=contact_data["phone"], email__iexact=contact_data["email"].strip()).first()
+            contact = _contacts_visible_to(request.user).filter(full_name__iexact=contact_data["full_name"].strip(), kind=contact_data["kind"], phone=contact_data["phone"], email__iexact=contact_data["email"].strip()).first()
             if not contact:
                 contact = contact_form.save()
             relation = relation_form.save(commit=False)

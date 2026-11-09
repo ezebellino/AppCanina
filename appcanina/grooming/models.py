@@ -40,11 +40,14 @@ class GroomingAppointment(models.Model):
         verbose_name_plural = "turnos de peluquería"
 
     def clean(self):
+        # ModelForm also calls clean after rejecting a forged patient/service.
+        if not self.patient_id or not self.service_id or not self.starts_at:
+            return
         total_minutes = self.service.duration_minutes
         if self.pk:
             total_minutes += sum(service.duration_minutes for service in self.additional_services.all())
         self.ends_at = self.starts_at + timedelta(minutes=total_minutes)
-        if self.status != self.Status.CANCELED and GroomingAppointment.objects.filter(starts_at__lt=self.ends_at, ends_at__gt=self.starts_at).exclude(pk=self.pk).exclude(status=self.Status.CANCELED).exists():
+        if self.status != self.Status.CANCELED and GroomingAppointment.objects.filter(patient__organization_id=self.patient.organization_id, starts_at__lt=self.ends_at, ends_at__gt=self.starts_at).exclude(pk=self.pk).exclude(status=self.Status.CANCELED).exists():
             raise ValidationError("El horario se superpone con otro turno activo.")
 
     def save(self, *args, **kwargs):

@@ -17,6 +17,14 @@ class Command(BaseCommand):
                 contacts = list(Contact.objects.filter(**{key: group[key] for key in ("full_name", "kind", "phone", "email")}).order_by("id"))
                 canonical, duplicates = contacts[0], contacts[1:]
                 for duplicate in duplicates:
+                    # Matching text is not proof of shared identity/authority.
+                    # Preserve linked accounts and contacts crossing tenant scopes.
+                    canonical_scope = set(canonical.patients.values_list('organization_id', flat=True))
+                    duplicate_scope = set(duplicate.patients.values_list('organization_id', flat=True))
+                    if ((canonical_scope and duplicate_scope and canonical_scope != duplicate_scope)
+                            or len(canonical_scope | duplicate_scope) > 1
+                            or canonical.account_links.exists() or duplicate.account_links.exists()):
+                        continue
                     for relation in PatientContact.objects.filter(contact=duplicate):
                         existing = PatientContact.objects.filter(patient=relation.patient, contact=canonical, role=relation.role).first()
                         if existing:

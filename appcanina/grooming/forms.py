@@ -1,5 +1,6 @@
 from django import forms
 from .models import GroomingAppointment, GroomingService
+from .scope import visible_employees, visible_patients
 
 
 class GroomingServiceForm(forms.ModelForm):
@@ -18,7 +19,10 @@ class GroomingAppointmentForm(forms.ModelForm):
         labels = {"patient": "Paciente", "service": "Servicio", "assigned_to": "Profesional asignado", "starts_at": "Fecha y hora", "status": "Estado", "notes": "Notas"}
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        self.fields['patient'].queryset = visible_patients(user) if user else self.fields['patient'].queryset.none()
+        self.fields['assigned_to'].queryset = visible_employees(user) if user else self.fields['assigned_to'].queryset.none()
         if self.instance.pk:
             self.fields["additional_services"].initial = self.instance.additional_services.all()
 

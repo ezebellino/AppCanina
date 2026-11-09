@@ -27,9 +27,14 @@ class PatientContactForm(forms.ModelForm):
 
 
 class ExistingPatientContactForm(forms.Form):
-    contact = forms.ModelChoiceField(label="Responsable o institución existente", queryset=Contact.objects.order_by("full_name"), empty_label="Seleccioná un contacto")
+    contact = forms.ModelChoiceField(label="Responsable o institución existente", queryset=Contact.objects.none(), empty_label="Seleccioná un contacto")
     role = forms.ChoiceField(label="Vínculo", choices=PatientContact.Role.choices)
     is_primary = forms.BooleanField(label="Es el contacto principal", required=False)
+
+    def __init__(self, *args, contact_queryset=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if contact_queryset is not None:
+            self.fields['contact'].queryset = contact_queryset.order_by('full_name')
 
 
 class OwnerAccountLinkForm(forms.ModelForm):

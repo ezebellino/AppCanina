@@ -1,3 +1,4 @@
+from patients.ownership import grant_ownership, owner_contact_ids, owner_relations
 from config.public_urls import public_url
 import hashlib
 import json
@@ -197,13 +198,13 @@ def _mobile_managed_shelter_ids(user):
 
 def _mobile_can_invite_caregiver(user, patient):
     return patient.patientcontact_set.filter(
-        contact_id__in=OwnerAccountLink.objects.filter(user=user).values_list("contact_id", flat=True),
+        contact_id__in=owner_contact_ids(user, patient),
         role=PatientContact.Role.RESPONSIBLE,
     ).exists() or patient.organization_id in _mobile_managed_shelter_ids(user)
 
 
 def _mobile_patient_data(request, patient):
-    contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+    contact_ids = owner_contact_ids(request.mobile_user, patient)
     can_share = patient.patientcontact_set.filter(
         contact_id__in=contact_ids,
         role=PatientContact.Role.RESPONSIBLE,
@@ -248,12 +249,8 @@ def _mobile_patient_data(request, patient):
 
 
 def _mobile_owned_patient(request, patient_id):
-    contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
     return Patient.objects.filter(pk=patient_id, active=True).filter(
-        Q(
-            patientcontact__contact_id__in=contact_ids,
-            patientcontact__role__in=[PatientContact.Role.RESPONSIBLE, PatientContact.Role.ADOPTER],
-        ) | Q(family_accesses__user=request.mobile_user, family_accesses__revoked_at__isnull=True) | Q(organization_id__in=_mobile_managed_shelter_ids(request.mobile_user))
+        Q(pk__in=owner_relations(request.mobile_user).values('patient_id')) | Q(family_accesses__user=request.mobile_user, family_accesses__revoked_at__isnull=True) | Q(organization_id__in=_mobile_managed_shelter_ids(request.mobile_user))
     ).distinct().first()
 
 
@@ -267,7 +264,7 @@ def _mobile_user_contact(user):
 
 
 def _mobile_can_share_with_family(request, patient):
-    contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+    contact_ids = owner_contact_ids(request.mobile_user, patient)
     return patient.patientcontact_set.filter(
         contact_id__in=contact_ids,
         role=PatientContact.Role.RESPONSIBLE,
@@ -363,18 +360,15 @@ def mobile_my_animals(request):
                 role=PatientContact.Role.RESPONSIBLE,
                 is_primary=True,
             )
+            grant_ownership(request.mobile_user, contact, patient)
         return JsonResponse({
             "detail": "Tu animal fue agregado y quedó vinculado a tu cuenta.",
             "animal": _mobile_patient_data(request, patient),
         }, status=201)
 
-    contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
     patients = (
         Patient.objects.filter(active=True).filter(
-            Q(
-                patientcontact__contact_id__in=contact_ids,
-                patientcontact__role__in=[PatientContact.Role.RESPONSIBLE, PatientContact.Role.ADOPTER],
-            ) | Q(family_accesses__user=request.mobile_user, family_accesses__revoked_at__isnull=True) | Q(organization_id__in=_mobile_managed_shelter_ids(request.mobile_user))
+            Q(pk__in=owner_relations(request.mobile_user).values('patient_id')) | Q(family_accesses__user=request.mobile_user, family_accesses__revoked_at__isnull=True) | Q(organization_id__in=_mobile_managed_shelter_ids(request.mobile_user))
         )
         .distinct()
         .prefetch_related("clinical_records__professional")
@@ -398,7 +392,7 @@ def mobile_my_animal_detail(request, patient_id):
         if payload is None or "sharing_enabled" not in payload:
             return JsonResponse({"detail": "Indicá la preferencia de historial compartido."}, status=400)
         enabled = payload["sharing_enabled"] is True or str(payload["sharing_enabled"]).lower() in {"true", "1", "on"}
-        contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+        contact_ids = owner_contact_ids(request.mobile_user, patient)
         contact_id = patient.patientcontact_set.filter(contact_id__in=contact_ids).values_list("contact_id", flat=True).first()
         PatientSharingConsent.objects.update_or_create(
             patient=patient,
@@ -489,7 +483,7 @@ def mobile_my_animal_credential(request, patient_id):
         return JsonResponse({"detail": "Animal no encontrado o no vinculado a tu cuenta."}, status=404)
     if not _mobile_can_share_with_family(request, patient):
         return JsonResponse({"detail": "Solo el responsable principal puede crear una credencial de viaje."}, status=403)
-    contact_ids = OwnerAccountLink.objects.filter(user=request.mobile_user).values_list("contact_id", flat=True)
+    contact_ids = owner_contact_ids(request.mobile_user, patient)
     contact = patient.patientcontact_set.filter(contact_id__in=contact_ids).select_related("contact").first().contact
     code, credential = TravelCredential.issue(patient, contact, timezone.now() + timedelta(days=7))
     return JsonResponse({

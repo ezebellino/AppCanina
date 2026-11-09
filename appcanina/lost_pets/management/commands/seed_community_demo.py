@@ -6,7 +6,8 @@ from django.utils import timezone
 
 from organizations.models import Organization, OrganizationMembership
 from organizations.roles import ensure_base_roles
-from patients.models import ClinicalRecord, Contact, OwnerAccountLink, Patient, PatientContact
+from patients.ownership import grant_ownership
+from patients.models import ClinicalRecord, Contact, Patient, PatientContact
 from lost_pets.models import AdoptionInterest, AdoptionPost, LostPetReport
 
 
@@ -91,7 +92,6 @@ class Command(BaseCommand):
                 email="usuario.demo@appcanina.local",
                 defaults={"full_name": "Camila Usuario DEMO", "phone": "11 4000 0003"},
             )
-            OwnerAccountLink.objects.get_or_create(contact=contact, user=community_user)
             patient, _ = Patient.objects.get_or_create(
                 microchip="DEMO-COM-001",
                 defaults={"organization": veterinary, "name": "Canela", "species": Patient.Species.DOG, "breed": "Mestiza", "notes": "Paciente ficticio de demostración."},
@@ -100,6 +100,7 @@ class Command(BaseCommand):
                 patient.organization = veterinary
                 patient.save(update_fields=["organization"])
             PatientContact.objects.get_or_create(patient=patient, contact=contact, role=PatientContact.Role.RESPONSIBLE, defaults={"is_primary": True})
+            grant_ownership(community_user, contact, patient)
             ClinicalRecord.objects.get_or_create(
                 patient=patient,
                 professional=veterinarian,

@@ -16,11 +16,12 @@ class WebFamilyTests(TestCase):
         self.partner = User.objects.create_user("family-partner")
         self.stranger = User.objects.create_user("stranger")
         contact = Contact.objects.create(full_name="Responsable")
-        OwnerAccountLink.objects.create(contact=contact, user=self.owner)
+        link = OwnerAccountLink.objects.create(contact=contact, user=self.owner)
         self.animal = Patient.objects.create(name="Evaristo", species="dog")
         self.other = Patient.objects.create(name="Otro", species="cat")
         for animal in (self.animal, self.other):
             PatientContact.objects.create(patient=animal, contact=contact, role="responsible")
+        link.patients.add(self.animal, self.other)
         self.manage = reverse("family_manage", args=[self.animal.id])
 
     def tearDown(self):

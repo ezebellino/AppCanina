@@ -66,6 +66,7 @@ class RoleAccessTests(TestCase):
         organization = Organization.objects.create(name="Clínica del viewer", kind=Organization.Kind.VETERINARY)
         OrganizationMembership.objects.create(organization=organization, user=user)
         Patient.objects.filter(pk__in=[patient.id, other_patient.id]).update(organization=organization)
+        Sale.objects.filter(patient__in=[patient, other_patient]).update(organization=organization)
         self.client.force_login(user)
         response = self.client.get(reverse("patient_detail", args=[patient.id]))
         self.assertContains(response, "Compras de Luna")
@@ -83,6 +84,7 @@ class RoleAccessTests(TestCase):
         user.user_permissions.add(Permission.objects.get(content_type__app_label="patients", codename="view_patient"), Permission.objects.get(content_type__app_label="inventory", codename="view_product"))
         organization = Organization.objects.create(name="Clínica del buscador", kind=Organization.Kind.VETERINARY)
         OrganizationMembership.objects.create(organization=organization, user=user)
+        Product.objects.filter(name="Alimento Luna").update(organization=organization)
         patient.organization = organization
         patient.save(update_fields=["organization"])
         self.client.force_login(user)
@@ -100,6 +102,8 @@ class RoleAccessTests(TestCase):
 
     def test_patient_creation_reuses_matching_contact(self):
         contact = Contact.objects.create(full_name="Ana Pérez", kind="person", phone="11 1111 1111", email="ana@example.com")
+        existing = Patient.objects.create(name="Existing animal", species="dog")
+        PatientContact.objects.create(patient=existing, contact=contact, role="responsible")
         user = self.user_with("view_patient", "add_patient", "add_contact", "add_patientcontact")
         self.client.force_login(user)
         response = self.client.post(reverse("patient_create"), {"patient-name": "Nina", "patient-species": "dog", "patient-breed": "", "patient-birth_date": "", "patient-microchip": "", "patient-allergies": "", "patient-notes": "", "contact-full_name": "Ana Pérez", "contact-kind": "person", "contact-phone": "11 1111 1111", "contact-email": "ana@example.com"})
@@ -110,6 +114,8 @@ class RoleAccessTests(TestCase):
     def test_existing_contact_can_be_linked_to_another_patient(self):
         contact = Contact.objects.create(full_name="Ana Pérez")
         patient = Patient.objects.create(name="Nina", species="dog")
+        existing = Patient.objects.create(name="Existing animal", species="dog")
+        PatientContact.objects.create(patient=existing, contact=contact, role="responsible")
         user = self.user_with("view_patient", "add_contact", "add_patientcontact")
         self.client.force_login(user)
         response = self.client.post(reverse("patient_contact_create", args=[patient.id]), {"action": "existing", "existing-contact": contact.id, "existing-role": "responsible", "existing-is_primary": "on"})
@@ -435,7 +441,7 @@ class TravelClinicalAccessTests(TestCase):
             role=PatientContact.Role.RESPONSIBLE,
             is_primary=True,
         )
-        OwnerAccountLink.objects.create(contact=self.contact, user=self.owner)
+        OwnerAccountLink.objects.create(contact=self.contact, user=self.owner).patients.add(self.patient)
         self.organization = Organization.objects.create(
             name="Veterinaria Capital",
             kind=Organization.Kind.VETERINARY,

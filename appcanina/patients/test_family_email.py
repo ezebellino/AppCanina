@@ -18,9 +18,10 @@ class FamilyEmailTests(TestCase):
         self.owner = User.objects.create_user("owner", email="owner@example.test")
         self.partner = User.objects.create_user("partner", email="partner@example.test")
         contact = Contact.objects.create(full_name="Owner")
-        OwnerAccountLink.objects.create(contact=contact, user=self.owner)
+        link = OwnerAccountLink.objects.create(contact=contact, user=self.owner)
         self.patient = Patient.objects.create(name="Evaristo", species="dog", microchip="PRIVATE-CHIP")
         PatientContact.objects.create(patient=self.patient, contact=contact, role="responsible")
+        link.patients.add(self.patient)
         self.code, self.invite = PatientFamilyInvite.issue(self.patient, self.owner, timezone.now() + timedelta(minutes=15))
         self.request = RequestFactory().get("/", secure=True)
 

@@ -140,13 +140,13 @@ def sale_create(request):
         linked_appointment = GroomingAppointment.objects.select_related("patient").filter(pk=appointment_id, patient__in=visible_patients).first()
         if linked_appointment:
             primary_contact = _primary_contact(linked_appointment.patient)
-            checkout_form = CheckoutForm(initial={"patient": linked_appointment.patient_id, "contact": primary_contact.id if primary_contact else None})
+            checkout_form = CheckoutForm(patient_queryset=visible_patients, contact_queryset=visible_contacts, initial={"patient": linked_appointment.patient_id, "contact": primary_contact.id if primary_contact else None})
     consultation_patient_id = request.session.get("sale_consultation_patient_id")
     if consultation_patient_id and not linked_appointment:
         linked_consultation_patient = visible_patients.filter(pk=consultation_patient_id).first()
         if linked_consultation_patient:
             primary_contact = _primary_contact(linked_consultation_patient)
-            checkout_form = CheckoutForm(initial={"patient": linked_consultation_patient.id, "contact": primary_contact.id if primary_contact else None})
+            checkout_form = CheckoutForm(patient_queryset=visible_patients, contact_queryset=visible_contacts, initial={"patient": linked_consultation_patient.id, "contact": primary_contact.id if primary_contact else None})
     if request.method == "POST":
         action = request.POST.get("action")
         if action == "product":

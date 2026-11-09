@@ -47,3 +47,11 @@ Validación local: 146 pruebas Django, 3 pruebas Node del fragmento y preparaci�
 ## 0.5.2 — Preparación de invitación con HTTPS
 
 La comprobación real del navegador detectó un rechazo CSRF con `Referrer-Policy: no-referrer`. Se usa `same-origin`: conserva el origen necesario para validar POST HTTPS, sin enviar Referer a otros sitios ni incluir el fragmento secreto. Revalidación de las 9 pruebas familiares, incluida preparación HTTPS con CSRF.
+
+## 0.5.3 — Separación entre instituciones
+
+La vinculación de cuentas autoriza una ficha concreta, no todos los animales de un contacto. La migración `patients.0010` conserva los accesos anteriores de responsables y adoptantes (incluidos animales archivados); las invitaciones familiares mantienen su autorización independiente. Crear un animal desde el APK concede explícitamente acceso a esa ficha. Los contactos compartidos se separan al editar sus datos desde otra institución, conservando los roles y permisos de la ficha editada.
+
+Se limitan contactos, agenda y edición de turnos, búsqueda de productos, proyecciones de ventas y selectores de cobro a las instituciones autorizadas. Las superposiciones de peluquería se comprueban dentro de cada institución. El catálogo común de servicios no cambia en este bloque.
+
+No requiere un nuevo APK. La API mantiene el contrato de la versión instalada. Antes de publicar: suite Django completa, migración de vínculos históricos, pruebas de aislamiento entre dos instituciones y revisión independiente del parche. Al desplegar, confirmar `patients.0010` aplicada y versión web 0.5.3. La migración conserva permisos históricos; no determina retrospectivamente si alguna vinculación anterior fue indebida.

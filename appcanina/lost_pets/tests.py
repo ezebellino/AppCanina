@@ -248,7 +248,7 @@ class LostPetReportTests(TestCase):
         linked_patient = Patient.objects.create(name="Luna", species="cat", allergies="Polen")
         other_patient = Patient.objects.create(name="Privado", species="dog")
         PatientContact.objects.create(patient=linked_patient, contact=contact, role="responsible", is_primary=True)
-        OwnerAccountLink.objects.create(contact=contact, user=owner)
+        OwnerAccountLink.objects.create(contact=contact, user=owner).patients.add(linked_patient)
         ClinicalRecord.objects.create(patient=linked_patient, professional=self.user, reason="Control", notes="Sin novedades")
         raw_token, _ = MobileAccessToken.issue(owner, "Prueba")
 
@@ -308,7 +308,7 @@ class LostPetReportTests(TestCase):
         contact = Contact.objects.create(full_name="Titular")
         patient = Patient.objects.create(name="Kira", species="dog")
         PatientContact.objects.create(patient=patient, contact=contact, role="responsible", is_primary=True)
-        OwnerAccountLink.objects.create(contact=contact, user=owner)
+        OwnerAccountLink.objects.create(contact=contact, user=owner).patients.add(patient)
         owner_token, _ = MobileAccessToken.issue(owner, "Titular")
         relative_token, _ = MobileAccessToken.issue(relative, "Familiar")
 
@@ -346,7 +346,7 @@ class LostPetReportTests(TestCase):
         contact = Contact.objects.create(full_name="Nora Responsable")
         patient = Patient.objects.create(name="Mora", species="dog")
         PatientContact.objects.create(patient=patient, contact=contact, role="responsible", is_primary=True)
-        OwnerAccountLink.objects.create(contact=contact, user=owner)
+        OwnerAccountLink.objects.create(contact=contact, user=owner).patients.add(patient)
         raw_token, _ = MobileAccessToken.issue(owner, "Prueba")
 
         response = self.client.post(

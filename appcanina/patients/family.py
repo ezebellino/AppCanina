@@ -12,6 +12,7 @@ from django.urls import reverse
 
 from organizations.models import OrganizationMembership
 from .models import Contact, OwnerAccountLink, Patient, PatientContact, PatientFamilyAccess, PatientFamilyInvite
+from .ownership import owner_contact_ids, owner_relations
 
 
 def invitation_share(request, patient, code):
@@ -26,16 +27,14 @@ def invitation_share(request, patient, code):
 
 
 def owned_animals(user):
-    contacts = OwnerAccountLink.objects.filter(user=user).values_list("contact_id", flat=True)
     return Patient.objects.filter(active=True).filter(
-        Q(patientcontact__contact_id__in=contacts,
-          patientcontact__role__in=[PatientContact.Role.RESPONSIBLE, PatientContact.Role.ADOPTER])
+        Q(pk__in=owner_relations(user).values('patient_id'))
         | Q(family_accesses__user=user, family_accesses__revoked_at__isnull=True)
     ).distinct()
 
 
 def can_invite(user, patient):
-    contacts = OwnerAccountLink.objects.filter(user=user).values_list("contact_id", flat=True)
+    contacts = owner_contact_ids(user, patient)
     return patient.patientcontact_set.filter(contact_id__in=contacts, role=PatientContact.Role.RESPONSIBLE).exists() or OrganizationMembership.objects.filter(
         user=user, organization_id=patient.organization_id, role="manager",
         organization__kind="shelter", organization__is_verified=True,
