@@ -12,6 +12,7 @@ from .forms import AdoptionPostForm, LostPetReportForm, SightingForm
 from .models import AdoptionInterest, AdoptionPost, LostPetReport, Sighting
 from .notifications import notify_new_report, notify_new_sighting, notify_request_review
 from .adoption_email import notify_visit
+from .permissions import report_read_required
 from .adoption_updates import managed_interest_organizations, read_inbox, unread_counts
 from organizations.roles import can_manage_organization, is_community_collaborator, organizations_managed_by, verified_shelters_managed_by
 
@@ -22,8 +23,7 @@ def _adoption_manager_organizations(user):
     return verified_shelters_managed_by(user)
 
 
-@login_required
-@permission_required("lost_pets.view_lostpetreport", raise_exception=True)
+@report_read_required
 def report_list(request):
     view_mode = request.GET.get("view", "active")
     reports = LostPetReport.objects.select_related("patient", "reporter").prefetch_related("sightings")
@@ -246,14 +246,12 @@ def adoption_interest_change_status(request, interest_id):
     return redirect("adoption_interest_list")
 
 
-@login_required
-@permission_required("lost_pets.view_lostpetreport", raise_exception=True)
+@report_read_required
 def map_view(request):
     return render(request, "lost_pets/map.html")
 
 
-@login_required
-@permission_required("lost_pets.view_lostpetreport", raise_exception=True)
+@report_read_required
 @require_GET
 def map_data(request):
     reports = LostPetReport.objects.filter(status=LostPetReport.Status.PUBLISHED).prefetch_related("sightings")
@@ -299,8 +297,7 @@ def report_create(request):
     return render(request, "lost_pets/report_form.html", {"form": form})
 
 
-@login_required
-@permission_required("lost_pets.view_lostpetreport", raise_exception=True)
+@report_read_required
 def report_detail(request, report_id):
     reports = LostPetReport.objects.select_related("patient", "reporter").prefetch_related("sightings__reporter")
     if is_community_collaborator(request.user):

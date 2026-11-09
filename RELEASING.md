@@ -81,3 +81,9 @@ Validación: 182 pruebas Django, 3 pruebas Node de búsqueda/distancias, validac
 Las cuentas de plataforma con staff pueden explorar el catálogo publicado de adopciones sin necesitar un grupo institucional o comunitario. El menú de plataforma incorpora Explorar adopciones junto al panel y la validación. Los filtros de gestión no revelan publicaciones pendientes a una cuenta staff sin institución; tampoco conceden creación o cambios de estado. Los permisos clínicos y comerciales mantienen su alcance.
 
 Validación: 41 pruebas de organizaciones y navegación de adopciones, incluyendo staff sin grupos, filtros, bloqueo de escritura y acceso de usuarios sin permisos. Sin migraciones ni nuevo APK.
+
+## 0.7.2 — Exploración de extraviados desde plataforma
+
+El administrador de plataforma puede abrir el listado de extraviados, los detalles, el mapa y sus datos con una regla compartida de lectura, sin pertenecer a grupos institucionales. El menú incorpora Animales extraviados. Los permisos de creación de avisos, avistamientos y cambio de estado siguen siendo independientes. El mapa conserva las coordenadas aproximadas y solo incluye avisos publicados; la restricción de avisos ocultos para colaboradores permanece.
+
+Pruebas de regresión: recorrido de lectura con staff sin grupos, filtros, acceso anónimo y sin permisos, bloqueo de escritura, privacidad del mapa y restricciones de colaboradores. Sin migraciones ni nuevo APK.
