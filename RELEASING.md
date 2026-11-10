@@ -2,6 +2,8 @@
 
 ## Preparación APK 0.8.5 — 2026-11-10
 
+Entrega: único build iniciado en este bloque, `2b23795a-bbd5-462a-9e6e-0bdf7f3f24d2`, estado **FINISHED**, versión 0.8.5/versionCode 3, perfil preview, firma Android existente, fuente `9484f21`. APK: https://expo.dev/artifacts/eas/zIlg77lT2XEJsdj1i4d1_LmEWs4PmV8Jq8PLzp322sc.apk . Panel: https://expo.dev/accounts/vasco_88/projects/tu-veterinaria-comunidad/builds/2b23795a-bbd5-462a-9e6e-0bdf7f3f24d2 . El build no prueba instalación/funcionamiento físico; ver `mobile/PRUEBA-APK-0.8.5.md`. Railway del checkpoint quedó SUCCESS y login público HTTP 200/versión 0.8.5. No se eliminaron DEMO ni se configuró YubiKey.
+
 Cliente Expo 54 preparado para un único build preview Android: versión visible 0.8.5, APK explícito, identidad/proyecto EAS y arquitectura conservados, API pública Lazuna. Último build previo consultado: 14c3b508-8425-4f1d-8b72-2ce51fc633f6, FINISHED, 0.5.0/versionCode 2. Sin builds en curso al verificar.
 
 Validación actual: 16 pruebas Node aprobadas con Node 22.23.4; Expo install --check correcto; Expo Doctor 17/17; exportación Android de 739 módulos correcta. npm audit: 0 críticos/altos/moderados, 12 bajos ya documentados por deepmerge. Inspección local del archivo EAS con `.easignore` en la raíz: excluidos respaldos, adjuntos, temporales, herramientas y entornos locales; presentes configuración, lock, fuentes y asset del móvil. No es una prueba física ni auditoría completa de dependencias Gradle.

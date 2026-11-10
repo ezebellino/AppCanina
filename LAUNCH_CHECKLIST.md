@@ -1,5 +1,9 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## APK 0.8.5 disponible — 2026-11-10
+
+Build preview Android `2b23795a-bbd5-462a-9e6e-0bdf7f3f24d2` FINISHED, versionCode 3. Un único build nuevo, con firma e identidad existentes. Validados 16 tests Node, Expo Doctor 17/17, compatibilidad de dependencias y exportación Android. Archivo EAS inspeccionado sin respaldos, adjuntos ni temporales. Enlace en `RELEASING.md`. La distribución ya está disponible; instalación y pruebas físicas siguen pendientes según `mobile/PRUEBA-APK-0.8.5.md`. Las referencias históricas a no generar APK no describen este estado actual. YubiKey/automatización Proxmox pospuestos por el titular; eliminación DEMO después del lanzamiento.
+
 ## Respaldos — verificación 2026-11-10
 
 **Recuperación cifrada comprobada:** el titular descifró la copia desde D: y se probó el ZIP recuperado en Docker aislado. Exit 0, SQLite/claves foráneas íntegros, migraciones/check/collectstatic correctos, login HTTP 200 y siete archivos de medios. Cadena completa de descarga/cifrado/copia/descifrado/ensayo verificada; las referencias posteriores a restauración pendiente quedan superadas. Aún pendientes: custodia independiente de clave, automatización SSH/traslado a VM y tratamiento de ZIP sin cifrar. No se modificó producción ni se borraron archivos.
