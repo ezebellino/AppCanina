@@ -61,6 +61,9 @@ def export(data, stream):
                     raise ValueError("file_changed_retry")
                 manifest[name] = digest.hexdigest()
             output.writestr("backup-manifest.json", json.dumps({"format": 1, "files": manifest}))
+        with zipfile.ZipFile(archive) as check:
+            if check.testzip() is not None:
+                raise ValueError("archive_integrity")
         digest = hashlib.sha256()
         with archive.open("rb") as source:
             for chunk in iter(lambda: source.read(1024 * 1024), b""):

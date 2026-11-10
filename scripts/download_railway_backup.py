@@ -34,37 +34,64 @@ def verify_archive(path):
                 raise ValueError("member_checksum")
 
 
-def receive(stream, destination):
+def receive_data(stream, output):
     header = None
     ended = False
     digest = hashlib.sha256()
     size = 0
-    with destination.open("xb") as output:
-        for line in stream:
-            if line.startswith(b"LAZUNA_HEADER "):
-                if header is not None:
-                    raise ValueError("duplicate_header")
-                header = json.loads(line[len(b"LAZUNA_HEADER "):])
-            elif line.startswith(b"LAZUNA_DATA "):
-                if header is None or ended:
-                    raise ValueError("invalid_stream")
-                chunk = base64.b64decode(line[len(b"LAZUNA_DATA "):].strip(), validate=True)
-                size += len(chunk)
-                if size > header["bytes"]:
-                    raise ValueError("oversized_stream")
-                output.write(chunk)
-                digest.update(chunk)
-            elif line.strip() == b"LAZUNA_END":
-                if ended:
-                    raise ValueError("duplicate_end")
-                ended = True
-            # Railway CLI status lines never enter the ZIP or terminal output.
-        output.flush()
-        os.fsync(output.fileno())
+    for line in stream:
+        if line.startswith(b"LAZUNA_HEADER "):
+            if header is not None:
+                raise ValueError("duplicate_header")
+            header = json.loads(line[len(b"LAZUNA_HEADER "):])
+        elif line.startswith(b"LAZUNA_DATA "):
+            if header is None or ended:
+                raise ValueError("invalid_stream")
+            chunk = base64.b64decode(line[len(b"LAZUNA_DATA "):].strip(), validate=True)
+            size += len(chunk)
+            if size > header["bytes"]:
+                raise ValueError("oversized_stream")
+            output.write(chunk)
+            digest.update(chunk)
+        elif line.strip() == b"LAZUNA_END":
+            if ended:
+                raise ValueError("duplicate_end")
+            ended = True
+        # Railway CLI status lines never enter the ZIP or terminal output.
+    output.flush()
     if not ended or header is None or size != header["bytes"] or digest.hexdigest() != header["sha256"]:
         raise ValueError("incomplete_or_corrupt_download")
-    verify_archive(destination)
     return digest.hexdigest()
+
+
+def receive(stream, destination):
+    # Plaintext receiver retained for synthetic tests, never called by the downloader.
+    with destination.open("xb") as output:
+        checksum = receive_data(stream, output)
+        os.fsync(output.fileno())
+    verify_archive(destination)
+    return checksum
+
+
+def receive_encrypted(stream, destination, public_key):
+    from backup_encryption import executable, sha256
+    with destination.open("xb") as encrypted:
+        process = subprocess.Popen([executable(), "-r", public_key], stdin=subprocess.PIPE,
+                                   stdout=encrypted, stderr=subprocess.DEVNULL)
+        try:
+            receive_data(stream, process.stdin)
+            process.stdin.close()
+            if process.wait(timeout=60) != 0:
+                raise ValueError("encryption_failed")
+            encrypted.flush()
+            os.fsync(encrypted.fileno())
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+            if not process.stdin.closed:
+                process.stdin.close()
+    return sha256(destination)
 
 
 def main():
@@ -73,7 +100,12 @@ def main():
     parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[1] / "Respaldos/Railway")
     parser.add_argument("--copy-to", type=Path, help="Existing directory on the external disk")
     parser.add_argument("--unattended", action="store_true", help="Fail instead of asking SSH for a password; requires an unlocked SSH agent")
+    from backup_encryption import RECIPIENT, recipient
+    parser.add_argument("--recipient-file", type=Path, default=RECIPIENT)
     args = parser.parse_args()
+    if not args.recipient_file.is_file():
+        parser.error("First run: python scripts/backup_encryption.py setup")
+    public_key = recipient(args.recipient_file)
     if not args.identity.is_file():
         parser.error("SSH identity file missing")
     if args.copy_to and not args.copy_to.is_dir():
@@ -93,7 +125,7 @@ def main():
     if not ssh:
         parser.error("OpenSSH missing")
     args.output.mkdir(parents=True, exist_ok=True, mode=0o700)
-    filename = "lazuna-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8] + ".zip"
+    filename = "lazuna-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8] + ".zip.age"
     destination = args.output / filename
     worker = base64.b64encode(Path(__file__).with_name("railway_backup_worker.py").read_bytes()).decode("ascii")
     remote = 'python -c "import base64;exec(base64.b64decode(\'' + worker + '\'))"'
@@ -123,7 +155,7 @@ def main():
         timer = threading.Timer(900, process.kill)
         timer.start()
         try:
-            checksum = receive(process.stdout, partial)
+            checksum = receive_encrypted(process.stdout, partial, public_key)
             if process.wait(timeout=30) != 0:
                 raise ValueError("ssh_failed")
         finally:
@@ -133,8 +165,8 @@ def main():
                 process.wait()
             process.stdout.close()
         partial.rename(destination)
-    destination.with_suffix(".zip.sha256").write_text(checksum + "  " + filename + "\n", encoding="ascii")
-    print("Verified local backup:", destination)
+    Path(str(destination) + ".sha256").write_text(checksum + "  " + filename + "\n", encoding="ascii")
+    print("Verified encrypted local backup:", destination)
     if args.copy_to:
         # Publish only a verified, complete secondary copy. Never delete old backups.
         with tempfile.TemporaryDirectory(prefix=".lazuna-copy-", dir=args.copy_to) as temporary:
@@ -147,7 +179,7 @@ def main():
             if digest.hexdigest() != checksum:
                 raise ValueError("external_copy_checksum")
             copy.rename(args.copy_to / filename)
-        shutil.copyfile(destination.with_suffix(".zip.sha256"), args.copy_to / (filename + ".sha256"))
+        shutil.copyfile(Path(str(destination) + ".sha256"), args.copy_to / (filename + ".sha256"))
         print("Verified external copy completed.")
 
 

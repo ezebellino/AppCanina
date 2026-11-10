@@ -13,6 +13,7 @@ staticfiles/
 
 # Local backups and browser/tool artifacts
 Respaldos/
+.backup-tools/
 output/
 .playwright-cli/
 .tmp_excel_sample/

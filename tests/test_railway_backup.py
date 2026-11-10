@@ -4,8 +4,13 @@ import io
 from pathlib import Path
 import sqlite3
 import tempfile
+import subprocess
+import sys
 import unittest
 import zipfile
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from backup_encryption import executable, sha256
 
 
 def module(name):
@@ -20,6 +25,39 @@ downloader = module("download_railway_backup")
 
 
 class RailwayBackupTests(unittest.TestCase):
+    def test_encrypted_roundtrip_and_tamper_rejection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            connection = self.fixture(root)
+            try:
+                exported = io.StringIO()
+                worker.export(root, exported)
+            finally:
+                connection.close()
+            key = subprocess.run([executable("age-keygen")], capture_output=True, check=True).stdout
+            public = subprocess.run([executable("age-keygen"), "-y"], input=key, capture_output=True, check=True).stdout.decode().strip()
+            identity = root / "synthetic-test-key.txt"
+            identity.write_bytes(key)
+            encrypted = root / "backup.zip.age"
+            checksum = downloader.receive_encrypted(io.BytesIO(exported.getvalue().encode()), encrypted, public)
+            self.assertEqual(checksum, sha256(encrypted))
+            self.assertTrue(encrypted.read_bytes().startswith(b"age-encryption.org/v1"))
+            self.assertNotIn(b"synthetic photo", encrypted.read_bytes())
+            self.assertFalse(zipfile.is_zipfile(encrypted))
+            restored = root / "verified.zip"
+            subprocess.run([executable(), "-d", "-i", str(identity), "-o", str(restored), str(encrypted)], check=True, capture_output=True)
+            downloader.verify_archive(restored)
+            damaged = bytearray(encrypted.read_bytes())
+            damaged[-1] ^= 1
+            encrypted.write_bytes(damaged)
+            rejected = subprocess.run([executable(), "-d", "-i", str(identity), str(encrypted)], capture_output=True)
+            self.assertNotEqual(rejected.returncode, 0)
+
+    def test_invalid_encryption_recipient_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises((ValueError, OSError)):
+                downloader.receive_encrypted(io.BytesIO(b""), Path(directory) / "partial.age", "invalid")
+
     def fixture(self, root):
         connection = sqlite3.connect(root / "db.sqlite3")
         connection.execute("PRAGMA journal_mode=WAL")

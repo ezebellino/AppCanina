@@ -1,5 +1,47 @@
 # Respaldos y ensayo de recuperación
 
+## Descargas cifradas con age — implementación 2026-11-10
+
+Las nuevas descargas exigen un destinatario age válido antes de conectar a Railway. El flujo decodificado se entrega por una tubería a age y solo se escribe el resultado `.zip.age`; no se crea un ZIP temporal sin cifrar en la notebook. Se comprueba el tamaño y SHA-256 del flujo original, el código de salida de SSH/age y la suma del archivo cifrado. La copia externa recibe ese mismo archivo cifrado y se verifica por SHA-256. No hay alternativa automática sin cifrado si falta la configuración o falla age.
+
+El servidor comprueba SQLite y CRC del ZIP antes de transmitir; la comprobación local completa del manifiesto se hace al descifrar. El ZIP temporal del servidor sigue sin cifrar y se elimina al terminar normalmente. No equivale a cifrar el volumen de Railway ni los discos locales, ni impide que el sistema operativo pagine memoria al disco.
+
+### Configuración inicial, una sola vez
+
+```powershell
+C:\ProjectsZeqe\AppCanina\Descargar-Respaldo-Railway.ps1 -ConfigurarCifrado
+```
+
+Elegir una contraseña fuerte en la terminal y conservarla en un gestor. La herramienta crea una clave privada en memoria, la guarda únicamente cifrada mediante age y pide comprobar su recuperación antes de publicar la configuración. No usa contraseñas en argumentos, variables de entorno ni código. No reemplaza claves existentes.
+
+Archivos de configuración: `C:\Users\ezebe\.config\lazuna-backup\identity.age` (clave privada cifrada) y `recipient.txt` (clave pública). Guardar una copia de `identity.age` en un lugar separado y protegido; guardar su contraseña por separado. Para recuperar se necesitan **ambos**. Perderlos puede hacer irrecuperables las copias. No basta con memorizar la contraseña si se pierde el archivo de clave.
+
+Después de configurar:
+
+```powershell
+C:\ProjectsZeqe\AppCanina\Descargar-Respaldo-Railway.ps1 -DiscoExterno 'D:\Respaldos-Lazuna'
+```
+
+La contraseña de recuperación no se pide para descargar. La frase SSH todavía puede pedirse: es una clave diferente y la automatización SSH sigue pendiente. El mensaje de éxito local es `Verified encrypted local backup`.
+
+### Recuperar un ZIP explícitamente
+
+Desde la raíz del repositorio, reemplazando el nombre de ejemplo por la copia real:
+
+```powershell
+python scripts/backup_encryption.py decrypt --input 'Respaldos\Railway\COPIA.zip.age' --output 'Respaldos\Railway\recuperacion.zip'
+```
+
+Solicita la contraseña de la clave privada cifrada. Solo publica el ZIP tras descifrado autenticado y comprobación del manifiesto. El ZIP de recuperación queda **sin cifrar**: usarlo en el ensayo aislado y custodiarlo como dato sensible. El comando no restaura ni sobrescribe producción y rechaza un destino ya existente.
+
+### Herramienta y evidencia
+
+age 1.3.2 portable para Windows amd64 instalado en `.backup-tools/v1.3.2/age` (ignorado por Git). Paquete oficial: https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-windows-amd64.zip; SHA-256 verificado contra metadatos de la publicación oficial: `f48d8f8f9ebe903ab5027ed067652f2cc1db94bc206976430133b905dcd8e8c7`. En otra máquina instalar age/age-keygen de su distribución oficial y ponerlos en PATH. Los binarios no viajan con el repositorio.
+
+Seis pruebas sintéticas pasaron: exportación de SQLite/WAL activo, medios y clave oculta ficticia; rechazo de transferencia incompleta/corrupta y base inexistente; cifrado real con age y recuperación con manifiesto válido; rechazo de alteración del cifrado y destinatario inválido. Sin configuración, el descargador abortó antes de conectar. No se generó una clave real del titular ni una nueva descarga de producción en esta etapa: pendientes de su configuración interactiva y ensayo real.
+
+Los ZIP anteriores en notebook y D: **siguen sin cifrar y no se borraron**. Las secciones anteriores sobre respaldo sin cifrado describen ese estado histórico. Cifrar las próximas descargas no protege retroactivamente esos archivos ni garantiza borrado seguro en discos sin cifrar.
+
 ## Primera descarga de producción verificada — 2026-11-10
 
 El titular ejecutó la descarga e ingresó la frase SSH únicamente en su terminal. Se confirmó `Verified local backup` y `Verified external copy completed` para `lazuna-20261110T072508Z-cd180730.zip`.

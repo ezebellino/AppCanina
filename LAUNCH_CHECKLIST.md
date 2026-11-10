@@ -2,6 +2,8 @@
 
 ## Respaldos — verificación 2026-11-10
 
+**Cifrado incorporado al descargador:** age cifra en streaming antes de escribir en la notebook; la copia externa recibe `.zip.age`. Seis pruebas sintéticas correctas, incluida recuperación y rechazo de manipulación. La configuración inicial pide al titular una contraseña local y prueba la clave privada cifrada. Pendientes: ejecutar `Descargar-Respaldo-Railway.ps1 -ConfigurarCifrado`, custodiar la clave cifrada por separado, hacer una descarga real cifrada y probar su recuperación. Los ZIP anteriores no se modificaron y siguen sin cifrar. No hubo cambios de producción ni APK.
+
 **Avance confirmado:** primera descarga real `lazuna-20261110T072508Z-cd180730.zip` en notebook y disco `SEGATE - Zeqe (D:)`, con SHA-256 idéntico. Restauración aislada del ZIP local correcta: integridad SQLite/claves foráneas, migraciones, check, collectstatic y login HTTP 200; siete archivos de medios. No incluye secretos de entorno. Pendientes: automatización desatendida, cifrado/custodia de secretos y traslado a VM Proxmox. Ver evidencia en `BACKUPS.md`; las referencias siguientes a primera descarga pendiente corresponden al estado previo.
 
 Actualización: el titular eligió notebook → VM en Proxmox + disco externo y rechazó los snapshots pagos. Formulario Railway descartado sin guardar. Descargador SSH portable preparado y probado con datos sintéticos; primera descarga de producción y programación diaria pendientes del desbloqueo de la clave SSH en una terminal del titular. La ejecución sin interacción falla de forma segura; no se creó una tarea automática fallida ni se descargaron datos reales. Ver `BACKUPS.md` y `Descargar-Respaldo-Railway.ps1`.
