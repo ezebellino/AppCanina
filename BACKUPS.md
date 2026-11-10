@@ -1,5 +1,13 @@
 # Respaldos y ensayo de recuperación
 
+## Primera descarga cifrada real — 2026-11-10
+
+El titular completó la configuración interactiva: clave privada guardada cifrada y prueba de recuperación de configuración correcta. Luego descargó `lazuna-20261110T074502Z-888bf2fb.zip.age` con los mensajes `Verified encrypted local backup` y `Verified external copy completed`.
+
+Comprobación local posterior: el archivo en `Respaldos/Railway` y el de `D:\Respaldos-Lazuna` tienen SHA-256 idéntico, coincidente con la suma guardada: `373c06792e0c8e7a52e0673143fe83d4cb179bf370356eeb5a10cb40e544ea08`. No se leyeron contraseñas ni la clave privada.
+
+Pendiente: descifrar esta copia real mediante la contraseña ingresada por el titular y ensayar la restauración aislada del ZIP recuperado. La igualdad de las copias no sustituye esa prueba. También quedan pendientes custodia independiente de `identity.age`, automatización SSH y tratamiento de los ZIP antiguos sin cifrar; no se eliminaron archivos.
+
 ## Descargas cifradas con age — implementación 2026-11-10
 
 Las nuevas descargas exigen un destinatario age válido antes de conectar a Railway. El flujo decodificado se entrega por una tubería a age y solo se escribe el resultado `.zip.age`; no se crea un ZIP temporal sin cifrar en la notebook. Se comprueba el tamaño y SHA-256 del flujo original, el código de salida de SSH/age y la suma del archivo cifrado. La copia externa recibe ese mismo archivo cifrado y se verifica por SHA-256. No hay alternativa automática sin cifrado si falta la configuración o falla age.

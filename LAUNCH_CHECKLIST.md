@@ -2,6 +2,8 @@
 
 ## Respaldos — verificación 2026-11-10
 
+**Primera descarga cifrada real completada:** el titular configuró su clave con prueba de recuperación y descargó `lazuna-20261110T074502Z-888bf2fb.zip.age`. Se verificó SHA-256 idéntico en notebook, D: y archivo de suma. Pendiente descifrado y restauración aislada de esta copia real; no confundir con la prueba sintética de configuración o la restauración del ZIP anterior. Continúan pendientes custodia independiente de la clave, automatización y ZIP antiguos sin cifrar.
+
 **Cifrado incorporado al descargador:** age cifra en streaming antes de escribir en la notebook; la copia externa recibe `.zip.age`. Seis pruebas sintéticas correctas, incluida recuperación y rechazo de manipulación. La configuración inicial pide al titular una contraseña local y prueba la clave privada cifrada. Pendientes: ejecutar `Descargar-Respaldo-Railway.ps1 -ConfigurarCifrado`, custodiar la clave cifrada por separado, hacer una descarga real cifrada y probar su recuperación. Los ZIP anteriores no se modificaron y siguen sin cifrar. No hubo cambios de producción ni APK.
 
 **Avance confirmado:** primera descarga real `lazuna-20261110T072508Z-cd180730.zip` en notebook y disco `SEGATE - Zeqe (D:)`, con SHA-256 idéntico. Restauración aislada del ZIP local correcta: integridad SQLite/claves foráneas, migraciones, check, collectstatic y login HTTP 200; siete archivos de medios. No incluye secretos de entorno. Pendientes: automatización desatendida, cifrado/custodia de secretos y traslado a VM Proxmox. Ver evidencia en `BACKUPS.md`; las referencias siguientes a primera descarga pendiente corresponden al estado previo.
