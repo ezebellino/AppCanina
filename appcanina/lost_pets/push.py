@@ -5,6 +5,7 @@ from urllib.request import Request, urlopen
 from django.conf import settings
 
 from .models import MobilePushDevice
+from .visibility import deliverable_notifications
 
 
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
@@ -14,7 +15,8 @@ def send_expo_push(notifications):
     """Best-effort push delivery. Notifications remain available in-app on failure."""
     if not notifications:
         return
-    notification_by_user = {notification.recipient_id: notification for notification in notifications}
+    current = deliverable_notifications().filter(pk__in=[item.pk for item in notifications])
+    notification_by_user = {notification.recipient_id: notification for notification in current}
     devices = MobilePushDevice.objects.filter(user_id__in=notification_by_user, active=True).select_related("access_token__user")
     messages = []
     for device in devices:

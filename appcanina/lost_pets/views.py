@@ -2,6 +2,7 @@ from config.public_urls import public_url
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
@@ -13,6 +14,7 @@ from .models import AdoptionInterest, AdoptionPost, LostPetReport, Sighting
 from .notifications import notify_new_report, notify_new_sighting, notify_request_review
 from .adoption_email import notify_visit
 from .permissions import report_read_required
+from .visibility import reports_visible_to, sightings_visible_to, can_review_reports
 from .adoption_updates import managed_interest_organizations, read_inbox, unread_counts
 from organizations.roles import can_manage_organization, is_community_collaborator, organizations_managed_by, verified_shelters_managed_by
 
@@ -26,7 +28,10 @@ def _adoption_manager_organizations(user):
 @report_read_required
 def report_list(request):
     view_mode = request.GET.get("view", "active")
-    reports = LostPetReport.objects.select_related("patient", "reporter").prefetch_related("sightings")
+    visible_reports = reports_visible_to(request.user)
+    reports = visible_reports.select_related("patient", "reporter").prefetch_related(
+        Prefetch("sightings", queryset=sightings_visible_to(request.user))
+    )
     if is_community_collaborator(request.user):
         view_mode = "active"
         reports = reports.filter(status=LostPetReport.Status.PUBLISHED)
@@ -40,8 +45,8 @@ def report_list(request):
         view_mode = "active"
         reports = reports.filter(status=LostPetReport.Status.PUBLISHED)
     active_count = LostPetReport.objects.filter(status=LostPetReport.Status.PUBLISHED).count()
-    pending_request_count = LostPetReport.objects.filter(requested_via_mobile=True, status=LostPetReport.Status.HIDDEN).count()
-    latest_sighting = Sighting.objects.filter(status=Sighting.Status.PUBLISHED).order_by("-seen_at").first()
+    pending_request_count = visible_reports.filter(requested_via_mobile=True, status=LostPetReport.Status.HIDDEN).count() if can_review_reports(request.user) else 0
+    latest_sighting = sightings_visible_to(request.user).filter(status=Sighting.Status.PUBLISHED).select_related("report").order_by("-seen_at").first()
     return render(request, "lost_pets/report_list.html", {"reports": reports, "view_mode": view_mode, "active_count": active_count, "pending_request_count": pending_request_count, "latest_sighting": latest_sighting})
 
 
@@ -299,11 +304,9 @@ def report_create(request):
 
 @report_read_required
 def report_detail(request, report_id):
-    reports = LostPetReport.objects.select_related("patient", "reporter").prefetch_related("sightings__reporter")
-    if is_community_collaborator(request.user):
-        reports = reports.filter(status=LostPetReport.Status.PUBLISHED)
+    reports = reports_visible_to(request.user).select_related("patient", "reporter")
     report = get_object_or_404(reports, pk=report_id)
-    return render(request, "lost_pets/report_detail.html", {"report": report, "sightings": report.sightings.all()})
+    return render(request, "lost_pets/report_detail.html", {"report": report, "sightings": sightings_visible_to(request.user).filter(report=report).select_related("reporter")})
 
 
 @login_required

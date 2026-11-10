@@ -21,6 +21,8 @@ from PIL import UnidentifiedImageError
 from .forms import photo_without_location_metadata
 from .models import AdoptionInterest, AdoptionPost, CommunityDevicePermission, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from .notifications import notify_new_sighting
+from .visibility import deliverable_notifications
+from .media import request_photo_url
 from organizations.forms import CommunityCollaboratorForm
 from organizations.models import Organization, OrganizationMembership
 from organizations.roles import ensure_base_roles
@@ -170,6 +172,7 @@ def _mobile_report_data(request, report):
 
 def _mobile_request_data(request, report):
     data = _mobile_report_data(request, report)
+    data["photo_url"] = request_photo_url(request, report)
     data.update({
         "review_note": report.review_note,
         "editable": report.status in {LostPetReport.Status.HIDDEN, LostPetReport.Status.REJECTED},
@@ -710,7 +713,7 @@ def mobile_search_request_edit(request, report_id):
 @require_GET
 @token_required("lost_pets.view_lostpetreport")
 def mobile_notifications(request):
-    items = CommunityNotification.objects.filter(recipient=request.mobile_user, read_at__isnull=True).select_related("report", "sighting")[:30]
+    items = deliverable_notifications().filter(recipient=request.mobile_user, read_at__isnull=True).select_related("report", "sighting")[:30]
     notifications = []
     for item in items:
         photo = item.sighting.photo if item.sighting and item.sighting.photo else item.report.photo
@@ -725,7 +728,7 @@ def mobile_notifications(request):
             "species": item.report.get_species_display(),
             "description": description,
             "area": area,
-            "photo_url": public_url(request, photo.url) if photo else None,
+            "photo_url": (public_url(request, photo.url) if photo else None) if item.sighting else request_photo_url(request, item.report),
             "created_at": item.created_at.isoformat(),
         })
     return JsonResponse({"notifications": notifications})

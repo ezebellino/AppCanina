@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 
 from organizations.roles import COMMUNITY_COLLABORATOR_GROUP
 
-from .models import CommunityNotification
+from .models import CommunityNotification, LostPetReport, Sighting
 from .push import send_expo_push
 
 
@@ -11,6 +11,8 @@ def _summary(description, fallback):
 
 
 def notify_new_report(report):
+    if not LostPetReport.objects.filter(pk=report.pk, status=LostPetReport.Status.PUBLISHED).exists():
+        return
     recipients = User.objects.filter(
         is_active=True,
         groups__name=COMMUNITY_COLLABORATOR_GROUP,
@@ -29,6 +31,8 @@ def notify_new_report(report):
 
 
 def notify_new_sighting(report, sighting):
+    if not Sighting.objects.filter(pk=sighting.pk, report_id=report.pk, status=Sighting.Status.PUBLISHED, report__status=LostPetReport.Status.PUBLISHED).exists():
+        return
     community_ids = User.objects.filter(
         is_active=True,
         groups__name=COMMUNITY_COLLABORATOR_GROUP,
@@ -52,7 +56,7 @@ def notify_new_sighting(report, sighting):
 
 
 def notify_request_review(report):
-    if not report.requested_via_mobile or not report.reporter.is_active:
+    if not report.requested_via_mobile or not report.reporter.is_active or report.status not in {report.Status.PUBLISHED, report.Status.REJECTED}:
         return
     accepted = report.status == report.Status.PUBLISHED
     notification = CommunityNotification.objects.create(
