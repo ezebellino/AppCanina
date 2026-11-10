@@ -10,6 +10,7 @@
       "distribution": "internal"
     },
     "preview": {
+      "android": { "buildType": "apk" },
       "node": "22.23.4",
       "distribution": "internal",
       "env": {

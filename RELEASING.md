@@ -1,5 +1,13 @@
 # Publicaciones web
 
+## Preparación APK 0.8.5 — 2026-11-10
+
+Cliente Expo 54 preparado para un único build preview Android: versión visible 0.8.5, APK explícito, identidad/proyecto EAS y arquitectura conservados, API pública Lazuna. Último build previo consultado: 14c3b508-8425-4f1d-8b72-2ce51fc633f6, FINISHED, 0.5.0/versionCode 2. Sin builds en curso al verificar.
+
+Validación actual: 16 pruebas Node aprobadas con Node 22.23.4; Expo install --check correcto; Expo Doctor 17/17; exportación Android de 739 módulos correcta. npm audit: 0 críticos/altos/moderados, 12 bajos ya documentados por deepmerge. Inspección local del archivo EAS con `.easignore` en la raíz: excluidos respaldos, adjuntos, temporales, herramientas y entornos locales; presentes configuración, lock, fuentes y asset del móvil. No es una prueba física ni auditoría completa de dependencias Gradle.
+
+Incluye mejoras ya preparadas de sesiones y limpieza al salir, enlace web en invitaciones familiares, búsqueda de veterinarias y adaptación Expo 54. Pendiente validar APK en teléfono: instalar sobre 0.5.0 sin desinstalar, ingreso/recuperación, cierre sin red y cambio de cuenta, biometría, cámara/galería y cancelación, ubicación, notificaciones, invitación entre dos cuentas y menús en vertical/apaisado. YubiKey y automatización Proxmox quedan fuera de este bloque.
+
 La versión pública se define únicamente en `appcanina/VERSION`. Django la muestra en el pie de la aplicación y la usa para renovar la caché de CSS y JavaScript. Docker incluye este archivo.
 
 Antes de publicar una mejora, actualizar la versión en el mismo commit:

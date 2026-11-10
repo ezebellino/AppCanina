@@ -1,0 +1,24 @@
+# Build input only: exclude local data, backups, tools and scratch directories.
+**/.git/**
+**/node_modules/**
+**/.expo/**
+**/.tmp-expo-export/**
+**/dist/**
+**/env/**
+**/.venv*/**
+**/.vs/**
+**/__pycache__/**
+**/*.py[cod]
+**/.env
+**/.env.*
+**/*.sqlite3
+**/media/**
+**/staticfiles/**
+**/Respaldos/**
+**/.backup-tools/**
+**/.codex-remote-attachments/**
+**/.codegraph/**
+**/.playwright-cli/**
+**/.tmp_excel_sample/**
+**/output/**
+**/tmp/**

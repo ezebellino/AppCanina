@@ -8,7 +8,7 @@ Fuente actual: Expo 54.0.38, React Native 0.81.5 y React 19.1. Usar Node 22.23.4
 
 Los overrides mantienen alineados los 14 paquetes de Metro en 0.83.8 bajo `@expo/metro`, sin `image-size`. Glob 13 se sustituye por 14.0.4 y minimatch 9/10 por 11.0.5; las ramas glob 7/minimatch 3 conservan su API antigua. Se mantienen los overrides de postcss/ajv. No quitarlos sin repetir auditoría, exportación y pruebas de compatibilidad. El aviso bajo pendiente de deepmerge se describe en `../RELEASING.md`.
 
-Se conservan la arquitectura anterior, `android.package`, slug, propietario y proyecto EAS. La versión 0.5.0 identifica el APK instalado: esta migración solo está en fuente y se debe preparar el siguiente número antes de construirlo. No ejecutar EAS Build para comprobar esta fuente: usar `npx expo install --check`, `npx expo-doctor` y `npx expo export --platform android --output-dir .tmp-expo-export/check`.
+Se conservan la arquitectura anterior, `android.package`, slug, propietario y proyecto EAS. La versión 0.5.0 identifica el APK anterior; el siguiente paquete es 0.8.5 y el perfil preview solicita APK explícitamente. Para comprobar fuente sin consumir builds, usar `npx expo install --check`, `npx expo-doctor` y `npx expo export --platform android --output-dir .tmp-expo-export/check`. `.easignore` vive en la raíz del repositorio y excluye respaldos, herramientas, adjuntos y temporales del envío.
 
 Antes de distribuir el próximo APK, probar cámara/galería (incluida cancelación), permisos y ubicación, biometría/SecureStore, notificaciones, invitación familiar y cierre/cambio de sesión. Revisar login y menú con navegación por gestos/botones y en ambas orientaciones: ahora usan safe-area-context para Android 16. La exportación JavaScript y la introspección de configuración no prueban el comportamiento de módulos nativos en un teléfono.
 
@@ -20,7 +20,7 @@ Para alertas push en segundo plano, instalá una build Android/iOS (no Expo Go).
 
 ## Compartir una ficha con familiares o cuidadores
 
-Desde **Veterinaria → Mis animales**, el responsable puede abrir una ficha y crear un código familiar. **Copiar código** copia únicamente el código; **Compartir código** abre el menú del teléfono para elegir WhatsApp u otra aplicación, con el nombre del animal, instrucciones y vencimiento. La persona destinataria ingresa en **Veterinaria → Vincular mascota familiar** y pega el código para acceder a la misma ficha e historial.
+Desde **Veterinaria → Mis animales**, el responsable puede abrir una ficha y crear un código familiar. **Copiar código** copia únicamente el código; **Compartir código** abre el menú del teléfono para elegir WhatsApp u otra aplicación, con el nombre del animal, enlace web de invitación, instrucciones y vencimiento. El enlace permite ingresar o crear una cuenta y confirmar la invitación. El código manual sigue disponible como alternativa. El enlace abre el recorrido web, no se promete apertura directa dentro del APK.
 
 El código conserva su vigencia de 15 minutos y un solo uso. La app impide copiar o compartir códigos vencidos y limpia el código visible al cambiar de animal o cerrar sesión. Puede generar y revocar invitaciones el responsable del animal o un responsable (rol manager) de su refugio verificado. Las fichas del refugio aparecen en Mis animales para ese responsable. Los cuidadores invitados solo consultan la ficha e historial; no administran invitaciones ni consentimiento de viaje. Una invitación pendiente deja de ser válida si quien la emitió pierde su autorización.
 
