@@ -1,5 +1,9 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Respaldos — verificación 2026-11-10
+
+Railway muestra **sin programación y sin copias** en Backups. Ensayo aislado de la copia local del 5 de octubre: integridad, migraciones y pantalla de ingreso correctas, con 14 archivos de medios. No demuestra recuperación de producción actual. Ver `BACKUPS.md` para evidencia, comando reproducible y pendientes de copia reciente, programación, cifrado y restauración aislada. No hubo cambios de datos ni nuevo APK.
+
 ## Comprobación de acceso — 2026-11-09
 
 - Confirmado en producción: la sesión abierta pertenece a `ezebellino` y recibe 403 al consultar `/organizaciones/validaciones/`. Actualmente no puede validar instituciones.
