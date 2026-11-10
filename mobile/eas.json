@@ -5,10 +5,12 @@
   },
   "build": {
     "development": {
+      "node": "22.23.4",
       "developmentClient": true,
       "distribution": "internal"
     },
     "preview": {
+      "node": "22.23.4",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://lazuna.up.railway.app/extraviados/api/v1"
@@ -17,6 +19,7 @@
       "environment": "preview"
     },
     "production": {
+      "node": "22.23.4",
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://lazuna.up.railway.app/extraviados/api/v1"

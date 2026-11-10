@@ -1,6 +1,16 @@
 # App móvil Comunidad
 
-Cliente Expo inicial. Configurá `EXPO_PUBLIC_API_URL` con la URL HTTPS pública, por ejemplo `https://lazuna.up.railway.app/extraviados/api/v1`, y ejecutá `npm install` seguido de `npm start`.
+Cliente móvil Expo. Configurá `EXPO_PUBLIC_API_URL` con la URL HTTPS pública, por ejemplo `https://lazuna.up.railway.app/extraviados/api/v1`, y ejecutá `npm ci` seguido de `npm start` con la versión de Node indicada abajo.
+
+## Migración preparada para el próximo APK
+
+Fuente actual: Expo 54.0.38, React Native 0.81.5 y React 19.1. Usar Node 22.23.4 (`.nvmrc`, engines y perfiles EAS) y `npm ci` para respetar el lock. La instalación global de Node no se actualiza al cambiar estos archivos. Las validaciones se ejecutaron con un runtime aislado de esa versión.
+
+Los overrides mantienen alineados los 14 paquetes de Metro en 0.83.8 bajo `@expo/metro`, sin `image-size`. Glob 13 se sustituye por 14.0.4 y minimatch 9/10 por 11.0.5; las ramas glob 7/minimatch 3 conservan su API antigua. Se mantienen los overrides de postcss/ajv. No quitarlos sin repetir auditoría, exportación y pruebas de compatibilidad. El aviso bajo pendiente de deepmerge se describe en `../RELEASING.md`.
+
+Se conservan la arquitectura anterior, `android.package`, slug, propietario y proyecto EAS. La versión 0.5.0 identifica el APK instalado: esta migración solo está en fuente y se debe preparar el siguiente número antes de construirlo. No ejecutar EAS Build para comprobar esta fuente: usar `npx expo install --check`, `npx expo-doctor` y `npx expo export --platform android --output-dir .tmp-expo-export/check`.
+
+Antes de distribuir el próximo APK, probar cámara/galería (incluida cancelación), permisos y ubicación, biometría/SecureStore, notificaciones, invitación familiar y cierre/cambio de sesión. Revisar login y menú con navegación por gestos/botones y en ambas orientaciones: ahora usan safe-area-context para Android 16. La exportación JavaScript y la introspección de configuración no prueban el comportamiento de módulos nativos en un teléfono.
 
 En un teléfono real no uses `localhost`: debe apuntar al dominio HTTPS de la veterinaria.
 

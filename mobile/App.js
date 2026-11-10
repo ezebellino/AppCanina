@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from "react";
-import {Image, Modal, Platform, Pressable, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, View} from "react-native";
+import {Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View} from "react-native";
+import {SafeAreaProvider, SafeAreaView} from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import * as SecureStore from "expo-secure-store";
 import * as Location from "expo-location";
@@ -13,7 +14,7 @@ import {createSessionClient} from "./session-client.cjs";
 const API = process.env.EXPO_PUBLIC_API_URL || "https://lazuna.up.railway.app/extraviados/api/v1";
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true}),
+  handleNotification: async () => ({shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true}),
 });
 
 function Button({title, onPress, variant = "primary", disabled = false}) {
@@ -107,8 +108,8 @@ function AdoptionCard({post, onInterest, onShare}) {
 
 export default function App() {
   const [session, setSession] = useState({generation: 0, notice: "Ingresá para colaborar."});
-  return <CommunityApp key={session.generation} initialNotice={session.notice} allowRestore={session.generation === 0}
-    onSessionEnd={notice => setSession(current => ({generation: current.generation + 1, notice}))}/>;
+  return <SafeAreaProvider><CommunityApp key={session.generation} initialNotice={session.notice} allowRestore={session.generation === 0}
+    onSessionEnd={notice => setSession(current => ({generation: current.generation + 1, notice}))}/></SafeAreaProvider>;
 }
 
 function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
@@ -410,7 +411,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
         setMessage(fromCamera ? "La cámara no está autorizada. Permitila desde Ajustes o elegí una foto de la galería." : "El acceso a fotos no está autorizado. Podés usar la cámara o habilitar Fotos desde Ajustes.");
         return;
       }
-      const options = {mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8};
+      const options = {mediaTypes: ["images"], allowsEditing: true, quality: 0.8};
       const result = fromCamera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
       if (result.canceled) {
         setMessage("No seleccionaste una foto.");
@@ -742,7 +743,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
         <WorkspaceSwitcher active={workspace} onSelect={switchWorkspace}/>
       </View>
       <Modal visible={menuOpen} transparent animationType="slide" onRequestClose={() => setMenuOpen(false)}>
-        <View style={styles.modalScrim}><Pressable style={styles.scrimTouch} onPress={() => setMenuOpen(false)}/><View style={styles.menuSheet}>
+        <SafeAreaProvider><View style={styles.modalScrim}><Pressable style={styles.scrimTouch} onPress={() => setMenuOpen(false)}/><SafeAreaView edges={["bottom", "left", "right"]} style={styles.menuSheet}>
           <View style={styles.sheetHandle}/><View style={styles.sheetHeading}><View><Text style={styles.menuHeading}>{workspace === "community" ? "Comunidad" : "Veterinaria"}</Text><Text style={styles.menuSubheading}>{workspace === "community" ? "Ayudá a encontrar y adoptar." : "Tus animales y su atención."}</Text></View><Pressable accessibilityRole="button" onPress={() => setMenuOpen(false)} style={styles.closeButton}><Text style={styles.closeButtonText}>×</Text></Pressable></View>
           <WorkspaceSwitcher active={workspace} onSelect={switchWorkspace}/>
           {workspace === "community" ? <>
@@ -758,7 +759,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
             <MenuItem active={screen === "vincular-familia"} icon="⌘" label="Vincular mascota familiar" onPress={() => { setFamilyCode(""); navigate("vincular-familia"); }}/>
           </>}
           <View style={styles.menuDivider}/><MenuItem active={screen === "ajustes"} icon="⚙" label="Mi teléfono y alertas" onPress={() => navigate("ajustes")}/><MenuItem danger icon="↪" label="Cerrar sesión" onPress={logout}/>
-        </View></View>
+        </SafeAreaView></View></SafeAreaProvider>
       </Modal>
       {screen === "panel" ? <View style={styles.stack}>
         <View style={styles.panelIntro}><Text style={styles.sectionKicker}>COMUNIDAD ACTIVA</Text><Text style={styles.sectionTitle}>Animales que necesitan ayuda</Text><Text style={styles.help}>Revisá avisos reales y colaborá solo si contás con información segura.</Text></View>
