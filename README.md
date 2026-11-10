@@ -16,6 +16,8 @@ La instalación comienza vacía: no se copian pacientes, productos, ventas ni fo
 
 Para uso técnico también se puede ejecutar `docker compose up --build -d` desde esta carpeta.
 
+Para desarrollo del backend usar Python 3.13 e instalar `requirements.txt` en un entorno virtual nuevo. Desde 0.8.5, Pillow 13 requiere Python 3.11 o posterior; el contenedor y las pruebas de publicación usan 3.13. Las versiones Python se fijan en ese archivo y deben actualizarse con revisión de avisos de seguridad y pruebas, no automáticamente.
+
 La base de datos y las fotos se guardan en el volumen `appcanina_data`, por lo que reiniciar o actualizar el contenedor no las borra. Para detenerlo: `docker compose down`. Para ver si está saludable: `docker compose ps`.
 
 ### Respaldo y restauración

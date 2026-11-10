@@ -1,6 +1,15 @@
-Django>=5.2,<5.3
-Pillow>=10.4,<12
-openpyxl>=3.1,<4
-gunicorn>=23,<24
-whitenoise>=6.8,<7
-reportlab>=4.2,<5
+# Audited runtime set; update deliberately and recheck OSV + application tests.
+# Python >=3.11 required by Pillow 13; deployment and validation use Python 3.13.
+Django==5.2.19
+Pillow==13.0.0
+openpyxl==3.1.5
+gunicorn==23.0.0
+whitenoise==6.12.0
+reportlab==4.5.1
+asgiref==3.12.1
+charset-normalizer==3.5.2
+et-xmlfile==2.0.0
+sqlparse==0.6.1
+typing_extensions==4.16.0
+packaging==26.3
+tzdata==2026.3; sys_platform == "win32"
