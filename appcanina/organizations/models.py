@@ -3,6 +3,14 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
+class AuthAttemptBucket(models.Model):
+    """Short-lived shared counters; never store submitted identifiers or secrets."""
+
+    key = models.CharField(max_length=64, primary_key=True)
+    count = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)
+
+
 class Organization(models.Model):
     class Kind(models.TextChoices):
         VETERINARY = "veterinary", "Veterinaria"

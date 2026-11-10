@@ -64,12 +64,18 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "organizations.auth_limits.AuthAttemptLimitMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
+# Railway supplies X-Real-IP at its public edge. Local/direct deployments ignore it.
+# Disable this if exposing an origin directly or using a different ingress proxy.
+AUTH_TRUST_RAILWAY_PROXY = os.environ.get(
+    "DJANGO_AUTH_TRUST_RAILWAY_PROXY", "1" if os.environ.get("RAILWAY_ENVIRONMENT_ID") else "0",
+) == "1"
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates",
     "DIRS": [BASE_DIR / "templates"],

@@ -53,19 +53,16 @@ def token_required(permission):
 @csrf_exempt
 @require_POST
 def mobile_login(request):
-    ip = request.META.get("REMOTE_ADDR", "unknown")
-    cache_key = f"mobile-login:{ip}"
-    if cache.get(cache_key, 0) >= 5:
-        return JsonResponse({"detail": "Demasiados intentos. Probá nuevamente en unos minutos."}, status=429)
+    # Shared persistent middleware reserves the attempt before authentication.
     try:
         payload = json.loads(request.body)
     except (TypeError, ValueError):
         return JsonResponse({"detail": "JSON inválido."}, status=400)
+    if not isinstance(payload, dict) or not all(isinstance(payload.get(field, ""), str) for field in ("username", "password", "device_name")):
+        return JsonResponse({"detail": "Datos inválidos."}, status=400)
     user = authenticate(request, username=payload.get("username", ""), password=payload.get("password", ""))
     if not user or not user.has_perm("lost_pets.view_lostpetreport"):
-        cache.set(cache_key, cache.get(cache_key, 0) + 1, 900)
         return JsonResponse({"detail": "Credenciales inválidas."}, status=401)
-    cache.delete(cache_key)
     raw_token, token = MobileAccessToken.issue(user, payload.get("device_name", "Dispositivo móvil"))
     return JsonResponse({"token": raw_token, "token_type": "Bearer", "expires_at": token.expires_at.isoformat(), "user": {"username": user.username}})
 

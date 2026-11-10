@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Esperá un momento{% endblock %}
+{% block content %}
+<section class="card auth-card">
+  <h1>Esperá un momento</h1>
+  <p role="alert">{{ wait_message }}</p>
+  <p>La espera es temporal. No necesitás cambiar tu contraseña.</p>
+  <a class="button button-ghost" href="">Volver al formulario</a>
+</section>
+{% endblock %}
