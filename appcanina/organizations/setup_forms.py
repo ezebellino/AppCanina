@@ -1,5 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 
 from .models import Organization
 
@@ -9,8 +11,8 @@ class InitialSetupForm(forms.Form):
     business_kind = forms.ChoiceField(label="Tipo de negocio", choices=Organization.Kind.choices, initial=Organization.Kind.VETERINARY)
     username = forms.CharField(label="Usuario administrador", max_length=150)
     email = forms.EmailField(label="Correo electrónico", required=False)
-    password1 = forms.CharField(label="Contraseña", widget=forms.PasswordInput)
-    password2 = forms.CharField(label="Repetir contraseña", widget=forms.PasswordInput)
+    password1 = forms.CharField(label="Contraseña", strip=False, widget=forms.PasswordInput)
+    password2 = forms.CharField(label="Repetir contraseña", strip=False, widget=forms.PasswordInput)
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip()
@@ -22,4 +24,10 @@ class InitialSetupForm(forms.Form):
         cleaned = super().clean()
         if cleaned.get("password1") and cleaned.get("password2") and cleaned["password1"] != cleaned["password2"]:
             self.add_error("password2", "Las contraseñas no coinciden.")
+        if cleaned.get("password1"):
+            user = User(username=cleaned.get("username", ""), email=cleaned.get("email", ""))
+            try:
+                validate_password(cleaned["password1"], user)
+            except ValidationError as error:
+                self.add_error("password1", error)
         return cleaned

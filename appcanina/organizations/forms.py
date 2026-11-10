@@ -75,7 +75,8 @@ class CommunityCollaboratorForm(UserCreationForm):
     first_name = forms.CharField(label="Nombre", max_length=150, required=False)
     last_name = forms.CharField(label="Apellido", max_length=150, required=False)
     email = forms.EmailField(label="Correo electrónico", required=False)
-    password1 = forms.CharField(label="Contraseña", strip=False, widget=forms.PasswordInput)
+    password1 = forms.CharField(label="Contraseña", strip=False, widget=forms.PasswordInput,
+                               help_text="Al menos 8 caracteres. Evitá claves comunes, solo números o parecidas a tus datos personales.")
     password2 = forms.CharField(label="Repetir contraseña", strip=False, widget=forms.PasswordInput)
 
     class Meta(UserCreationForm.Meta):

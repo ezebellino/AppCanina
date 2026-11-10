@@ -113,3 +113,13 @@ Cambios en vistas, API, generación/envío de notificaciones y rutas de archivos
 Validación final: `manage.py test --verbosity 0` pasó 208 pruebas (12 nuevas de privacidad); `manage.py makemigrations --check --dry-run` no detectó cambios; `git diff --check` sin errores. Los casos antes expuestos se filtran o devuelven 404, mientras que las respuestas propias, las revisiones autorizadas y las fotos públicas siguen accesibles.
 
 Límites: no se pueden retirar copias o notificaciones ya descargadas antes de ocultar el contenido. La vista previa privada es un enlace de acceso temporal: quien lo posea puede usarlo durante su vigencia mientras la sesión conserve acceso. La protección cubre las rutas de medios servidas por Django; un futuro almacenamiento/CDN externo deberá aplicar la misma autorización. El cambio no asegura privacidad de fotos de otros módulos, que no pertenecen a este bloque.
+
+## 0.8.2 — Política compartida de contraseñas y conciliación de pendientes
+
+Se habilitan los validadores estándar de Django: mínimo ocho caracteres, rechazo de claves comunes, enteramente numéricas o demasiado similares a los datos de usuario. La configuración alcanza registro web/móvil, altas de colaboradores desde administración y recuperación. `InitialSetupForm` valida explícitamente al primer administrador con el contexto de username/email y conserva exactamente la contraseña ingresada (sin recortar espacios). Los mensajes del registro explican la regla. No se cambian contraseñas actuales ni se revalidan durante login.
+
+Archivos: `config/settings.py`, `organizations/forms.py`, `organizations/setup_forms.py` y nuevas pruebas `organizations/test_password_policy.py`. Se actualiza `LAUNCH_CHECKLIST.md` con los nueve hallazgos originales, sus correcciones y los pendientes reales (DEMO, distribución móvil y verificaciones operativas); el informe sellado permanece intacto.
+
+Validación enfocada: `manage.py test organizations lost_pets.test_session_security --verbosity 0` pasó 52 pruebas. Se comprueban rechazos sin crear cuentas/cambiar hashes, recuperación con clave válida, espacios preservados, bloqueo del bootstrap débil y login con contraseña anterior. `makemigrations --check --dry-run` no detectó cambios. Revisión independiente sin elusiones ni regresiones concretas. Sin migraciones ni APK; no se enviaron correos reales ni se cambiaron credenciales de producción. Esta política no reemplaza límites contra intentos abusivos, revisión de dependencias o control de accesos DEMO, que permanecen pendientes.
+
+Validación final: `manage.py test --verbosity 0` pasó las 214 pruebas; `git diff --check` sin errores.
