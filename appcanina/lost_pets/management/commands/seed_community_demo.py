@@ -11,7 +11,6 @@ from patients.models import ClinicalRecord, Contact, Patient, PatientContact
 from lost_pets.models import AdoptionInterest, AdoptionPost, LostPetReport
 
 
-DEMO_PASSWORD = "DemoAppCanina2026!"
 DEMO_PREFIX = "[DEMO]"
 
 
@@ -28,7 +27,7 @@ class Command(BaseCommand):
             defaults={"first_name": first_name, "email": email},
         )
         if created:
-            user.set_password(DEMO_PASSWORD)
+            user.set_unusable_password()
             user.save(update_fields=["password"])
         return user, created
 
@@ -167,4 +166,4 @@ class Command(BaseCommand):
 
         created = [label for label, value in [("Veterinaria", vet_created), ("Refugio", refuge_created), ("Usuario", user_created)] if value]
         self.stdout.write(self.style.SUCCESS("Demo de Comunidad lista" + (f" (cuentas nuevas: {', '.join(created)})" if created else "") + "."))
-        self.stdout.write("Credenciales DEMO: demo_veterinaria, demo_refugio y demo_usuario · contraseña: DemoAppCanina2026!")
+        self.stdout.write("Las cuentas nuevas no tienen clave de acceso. Usá secure_demo_accounts --apply --admin TU_ADMIN para habilitar claves privadas.")
