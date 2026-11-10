@@ -1,5 +1,17 @@
 # Respaldos y ensayo de recuperación
 
+## Primera descarga de producción verificada — 2026-11-10
+
+El titular ejecutó la descarga e ingresó la frase SSH únicamente en su terminal. Se confirmó `Verified local backup` y `Verified external copy completed` para `lazuna-20261110T072508Z-cd180730.zip`.
+
+- Copia local: `C:\ProjectsZeqe\AppCanina\Respaldos\Railway`.
+- Segunda copia: `D:\Respaldos-Lazuna`, volumen NTFS `SEGATE - Zeqe`, identificado previamente.
+- Ambas copias y el archivo de suma coinciden: SHA-256 `cd3b8eb5f1556f62669454d7ccd6f5f3fbd3da0b13427e834b9a790244bda537`.
+- Restauración del ZIP local en `lazuna-security:0.8.5`, sin red, raíz de solo lectura, ZIP de solo lectura y almacenamiento temporal: exit 0. SQLite íntegro y claves foráneas válidas antes/después de migrar; migraciones, Django check, collectstatic y GET del login mediante cliente Django (200) correctos. Nueve entradas, siete archivos de medios.
+- No contiene `.django_secret_key`; la prueba usa una clave ficticia. No demuestra recuperación de los secretos de entorno, SMTP, sesiones originales, Gunicorn ni cada flujo funcional. Los medios y la base no constituyen una instantánea atómica durante cambios concurrentes.
+
+Primera copia real y ensayo aislado completados. Sigue pendiente automatización sin interacción, custodia de secretos/cifrado y traslado a una VM de Proxmox. No se modificó producción ni se creó un APK. Las menciones a descarga pendiente más abajo describen el estado anterior a esta verificación.
+
 ## Destino elegido: notebook, servidor personal y disco externo
 
 El titular rechazó los snapshots pagos de Railway. El 2026-11-10 se descartó el formulario sin guardar y se confirmó nuevamente `No backup schedule` / `No Backups`. El destino inmediato es esta notebook; la migración a una VM del servidor Proxmox y la segunda copia al disco externo quedan pendientes de disponibilidad y rutas. No se creó una tarea automática todavía.
