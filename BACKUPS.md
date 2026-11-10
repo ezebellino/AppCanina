@@ -1,5 +1,15 @@
 # Respaldos y ensayo de recuperación
 
+## Recuperación de la copia cifrada comprobada — 2026-11-10
+
+El titular descifró desde el disco externo `lazuna-20261110T074502Z-888bf2fb.zip.age` y el comando verificó su manifiesto antes de publicar `Respaldos/Railway/recuperacion-verificada.zip`. La contraseña se ingresó únicamente en su terminal.
+
+Se ensayó ese ZIP en `lazuna-security:0.8.5`, sin red, sin montar volúmenes reales, con ZIP/raíz de solo lectura y almacenamiento temporal. Resultado exit 0: integridad SQLite y claves foráneas antes/después de migrar correctas; migraciones, Django check, collectstatic y login mediante cliente Django HTTP 200 correctos. Nueve entradas, siete archivos de medios. SHA-256 del ZIP recuperado: `9d6e3a3d745c90fe2e79390bc18079d639a74ac1236a47f6c8903e0dab603d06`.
+
+Queda comprobada la cadena descarga de producción → cifrado → segunda copia externa → descifrado → ensayo aislado. No incluye recuperación de secretos de entorno, SMTP, sesiones originales ni prueba completa de flujos/Gunicorn. No se modificó producción. Sigue pendiente custodia independiente de la clave cifrada y automatización SSH. El ZIP recuperado y los ZIP anteriores siguen sin cifrar: no se eliminaron ni se presenta el borrado ordinario como borrado seguro.
+
+Las referencias posteriores a este ensayo como pendiente corresponden al estado previo y quedan superadas por esta verificación.
+
 ## Primera descarga cifrada real — 2026-11-10
 
 El titular completó la configuración interactiva: clave privada guardada cifrada y prueba de recuperación de configuración correcta. Luego descargó `lazuna-20261110T074502Z-888bf2fb.zip.age` con los mensajes `Verified encrypted local backup` y `Verified external copy completed`.
