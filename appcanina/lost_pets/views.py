@@ -13,6 +13,7 @@ from .forms import AdoptionPostForm, LostPetReportForm, SightingForm
 from .models import AdoptionInterest, AdoptionPost, LostPetReport, Sighting
 from .notifications import notify_new_report, notify_new_sighting, notify_request_review
 from .adoption_email import notify_visit
+from .resolution import manageable_searches, finish_search
 from .permissions import report_read_required
 from .visibility import reports_visible_to, sightings_visible_to, can_review_reports
 from .adoption_updates import managed_interest_organizations, read_inbox, unread_counts
@@ -47,6 +48,9 @@ def report_list(request):
     active_count = LostPetReport.objects.filter(status=LostPetReport.Status.PUBLISHED).count()
     pending_request_count = visible_reports.filter(requested_via_mobile=True, status=LostPetReport.Status.HIDDEN).count() if can_review_reports(request.user) else 0
     latest_sighting = sightings_visible_to(request.user).filter(status=Sighting.Status.PUBLISHED).select_related("report").order_by("-seen_at").first()
+    closable_ids = set(manageable_searches(request.user).filter(status=LostPetReport.Status.PUBLISHED).values_list("id", flat=True))
+    for report in reports:
+        report.can_finish_search = report.id in closable_ids
     return render(request, "lost_pets/report_list.html", {"reports": reports, "view_mode": view_mode, "active_count": active_count, "pending_request_count": pending_request_count, "latest_sighting": latest_sighting})
 
 
@@ -306,7 +310,19 @@ def report_create(request):
 def report_detail(request, report_id):
     reports = reports_visible_to(request.user).select_related("patient", "reporter")
     report = get_object_or_404(reports, pk=report_id)
-    return render(request, "lost_pets/report_detail.html", {"report": report, "sightings": sightings_visible_to(request.user).filter(report=report).select_related("reporter")})
+    can_finish_search = report.status == LostPetReport.Status.PUBLISHED and manageable_searches(request.user).filter(pk=report.pk).exists()
+    return render(request, "lost_pets/report_detail.html", {"report": report, "can_finish_search": can_finish_search, "sightings": sightings_visible_to(request.user).filter(report=report).select_related("reporter")})
+
+
+@report_read_required
+@require_http_methods(["GET", "POST"])
+def report_found(request, report_id):
+    report = get_object_or_404(manageable_searches(request.user), pk=report_id, status__in=["published", "resolved"])
+    if request.method == "POST":
+        changed = finish_search(request.user, report.pk)
+        messages.success(request, f"¡{report.name} fue encontrado! La búsqueda quedó finalizada." if changed else "La búsqueda ya no está activa.")
+        return redirect("lost_pet_list")
+    return render(request, "lost_pets/report_found.html", {"report": report})
 
 
 @login_required

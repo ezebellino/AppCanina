@@ -6,6 +6,8 @@ from . import mobile_inbox
 
 
 urlpatterns = [
+    path("<int:report_id>/encontrado/", views.report_found, name="lost_pet_found"),
+    path("api/v1/avisos/<int:report_id>/encontrado/", api.mobile_report_found, name="mobile_report_found"),
     path("api/v1/adopciones/bandeja/", mobile_inbox.inbox, name="mobile_adoption_inbox"),
     path("api/v1/adopciones/bandeja/<int:interest_id>/", mobile_inbox.update, name="mobile_adoption_inbox_update"),
     path("adopciones/novedades/", views.adoption_update_counts, name="adoption_update_counts"),

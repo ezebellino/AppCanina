@@ -1,5 +1,11 @@
 # Publicaciones web
 
+## 0.8.9 — Finalizar búsqueda de un animal encontrado
+
+Botón Se encontró · Finalizar búsqueda en tarjetas/detalle web, con página de confirmación GET y cierre POST protegido por CSRF. Pueden cerrar el autor, moderadores existentes y responsables de refugios verificados de la ficha vinculada. Ser refugio no permite cerrar avisos ajenos sin vínculo. Solo transiciona published a resolved; reintentos son idempotentes, conserva avistamientos y sale del mapa/lista activos. No cierra ningún aviso automáticamente.
+
+Nuevo endpoint móvil POST `/extraviados/api/v1/avisos/<id>/encontrado/`, con los mismos permisos, y capacidad en el detalle. Botón/confirmación móvil acumulados para próximo APK. Pruebas: 24 Django (7 cierre + 12 visibilidad + 5 mapas); exportación Android validada. No se generó build; prueba física pendiente. Sin migraciones ni cambios a push.
+
 ## 0.8.8 — Bandeja institucional móvil; acumulado sin APK
 
 Nuevas API GET `/extraviados/api/v1/adopciones/bandeja/` y POST `/extraviados/api/v1/adopciones/bandeja/<id>/`: solicitudes de refugios verificados gestionados por la cuenta, filtros, contadores y páginas de 20. Edición de estado y mensaje visible al adoptante; aceptación/rechazo de visitas reutiliza los correos actuales. Se verifica pertenencia en cada operación, se evita sobrescribir una versión modificada y se conservan respuestas ante fallo SMTP. Sin migraciones; sin cambios al proveedor push.

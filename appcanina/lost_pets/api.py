@@ -22,6 +22,7 @@ from .forms import photo_without_location_metadata
 from .models import AdoptionInterest, AdoptionPost, CommunityDevicePermission, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from .notifications import notify_new_sighting
 from .adoption_email import notify_visit
+from .resolution import manageable_searches, finish_search
 from .visibility import deliverable_notifications
 from .media import request_photo_url
 from organizations.forms import CommunityCollaboratorForm
@@ -170,6 +171,7 @@ def _mobile_report_data(request, report):
 
 def _mobile_request_data(request, report):
     data = _mobile_report_data(request, report)
+    data["can_finish_search"] = report.status == "published" and manageable_searches(request.mobile_user).filter(pk=report.pk).exists()
     data["photo_url"] = request_photo_url(request, report)
     data.update({
         "review_note": report.review_note,
@@ -383,6 +385,7 @@ def mobile_report_detail(request, report_id):
             "public_longitude": coordinates[1] if coordinates else None,
         })
     data = _mobile_report_data(request, report)
+    data["can_finish_search"] = report.status == "published" and manageable_searches(request.mobile_user).filter(pk=report.pk).exists()
     data["search_map"] = {
         "latest_observation": locations[0],
         "points": [location for location in locations if location["public_latitude"] is not None],
@@ -390,6 +393,20 @@ def mobile_report_detail(request, report_id):
         "approximate": True,
     }
     response = JsonResponse({"report": data})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.view_lostpetreport")
+def mobile_report_found(request, report_id):
+    report = manageable_searches(request.mobile_user).filter(pk=report_id, status__in=["published", "resolved"]).first()
+    if not report:
+        return JsonResponse({"detail": "Aviso no encontrado o sin permiso para finalizarlo."}, status=404)
+    finish_search(request.mobile_user, report.id)
+    report.refresh_from_db()
+    response = JsonResponse({"status": report.status, "detail": "La búsqueda ya no está activa."})
     response["Cache-Control"] = "no-store"
     return response
 

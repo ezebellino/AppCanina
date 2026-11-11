@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Finalizar búsqueda · {{ report.name }}{% endblock %}
+{% block content %}
+<section class="card">
+  <p class="eyebrow">Animal encontrado</p>
+  {% if report.status == 'published' %}
+  <h1>¿Se encontró a {{ report.name }}?</h1>
+  <p>Confirmá solamente si sabés que el animal fue encontrado. Si solo lo viste, informá un avistamiento.</p>
+  <p>Al finalizar, el aviso dejará de aparecer en las búsquedas activas y no recibirá nuevos avistamientos. Su historial se conservará.</p>
+  <form method="post" class="form-actions">{% csrf_token %}
+    <button class="button" type="submit">Sí, se encontró · Finalizar búsqueda</button>
+    <a class="button button-ghost" href="{% url 'lost_pet_detail' report.id %}">Cancelar</a>
+  </form>
+  {% else %}<h1>La búsqueda de {{ report.name }} ya finalizó</h1><a class="button" href="{% url 'lost_pet_list' %}">Volver a avisos</a>{% endif %}
+</section>
+{% endblock %}

@@ -117,6 +117,9 @@ export default function App() {
 
 function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   const reportLoad = useRef(0);
+  const closingSearch = useRef(false);
+  const [confirmFound, setConfirmFound] = useState(false);
+  const [finishingSearch, setFinishingSearch] = useState(false);
   const [reportMapState, setReportMapState] = useState({status: 'idle'});
   const authenticating = useRef(false);
   const clientRef = useRef(null);
@@ -455,6 +458,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   };
 
   const openReport = async (report) => {
+    setConfirmFound(false);
     const loadId = ++reportLoad.current;
     setSelectedReport({...report, search_map: undefined}); setScreen("detalle");
     setReportMapState({status: 'loading'});
@@ -467,6 +471,26 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
     } catch (error) {
       if (loadId === reportLoad.current) setReportMapState({status: 'error', error: error.message});
     }
+  };
+
+  const finishSearch = async () => {
+    if (!selectedReport || closingSearch.current) return;
+    closingSearch.current = true; setFinishingSearch(true);
+    const reportId = selectedReport.id;
+    const loadId = ++reportLoad.current;
+    try {
+      const response = await sessionRequest(`${API}/avisos/${reportId}/encontrado/`, {
+        method: "POST", headers: {Authorization: `Bearer ${token}`},
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || "No se pudo finalizar. Actualizá el aviso y reintentá.");
+      setReports(current => current.filter(item => item.id !== reportId));
+      if (loadId === reportLoad.current) {
+        setSelectedReport(current => current?.id === reportId ? {...current, status: data.status, can_finish_search: false} : current);
+        setConfirmFound(false); setMessage(data.detail);
+      }
+    } catch (error) { if (loadId === reportLoad.current) setMessage(error.message); }
+    finally { closingSearch.current = false; setFinishingSearch(false); }
   };
 
   const resetSighting = () => {
@@ -828,7 +852,14 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
         {reportMapState.status === 'loading' ? <Text accessibilityRole="progressbar" style={styles.help}>Actualizando ubicaciones y avistamientos…</Text> : null}
         {reportMapState.status === 'error' ? <Text style={styles.help}>{reportMapState.error}</Text> : null}
         {selectedReport.search_map ? <SearchMap key={selectedReport.id} data={selectedReport.search_map} resolved={selectedReport.status === 'resolved'}/> : null}
-        <Button title="Actualizar avistamientos" variant="outline" disabled={reportMapState.status === 'loading'} onPress={() => openReport(selectedReport)}/>
+        <Button title="Actualizar avistamientos" variant="outline" disabled={finishingSearch || reportMapState.status === 'loading'} onPress={() => openReport(selectedReport)}/>
+        {selectedReport.can_finish_search && reportMapState.status === 'ready' ? <View style={styles.stack}>
+          {confirmFound ? <>
+            <Text style={styles.help}>¿Confirmás que se encontró a {selectedReport.name}? Se cerrará la búsqueda y se conservarán sus avistamientos. Si solo lo viste, informá un avistamiento.</Text>
+            <Button title={finishingSearch ? "Finalizando…" : "Sí, se encontró · Finalizar búsqueda"} disabled={finishingSearch} onPress={finishSearch}/>
+            <Button title="Cancelar" variant="outline" disabled={finishingSearch} onPress={() => setConfirmFound(false)}/>
+          </> : <Button title="Se encontró · Finalizar búsqueda" onPress={() => setConfirmFound(true)}/>}
+        </View> : null}
         {selectedReport.status === "published" ? <Button title="Vi a este animal" onPress={() => { resetSighting(); setScreen("avistamiento"); }}/> : null}
       </View> : null}
       {screen === "avistamiento" && selectedReport ? <View style={styles.stack}>

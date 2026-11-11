@@ -1,5 +1,12 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Animal encontrado — 0.8.9
+
+- [x] Cierre web desde tarjeta/detalle con confirmación, permisos por autor/ficha institucional/moderación, conservación del historial e idempotencia.
+- [x] API y cliente móvil preparados, 24 pruebas Django y exportación Android.
+- [ ] Próximo APK: confirmar/cancelar cierre, doble toque, falta de red, aviso ajeno y consulta en Encontrados. Sin build por este bloque.
+- No modificar Alelí ni otros avisos reales como parte de las pruebas: el usuario confirma el cierre desde su cuenta autorizada.
+
 ## Acumulado tras 0.8.5: bandeja del refugio
 
 - [x] En Mi actividad, responsables de refugios verificados pueden abrir Solicitudes recibidas, filtrar nuevas/visitas, paginar, actualizar estado/mensaje y aceptar o rechazar visitas.
