@@ -1,5 +1,13 @@
 # Publicaciones web
 
+## 0.8.6 — Datos del mapa móvil; cliente acumulado sin APK
+
+Nuevo GET autenticado `/extraviados/api/v1/avisos/<id>/`: detalle de avisos publicados/resueltos, última observación y puntos aproximados de las últimas 20 observaciones, ordenadas por fecha de avistamiento. Excluye avistamientos ocultos incluso para revisores y nunca serializa latitud/longitud exactas. Respuesta no-store; sin migraciones ni cambios a los endpoints anteriores.
+
+Cliente preparado: botón de última ubicación en Google Maps, mapa Leaflet/OSM dentro de WebView y área estimativa con margen de 300 m, fechas y aclaración de que no predice ubicación actual. Maneja último reporte sin GPS, ausencia total de puntos, errores y actualización del detalle; protege contra respuestas tardías de otro aviso. Sin rastreo ni nuevos permisos GPS. WebView no recibe credenciales y bloquea navegación, acceso a archivos y geolocalización. Dependencias remotas Leaflet fijadas con SRI.
+
+Pruebas: 17 Django (cinco nuevas + visibilidad existente) y 11 Node (cuatro nuevas + sesiones); compatibilidad Expo correcta y exportación Android de 748 módulos. Revisión visual del HTML del mapa con dos puntos ficticios: cartografía, puntos y área visibles. No equivale a prueba física de Android/iOS. Próximo APK acumulado, sin EAS Build en este bloque. Ver `mobile/README.md`.
+
 ## Preparación APK 0.8.5 — 2026-11-10
 
 Entrega: único build iniciado en este bloque, `2b23795a-bbd5-462a-9e6e-0bdf7f3f24d2`, estado **FINISHED**, versión 0.8.5/versionCode 3, perfil preview, firma Android existente, fuente `9484f21`. APK: https://expo.dev/artifacts/eas/zIlg77lT2XEJsdj1i4d1_LmEWs4PmV8Jq8PLzp322sc.apk . Panel: https://expo.dev/accounts/vasco_88/projects/tu-veterinaria-comunidad/builds/2b23795a-bbd5-462a-9e6e-0bdf7f3f24d2 . El build no prueba instalación/funcionamiento físico; ver `mobile/PRUEBA-APK-0.8.5.md`. Railway del checkpoint quedó SUCCESS y login público HTTP 200/versión 0.8.5. No se eliminaron DEMO ni se configuró YubiKey.

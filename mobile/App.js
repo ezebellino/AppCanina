@@ -10,6 +10,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
 import {createSessionClient} from "./session-client.cjs";
+import SearchMap from "./SearchMap";
 
 const API = process.env.EXPO_PUBLIC_API_URL || "https://lazuna.up.railway.app/extraviados/api/v1";
 
@@ -113,6 +114,8 @@ export default function App() {
 }
 
 function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
+  const reportLoad = useRef(0);
+  const [reportMapState, setReportMapState] = useState({status: 'idle'});
   const authenticating = useRef(false);
   const clientRef = useRef(null);
   if (!clientRef.current) clientRef.current = createSessionClient({
@@ -443,8 +446,19 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
     setMessage("Ubicación añadida. El aviso público mostrará solo una zona aproximada.");
   };
 
-  const openReport = (report) => {
-    setSelectedReport(report); setScreen("detalle");
+  const openReport = async (report) => {
+    const loadId = ++reportLoad.current;
+    setSelectedReport({...report, search_map: undefined}); setScreen("detalle");
+    setReportMapState({status: 'loading'});
+    try {
+      const response = await sessionRequest(`${API}/avisos/${report.id}/`, {headers: {Authorization: `Bearer ${token}`}});
+      const data = await response.json();
+      if (!response.ok) throw Error(data.detail || 'No se pudo actualizar la ubicación.');
+      if (loadId !== reportLoad.current) return;
+      setSelectedReport(data.report); setReportMapState({status: 'ready'});
+    } catch (error) {
+      if (loadId === reportLoad.current) setReportMapState({status: 'error', error: error.message});
+    }
   };
 
   const resetSighting = () => {
@@ -780,8 +794,12 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
         {selectedReport.photo_url ? <Image source={{uri: selectedReport.photo_url}} style={styles.detailPhoto}/> : <View style={styles.reportPhotoPlaceholder}><Text style={styles.reportPhotoIcon}>🐾</Text></View>}
         <Text style={styles.sectionTitle}>{selectedReport.name} · {selectedReport.species}</Text>
         <Text style={styles.reportMeta}>{selectedReport.status === "resolved" ? "Encontrado" : "Se busca"}</Text>
-        <Text style={styles.notificationArea}>⌖ Última zona: {selectedReport.area}</Text>
+        <Text style={styles.notificationArea}>⌖ Zona del aviso: {selectedReport.area}</Text>
         <Text style={styles.help}>{selectedReport.description || "No hay señas particulares cargadas."}</Text>
+        {reportMapState.status === 'loading' ? <Text accessibilityRole="progressbar" style={styles.help}>Actualizando ubicaciones y avistamientos…</Text> : null}
+        {reportMapState.status === 'error' ? <Text style={styles.help}>{reportMapState.error}</Text> : null}
+        {selectedReport.search_map ? <SearchMap key={selectedReport.id} data={selectedReport.search_map} resolved={selectedReport.status === 'resolved'}/> : null}
+        <Button title="Actualizar avistamientos" variant="outline" disabled={reportMapState.status === 'loading'} onPress={() => openReport(selectedReport)}/>
         {selectedReport.status === "published" ? <Button title="Vi a este animal" onPress={() => { resetSighting(); setScreen("avistamiento"); }}/> : null}
       </View> : null}
       {screen === "avistamiento" && selectedReport ? <View style={styles.stack}>

@@ -1,5 +1,9 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Acumulado tras 0.8.5: mapa móvil de extraviados
+
+Backend 0.8.6 y cliente preparados para última ubicación aproximada y área estimativa entre observaciones públicas del mismo animal. Validación automatizada y visual HTML registrada en `RELEASING.md`. No se generó APK; probar WebView/Maps en teléfono, red ausente, avisos sin GPS, múltiples reportes y cambios rápidos de aviso al distribuir el próximo paquete.
+
 ## APK 0.8.5 disponible — 2026-11-10
 
 Build preview Android `2b23795a-bbd5-462a-9e6e-0bdf7f3f24d2` FINISHED, versionCode 3. Un único build nuevo, con firma e identidad existentes. Validados 16 tests Node, Expo Doctor 17/17, compatibilidad de dependencias y exportación Android. Archivo EAS inspeccionado sin respaldos, adjuntos ni temporales. Enlace en `RELEASING.md`. La distribución ya está disponible; instalación y pruebas físicas siguen pendientes según `mobile/PRUEBA-APK-0.8.5.md`. Las referencias históricas a no generar APK no describen este estado actual. YubiKey/automatización Proxmox pospuestos por el titular; eliminación DEMO después del lanzamiento.

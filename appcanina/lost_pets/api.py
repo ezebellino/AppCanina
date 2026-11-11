@@ -335,6 +335,42 @@ def mobile_reports(request):
 
 
 @csrf_exempt
+@require_GET
+@token_required("lost_pets.view_lostpetreport")
+def mobile_report_detail(request, report_id):
+    # Same public states as the mobile list. Hidden sightings never enter this map,
+    # including when the caller is a platform reviewer.
+    report = LostPetReport.objects.filter(
+        pk=report_id, status__in=[LostPetReport.Status.PUBLISHED, LostPetReport.Status.RESOLVED]
+    ).first()
+    if not report:
+        return JsonResponse({"detail": "El aviso ya no está disponible."}, status=404)
+    sightings = list(report.sightings.filter(status=Sighting.Status.PUBLISHED).order_by("-seen_at", "-id")[:20])
+    observations = [(report.last_seen_at, "report", report)]
+    observations.extend((sighting.seen_at, "sighting", sighting) for sighting in sightings)
+    observations.sort(key=lambda item: (item[0], item[1] == "sighting", item[2].pk), reverse=True)
+    locations = []
+    for seen_at, source, observation in observations[:20]:
+        coordinates = observation.public_coordinates
+        locations.append({
+            "source": source, "area": observation.area_label,
+            "seen_at": seen_at.isoformat(),
+            "public_latitude": coordinates[0] if coordinates else None,
+            "public_longitude": coordinates[1] if coordinates else None,
+        })
+    data = _mobile_report_data(request, report)
+    data["search_map"] = {
+        "latest_observation": locations[0],
+        "points": [location for location in locations if location["public_latitude"] is not None],
+        "observation_limit": 20,
+        "approximate": True,
+    }
+    response = JsonResponse({"report": data})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@csrf_exempt
 @require_http_methods(["GET", "POST"])
 @token_required("lost_pets.view_lostpetreport")
 def mobile_my_animals(request):

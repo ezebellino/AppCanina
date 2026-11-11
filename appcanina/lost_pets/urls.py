@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/v1/sesion/cerrar/", api.mobile_logout, name="mobile_logout"),
     path("api/v1/registro/", api.mobile_register, name="mobile_register"),
     path("api/v1/avisos/", api.mobile_reports, name="mobile_reports"),
+    path("api/v1/avisos/<int:report_id>/", api.mobile_report_detail, name="mobile_report_detail"),
     path("api/v1/mis-animales/", api.mobile_my_animals, name="mobile_my_animals"),
     path("api/v1/mis-animales/<int:patient_id>/", api.mobile_my_animal_detail, name="mobile_my_animal_detail"),
     path("api/v1/mis-animales/<int:patient_id>/invitaciones-familiares/", api.mobile_family_invite_create, name="mobile_family_invite_create"),

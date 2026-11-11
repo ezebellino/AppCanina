@@ -1,5 +1,15 @@
 # App móvil Comunidad
 
+## Acumulado después del APK 0.8.5: mapa de búsqueda
+
+El detalle de un aviso consulta `/avisos/<id>/` al abrir y permite actualizar avistamientos. Muestra la fecha/zona del último reporte, un botón de Google Maps para el último punto aproximado disponible y un mapa interactivo opcional con OpenStreetMap/Leaflet. Cuando el último reporte carece de GPS, lo indica y fecha el punto anterior; nunca geocodifica textos ambiguos ni publica coordenadas exactas.
+
+El área estimativa cubre los puntos con coordenadas entre las últimas 20 observaciones publicadas (incluido el aviso inicial cuando entra en ese conjunto), con margen de 300 m para la aproximación. Es una envolvente de reportes, no una predicción de ubicación o trayectoria; muestra fechas y avisa si el área supera 10 km de radio. No se combinan avistamientos de animales distintos. Sin coordenadas, muestra solo la zona textual.
+
+Se añadió `react-native-webview` compatible con SDK 54. El mapa carga Leaflet 1.9.4 con integridad SRI y teselas OSM solo al tocar Mostrar mapa; no recibe tokens ni solicita GPS. Google Maps se abre únicamente por acción del usuario. Requiere red; hay mensajes de fallo y alternativa Maps. Para escala de producción, revisar capacidad/política de uso del proveedor de teselas; no se contrató servicio pago ni se agregó una API key.
+
+Validado con 17 tests Django de mapa/visibilidad, 11 tests Node de geometría/sesiones y exportación Android; mapa HTML revisado visualmente con datos ficticios. Pendiente prueba física del WebView, enlaces, gestos, falta de red y cambio rápido entre avisos en el próximo APK. **No se generó build con este cambio**; la versión instalada continúa en 0.8.5.
+
 Cliente móvil Expo. Configurá `EXPO_PUBLIC_API_URL` con la URL HTTPS pública, por ejemplo `https://lazuna.up.railway.app/extraviados/api/v1`, y ejecutá `npm ci` seguido de `npm start` con la versión de Node indicada abajo.
 
 ## Migración preparada para el próximo APK
