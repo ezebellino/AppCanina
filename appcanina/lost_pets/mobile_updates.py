@@ -87,7 +87,7 @@ def detail(request, key):
         return response({"detail": "Esta novedad ya no está disponible para tu cuenta."}, 404)
     data = {"key": key, "activity_at": activity(item, kind).isoformat()}
     if kind == "community":
-        own_request = item.report.requested_via_mobile and item.report.reporter_id == request.mobile_user.pk
+        own_request = not item.sighting_id and item.report.requested_via_mobile and item.report.reporter_id == request.mobile_user.pk
         if own_request:
             data.update(target="search_request", request=_mobile_request_data(request, item.report))
         else:

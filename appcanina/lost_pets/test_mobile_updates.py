@@ -128,3 +128,13 @@ class MobileUpdatesTests(TestCase):
         shelter.save()
         self.assertEqual(self.detail(f"institution-{interest.pk}").status_code, 404)
         self.assertEqual(self.feed().json()["unread_count"], 1)
+
+    def test_sighting_on_own_mobile_request_opens_public_detail(self):
+        self.report.reporter = self.user
+        self.report.requested_via_mobile = True
+        self.report.save()
+        sighting = Sighting.objects.create(report=self.report, reporter=self.other, area_label="Plaza")
+        notice = CommunityNotification.objects.create(recipient=self.user, report=self.report, sighting=sighting, title="Avistamiento")
+        data = self.detail(f"community-{notice.pk}").json()
+        self.assertEqual(data["target"], "report")
+        self.assertEqual(data["report_id"], self.report.pk)

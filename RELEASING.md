@@ -1,5 +1,11 @@
 # Publicaciones web
 
+## 0.8.11 — Revisión previa al próximo APK
+
+Corregido el destino de novedades de avistamientos sobre solicitudes móviles propias: abre el detalle del aviso y mapa, mientras la respuesta de moderación sigue abriendo Mis solicitudes. Cliente descarta cargas antiguas de solicitudes que podrían reemplazar la selección abierta desde una novedad. Sin migraciones ni build.
+
+Validación: revisión completa inicial 121 Django, 9 pruebas de novedades tras la corrección; 24 Node incluyendo cuatro de navegación real de componentes con servicios nativos simulados; exportación Android 751 módulos. Ver `mobile/REVISION-PREBUILD.md` para evidencia, alcance y pruebas físicas pendientes. No se declara validación visual/nativa del APK.
+
 ## 0.8.10 — Bandeja de novedades y lecturas móviles; acumulado sin APK
 
 Nuevos endpoints privados `/extraviados/api/v1/novedades/`, `/<clave>/` y `/<clave>/leer/`. Unifican notificaciones comunitarias entregables y la última actividad de cada solicitud de adopción por audiencia (solicitante/responsable institucional). Filtros Todas/Sin leer, páginas de 20, contador sin recortar por página y respuestas no-store. GET no marca lectura. POST registra la versión efectivamente abierta y conserva novedades posteriores; recibos compartidos con la web para adopciones. Solo el destinatario o responsable actual de un refugio verificado accede a sus novedades; ocultación, revocación y pertenencia se revalidan. No expone coordenadas ni crea nuevos envíos push.

@@ -118,6 +118,8 @@ export default function App() {
 
 function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   const reportLoad = useRef(0);
+  const activityLoad = useRef(0);
+  const searchRequestsLoad = useRef(0);
   const closingSearch = useRef(false);
   const [confirmFound, setConfirmFound] = useState(false);
   const [finishingSearch, setFinishingSearch] = useState(false);
@@ -228,10 +230,12 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       if (!detail.ok) throw Error(reportData.detail || "No pudimos abrir el aviso.");
       reportLoad.current++; setConfirmFound(false); setSelectedReport(reportData.report); setReportMapState({status: "ready"}); setScreen("detalle");
     } else if (data.target === "search_request") {
-      setMyRequests([data.request]); setScreen("mis-solicitudes");
+      searchRequestsLoad.current++; setMyRequests([data.request]); setScreen("mis-solicitudes");
     } else if (data.target === "adoption") {
+      activityLoad.current++; setInterestsLoading(false); setInterestsError("");
       setAdoptionInterests([data.interest]); setAdoptionAudience("applicant"); setScreen("mi-actividad");
     } else if (data.target === "institution") {
+      activityLoad.current++; setInterestsLoading(false); setInterestsError("");
       setCanManageAdoptions(true); setAdoptionAudience("institution");
       setInstitutionNotice({interests: [data.interest], counts: {}, status_choices: data.status_choices, has_next: false});
       setScreen("mi-actividad");
@@ -558,13 +562,15 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   };
 
   const loadMySearchRequests = async (accessToken = token) => {
+    const loadId = ++searchRequestsLoad.current;
     try {
       const response = await sessionRequest(`${API}/solicitudes-busqueda/mias/`, {headers: {Authorization: `Bearer ${accessToken}`}});
       const data = await response.json();
+      if (loadId !== searchRequestsLoad.current) return;
       if (!response.ok) throw Error(data.detail || "No se pudieron cargar tus solicitudes.");
       setMyRequests(data.requests);
     } catch (error) {
-      setMessage(error.message);
+      if (loadId === searchRequestsLoad.current) setMessage(error.message);
     }
   };
 
@@ -595,15 +601,17 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
     setInstitutionNotice(null);
     if (interestOperation.current) return;
     interestOperation.current = true;
+    const loadId = ++activityLoad.current;
     setInterestsLoading(true); setInterestsError("");
     try {
       const response = await sessionRequest(`${API}/adopciones/mis-intereses/`, {headers: {Authorization: `Bearer ${token}`}});
       const data = await response.json();
+      if (loadId !== activityLoad.current) return;
       if (!response.ok) throw Error(data.detail || "No se pudo cargar tu actividad.");
       setAdoptionInterests(data.interests);
       setCanManageAdoptions(data.can_manage_adoption_requests === true);
-    } catch (error) { setInterestsError(error.message || "No pudimos actualizar. Revisá tu conexión y volvé a intentar."); }
-    finally { interestOperation.current = false; setInterestsLoading(false); }
+    } catch (error) { if (loadId === activityLoad.current) setInterestsError(error.message || "No pudimos actualizar. Revisá tu conexión y volvé a intentar."); }
+    finally { interestOperation.current = false; if (loadId === activityLoad.current) setInterestsLoading(false); }
   };
 
   const requestAdoptionVisit = async interestId => {

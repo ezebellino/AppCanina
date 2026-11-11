@@ -1,5 +1,9 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Revisión del paquete acumulado — 2026-11-11
+
+Revisión técnica y regresiones completadas; dos ajustes de navegación corregidos. Evidencia y plan físico en `mobile/REVISION-PREBUILD.md`. El siguiente paso es decidir el único APK acumulado y ejecutar esa guía en teléfono. No se inició build en la revisión. Push robusto sigue aplazado.
+
 ## Novedades móviles — 0.8.10
 
 - [x] Bandeja Todas/Sin leer paginada, contador visible, apertura del aviso/solicitud correspondiente y lectura persistente.
