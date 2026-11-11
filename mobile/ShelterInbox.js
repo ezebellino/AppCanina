@@ -51,9 +51,10 @@ function RequestCard({item, choices, disabled, onSave}) {
   </View>;
 }
 
-export default function ShelterInbox({api, token, sessionRequest}) {
-  const [data, setData] = useState({interests: [], counts: {}, status_choices: [], has_next: false});
+export default function ShelterInbox({api, token, sessionRequest, initialData}) {
+  const [data, setData] = useState(initialData || {interests: [], counts: {}, status_choices: [], has_next: false});
   const [view, setView] = useState("all");
+  const [focused, setFocused] = useState(Boolean(initialData));
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -73,7 +74,7 @@ export default function ShelterInbox({api, token, sessionRequest}) {
         if ([403, 404].includes(response.status)) setData({interests: [], counts: {}, status_choices: []});
         throw Error(result.detail || "No pudimos cargar la bandeja.");
       }
-      setData(result); setView(nextView); setPage(nextPage); setNeedsRefresh(false);
+      setData(result); setFocused(false); setView(nextView); setPage(nextPage); setNeedsRefresh(false);
     } catch (err) {
       if (operation.current.id === id) { setError(err.message || "Revisá tu conexión y volvé a intentar."); setNeedsRefresh(true); }
     } finally {
@@ -81,7 +82,7 @@ export default function ShelterInbox({api, token, sessionRequest}) {
     }
   };
   useEffect(() => {
-    load("all", 1);
+    if (!initialData) load("all", 1);
     return () => { operation.current.id++; operation.current.busy = false; };
   }, []);
 
@@ -114,8 +115,8 @@ export default function ShelterInbox({api, token, sessionRequest}) {
   return <View style={styles.stack}>
     <Text style={styles.title}>Solicitudes recibidas</Text>
     <Text style={styles.help}>Administrá las adopciones de los refugios verificados que tenés a cargo.</Text>
-    <View style={styles.row}>{[["all", "Todas"], ["received", "Nuevas"], ["visits", "Visitas pendientes"]].map(([value, label]) =>
-      <Action key={value} title={`${label} (${data.counts[value] ?? 0})`} selected={view === value} disabled={busy} onPress={() => load(value, 1)}/>)}</View>
+    {focused ? <Text style={styles.help}>Solicitud abierta desde una notificación. Actualizá la bandeja para ver todas.</Text> : <View style={styles.row}>{[["all", "Todas"], ["received", "Nuevas"], ["visits", "Visitas pendientes"]].map(([value, label]) =>
+      <Action key={value} title={`${label} (${data.counts[value] ?? 0})`} selected={view === value} disabled={busy} onPress={() => load(value, 1)}/>)}</View>}
     <Action title={busy ? "Cargando…" : "Actualizar bandeja"} disabled={busy} onPress={() => load()}/>
     {notice ? <Text accessibilityLiveRegion="polite" style={styles.text}>{notice}</Text> : null}
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}

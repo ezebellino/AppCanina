@@ -1,5 +1,13 @@
 # Publicaciones web
 
+## 0.8.10 — Bandeja de novedades y lecturas móviles; acumulado sin APK
+
+Nuevos endpoints privados `/extraviados/api/v1/novedades/`, `/<clave>/` y `/<clave>/leer/`. Unifican notificaciones comunitarias entregables y la última actividad de cada solicitud de adopción por audiencia (solicitante/responsable institucional). Filtros Todas/Sin leer, páginas de 20, contador sin recortar por página y respuestas no-store. GET no marca lectura. POST registra la versión efectivamente abierta y conserva novedades posteriores; recibos compartidos con la web para adopciones. Solo el destinatario o responsable actual de un refugio verificado accede a sus novedades; ocultación, revocación y pertenencia se revalidan. No expone coordenadas ni crea nuevos envíos push.
+
+Cliente: acceso Novedades y contador centrado en cabecera, Notificaciones en menú de ambas áreas, bandeja fuera de Ajustes y apertura de aviso, solicitud de búsqueda, adopción o solicitud institucional específica. Solo marca lectura tras cargar contenido; error de carga conserva pendiente. Respuestas tardías tras salir se descartan; contador se consulta al ingresar, volver a primer plano y cada 60 segundos en primer plano. Lecturas guardadas en servidor, sin depender de permisos push. Para adopciones representa la última novedad por solicitud, no un historial de cada cambio.
+
+Validación: 28 pruebas Django (8 nuevas, 12 de visibilidad y 8 de bandeja institucional), exportación Android de 751 módulos. Pendiente probar físicamente en próximo APK contador, navegación, lectura, falta de red, regreso a primer plano y cambio de cuentas. Sin migraciones, sin EAS Build. Transporte/control completo de push sigue aplazado.
+
 ## 0.8.9 — Finalizar búsqueda de un animal encontrado
 
 Botón Se encontró · Finalizar búsqueda en tarjetas/detalle web, con página de confirmación GET y cierre POST protegido por CSRF. Pueden cerrar el autor, moderadores existentes y responsables de refugios verificados de la ficha vinculada. Ser refugio no permite cerrar avisos ajenos sin vínculo. Solo transiciona published a resolved; reintentos son idempotentes, conserva avistamientos y sale del mapa/lista activos. No cierra ningún aviso automáticamente.

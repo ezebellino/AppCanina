@@ -57,3 +57,9 @@ Backend mínimo para esta pantalla: 0.8.7. Validación de bundle Android realiza
 Con backend 0.8.8, Mi actividad habilita Solicitudes recibidas para responsables de refugios verificados. Permite filtrar Todas/Nuevas/Visitas pendientes, paginar y gestionar estado, mensaje y respuesta de visita. El mensaje es visible al adoptante; aceptar exige dirección completa. En conflictos o errores de red se pide actualizar antes de volver a guardar. El rol staff por sí solo no habilita esta bandeja.
 
 Prueba física pendiente: aceptar desde refugio y verificar dirección desde adoptante; rechazar sin revelar ubicación; cambiar estado/mensaje; doble envío, edición simultánea, falta de red y cuenta sin permisos. Push robusto/proveedor quedan aplazados; no se generó APK.
+
+## Novedades — siguiente APK acumulado
+
+Backend mínimo 0.8.10. Novedades en cabecera y Notificaciones en menú: Todas/Sin leer, contador, páginas de 20 y apertura del contenido. Incluye búsquedas/avistamientos, revisión de solicitudes propias y última actividad de adopción para solicitante e institución. No es un historial completo de cambios de adopción. La lectura se guarda después de cargar contenido; si llega otra actualización, sigue sin leer. La bandeja institucional abierta desde una novedad empieza por esa solicitud; Actualizar bandeja muestra todas.
+
+El contador consulta al iniciar sesión, volver a primer plano y cada 60 segundos con app activa. No requiere push, no agrega transporte ni permisos. Pendiente prueba física: navegación exacta, contador mayor de 99, texto grande, carga fallida, cambio de cuenta y cierre de sesión con petición pendiente. Sin nuevo build por este bloque.

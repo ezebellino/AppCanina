@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from "react";
-import {Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View} from "react-native";
+import {AppState, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View} from "react-native";
 import {SafeAreaProvider, SafeAreaView} from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import * as SecureStore from "expo-secure-store";
@@ -13,6 +13,7 @@ import {createSessionClient} from "./session-client.cjs";
 import SearchMap from "./SearchMap";
 import AdoptionActivity from "./AdoptionActivity";
 import ShelterInbox from "./ShelterInbox";
+import NotificationsInbox from "./NotificationsInbox";
 
 const API = process.env.EXPO_PUBLIC_API_URL || "https://lazuna.up.railway.app/extraviados/api/v1";
 
@@ -143,7 +144,9 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   const [token, setToken] = useState("");
   const [message, setMessage] = useState(initialNotice);
   const [photoUri, setPhotoUri] = useState("");
-  const [notifications, setNotifications] = useState([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [institutionNotice, setInstitutionNotice] = useState(null);
+  const notificationRefresh = useRef(0);
   const [screen, setScreen] = useState("panel");
   const [reportState, setReportState] = useState("activos");
   const [reports, setReports] = useState([]);
@@ -198,11 +201,50 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   const [devicePermissions, setDevicePermissions] = useState({camera: "unknown", location: "unknown", notifications: "unknown"});
 
   const loadNotifications = async (accessToken = token) => {
-    const response = await sessionRequest(`${API}/notificaciones/`, {headers: {Authorization: `Bearer ${accessToken}`}});
+    const id = ++notificationRefresh.current;
+    const response = await sessionRequest(`${API}/novedades/?count_only=1`, {headers: {Authorization: `Bearer ${accessToken}`}});
     const data = await response.json();
     if (!response.ok) throw Error(data.detail || "No se pudieron consultar las notificaciones.");
-    setNotifications(data.notifications);
-    setMessage(data.notifications.length ? `${data.notifications.length} notificación${data.notifications.length === 1 ? "" : "es"} pendiente${data.notifications.length === 1 ? "" : "s"}.` : "No hay notificaciones pendientes.");
+    if (notificationRefresh.current === id) setUnreadNotifications(data.unread_count);
+  };
+
+  useEffect(() => {
+    if (!token) return;
+    const refresh = () => { if (AppState.currentState === "active") loadNotifications().catch(() => {}); };
+    const subscription = AppState.addEventListener("change", state => { if (state === "active") refresh(); });
+    const timer = setInterval(refresh, 60000);
+    return () => { clearInterval(timer); subscription.remove(); notificationRefresh.current++; };
+  }, [token]);
+
+  const openNotification = async (item, isCurrent) => {
+    const response = await sessionRequest(`${API}/novedades/${item.key}/`, {headers: {Authorization: `Bearer ${token}`}});
+    const data = await response.json();
+    if (!isCurrent()) return;
+    if (!response.ok) throw Error(data.detail || "La novedad ya no está disponible.");
+    if (data.target === "report") {
+      const detail = await sessionRequest(`${API}/avisos/${data.report_id}/`, {headers: {Authorization: `Bearer ${token}`}});
+      const reportData = await detail.json();
+      if (!isCurrent()) return;
+      if (!detail.ok) throw Error(reportData.detail || "No pudimos abrir el aviso.");
+      reportLoad.current++; setConfirmFound(false); setSelectedReport(reportData.report); setReportMapState({status: "ready"}); setScreen("detalle");
+    } else if (data.target === "search_request") {
+      setMyRequests([data.request]); setScreen("mis-solicitudes");
+    } else if (data.target === "adoption") {
+      setAdoptionInterests([data.interest]); setAdoptionAudience("applicant"); setScreen("mi-actividad");
+    } else if (data.target === "institution") {
+      setCanManageAdoptions(true); setAdoptionAudience("institution");
+      setInstitutionNotice({interests: [data.interest], counts: {}, status_choices: data.status_choices, has_next: false});
+      setScreen("mi-actividad");
+    } else { throw Error("No pudimos identificar el contenido de esta novedad."); }
+    setMessage("");
+    try {
+      const read = await sessionRequest(`${API}/novedades/${item.key}/leer/`, {
+        method: "POST", headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
+        body: JSON.stringify({activity_at: data.activity_at}),
+      });
+      if (!read.ok) throw Error("No pudimos guardar la lectura.");
+      await loadNotifications();
+    } catch { setMessage("Abrimos la novedad, pero no pudimos actualizar su lectura. Podés volver a abrirla desde Notificaciones."); }
   };
 
   const getDeviceKey = async () => {
@@ -550,6 +592,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   };
 
   const loadAdoptionInterests = async () => {
+    setInstitutionNotice(null);
     if (interestOperation.current) return;
     interestOperation.current = true;
     setInterestsLoading(true); setInterestsError("");
@@ -805,6 +848,10 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       <View style={styles.appHeader}>
         <View style={styles.appHeaderTop}>
           <View style={styles.brandGroup}><View style={styles.brandMark}><Text style={styles.brandMarkText}>✚</Text></View><View><Text style={styles.appBrand}>Lazuna</Text><Text style={styles.appContext}>{workspace === "community" ? "Comunidad" : "Veterinaria"}</Text></View></View>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Notificaciones, ${unreadNotifications} sin leer`} onPress={() => navigate("notificaciones")} style={styles.notificationsAccess}>
+            <Text style={styles.notificationsAccessText}>Novedades</Text>
+            {unreadNotifications > 0 ? <View style={styles.notificationsBadge}><Text style={styles.notificationsBadgeText}>{unreadNotifications > 99 ? "99+" : unreadNotifications}</Text></View> : null}
+          </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Abrir menú" onPress={() => setMenuOpen(true)} style={({pressed}) => [styles.menuTrigger, pressed && styles.pressed]}><Text style={styles.menuTriggerText}>☰</Text></Pressable>
         </View>
         <WorkspaceSwitcher active={workspace} onSelect={switchWorkspace}/>
@@ -825,7 +872,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
             <MenuItem active={screen === "mis-animales" || screen === "mi-animal" || screen === "nuevo-animal"} icon="🐾" label="Mis animales e historial" onPress={() => navigate("mis-animales", loadMyAnimals)}/>
             <MenuItem active={screen === "vincular-familia"} icon="⌘" label="Vincular mascota familiar" onPress={() => { setFamilyCode(""); navigate("vincular-familia"); }}/>
           </>}
-          <View style={styles.menuDivider}/><MenuItem active={screen === "ajustes"} icon="⚙" label="Mi teléfono y alertas" onPress={() => navigate("ajustes")}/><MenuItem danger icon="↪" label="Cerrar sesión" onPress={logout}/>
+          <View style={styles.menuDivider}/><MenuItem active={screen === "notificaciones"} icon="◉" label={`Notificaciones${unreadNotifications ? ` (${unreadNotifications})` : ""}`} onPress={() => navigate("notificaciones")}/><MenuItem active={screen === "ajustes"} icon="⚙" label="Mi teléfono y alertas" onPress={() => navigate("ajustes")}/><MenuItem danger icon="↪" label="Cerrar sesión" onPress={logout}/>
         </SafeAreaView></View></SafeAreaProvider>
       </Modal>
       {screen === "panel" ? <View style={styles.stack}>
@@ -904,7 +951,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
           <FilterPill active={adoptionAudience === "applicant"} label="Mis solicitudes" onPress={() => setAdoptionAudience("applicant")}/>
           <FilterPill active={adoptionAudience === "institution"} label="Solicitudes recibidas" onPress={() => setAdoptionAudience("institution")}/>
         </View> : null}
-        {canManageAdoptions && adoptionAudience === "institution" ? <ShelterInbox api={API} token={token} sessionRequest={sessionRequest}/> :
+        {canManageAdoptions && adoptionAudience === "institution" ? <ShelterInbox api={API} token={token} sessionRequest={sessionRequest} initialData={institutionNotice}/> :
           <AdoptionActivity interests={adoptionInterests} loading={interestsLoading}
             error={interestsError} pendingId={pendingVisitId} onRefresh={loadAdoptionInterests}
             onRequest={requestAdoptionVisit} onError={setInterestsError}/>}
@@ -975,14 +1022,12 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
         <View style={styles.panelIntro}><Text style={styles.sectionKicker}>TU DISPOSITIVO</Text><Text style={styles.sectionTitle}>Mi teléfono y alertas</Text><Text style={styles.help}>Los permisos aparecen solo cuando los necesitás.</Text></View>
         <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Permisos de este dispositivo</Text><Text style={styles.help}>Este estado pertenece a este teléfono y a tu cuenta. Activar un permiso no comparte datos por sí mismo.</Text><PermissionRow icon="⌖" label="Ubicación GPS" status={devicePermissions.location}/><PermissionRow icon="▣" label="Cámara" status={devicePermissions.camera}/><PermissionRow icon="◉" label="Alertas" status={devicePermissions.notifications}/><Button title="Actualizar estado de permisos" onPress={() => syncDevicePermissions()} variant="outline"/></View>
         <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Privacidad y accesos</Text><Text style={styles.help}>La ubicación exacta nunca se publica: el mapa compartido muestra una zona aproximada.</Text><Button title="Compartir mi ubicación" onPress={shareLocation}/><Button title="Probar cámara" onPress={takePhoto} variant="outline"/></View>
-        <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Notificaciones</Text><Text style={styles.help}>Recibí novedades de los avisos y solicitudes que seguís.</Text><Button title="Activar alertas en este teléfono" onPress={activatePushNotifications}/><Button title="Actualizar notificaciones" onPress={() => loadNotifications()} variant="outline"/></View>
+        <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Notificaciones</Text><Text style={styles.help}>Recibí novedades de los avisos y solicitudes que seguís.</Text><Button title="Activar alertas en este teléfono" onPress={activatePushNotifications}/><Button title="Ver notificaciones" onPress={() => navigate("notificaciones")} variant="outline"/></View>
         <View style={styles.settingsCard}><Text style={styles.settingsTitle}>Acceso protegido</Text><Text style={styles.help}>{biometricEnabled ? "La huella ya está activa en este teléfono." : "Podés activar la huella para proteger tu sesión."}</Text>{!biometricEnabled ? <Button title="Activar huella" onPress={enableBiometrics} variant="outline"/> : null}</View>
         {photoUri ? <Image source={{uri: photoUri}} style={styles.preview}/> : null}
       </View> : null}
-      {screen === "ajustes" && notifications.slice(0, 5).map(notification => <View key={notification.id} style={styles.notificationCard}>
-        {notification.photo_url ? <Image source={{uri: notification.photo_url}} style={styles.notificationPhoto}/> : null}
-        <View style={styles.notificationContent}><Text style={styles.notificationTitle}>{notification.title}</Text><Text style={styles.notificationAnimal}>{notification.animal_name} · {notification.species}</Text><Text style={styles.notificationArea}>⌖ {notification.area}</Text><Text>{notification.description || notification.body}</Text></View>
-      </View>)}
+      {screen === "notificaciones" ? <NotificationsInbox api={API} token={token} sessionRequest={sessionRequest}
+        onCount={count => { notificationRefresh.current++; setUnreadNotifications(count); }} onOpen={openNotification}/> : null}
     </View>}
       <Text style={styles.message}>{message}</Text>
     </ScrollView>
@@ -990,6 +1035,10 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
 }
 
 const styles = StyleSheet.create({
+  notificationsAccess: {flexDirection: "row", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 5, padding: 8, borderRadius: 12, backgroundColor: "#e0f2e9", flexShrink: 1},
+  notificationsAccessText: {fontSize: 12, fontWeight: "700", color: "#145c4c"},
+  notificationsBadge: {minWidth: 24, height: 24, paddingHorizontal: 4, borderRadius: 12, backgroundColor: "#176b55", alignItems: "center", justifyContent: "center"},
+  notificationsBadgeText: {color: "#fff", fontWeight: "800", fontSize: 12},
   screen: {flex: 1, backgroundColor: "#f1fcf8"},
   content: {padding: 16, gap: 16, paddingBottom: 36},
   title: {fontSize: 28, fontWeight: "800", color: "#0d4d42", letterSpacing: -0.6},

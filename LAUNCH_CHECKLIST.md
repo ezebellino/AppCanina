@@ -1,5 +1,13 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Novedades móviles — 0.8.10
+
+- [x] Bandeja Todas/Sin leer paginada, contador visible, apertura del aviso/solicitud correspondiente y lectura persistente.
+- [x] Actividad de adopciones del adoptante y del refugio; búsquedas públicas y respuestas privadas a solicitudes propias.
+- [x] 28 pruebas Django y exportación Android. No marca leída una actualización posterior a la que se abrió.
+- [ ] Próximo APK: verificar dos cuentas, novedades leídas/no leídas, solicitud institucional, respuesta de búsqueda rechazada, vuelta a primer plano, falta de red y disposición con texto grande.
+- Sin push nuevo ni build. Revisar el paquete acumulado antes de decidir el próximo APK.
+
 ## Animal encontrado — 0.8.9
 
 - [x] Cierre web desde tarjeta/detalle con confirmación, permisos por autor/ficha institucional/moderación, conservación del historial e idempotencia.
@@ -17,7 +25,7 @@
 
 Primero completar las features anteriores. En una integración futura decidir Expo/Firebase frente a una opción abierta (por ejemplo ntfy). Comparar mantenimiento: actualizaciones, seguridad/accesos, disponibilidad, monitoreo, respaldos, costos del servidor e integración Android/iOS. No migrar ni activar servicios ahora.
 
-El control futuro deberá incluir cola durable, límite global de envío por proyecto, reintentos espaciados con variación aleatoria, comprobantes de entrega, baja de tokens inválidos y prevención de duplicados. El envío actual es básico; no confundir aceptación del proveedor con entrega en teléfono. También queda pendiente la bandeja general de notificaciones del móvil con acceso a cada actividad.
+El control futuro deberá incluir cola durable, límite global de envío por proyecto, reintentos espaciados con variación aleatoria, comprobantes de entrega, baja de tokens inválidos y prevención de duplicados. El envío actual es básico; no confundir aceptación del proveedor con entrega en teléfono. La bandeja general móvil ya está preparada en 0.8.10; su validación física queda para el próximo APK.
 
 ## Acumulado tras 0.8.5: visitas de adopción en el APK
 
