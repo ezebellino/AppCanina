@@ -1,5 +1,13 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## APK acumulado 0.8.11 disponible — 2026-11-11
+
+Build único `27eb8a55-ffe8-4b1a-9fce-d90d5a97a54d` **FINISHED**, Android versionCode 4, perfil preview y firma existente. Fuente `a45bdca`. APK: https://expo.dev/artifacts/eas/fR7ojFo6RbhCJOOlXwP_KAC-yWzLSp-xVAWt80PpD8A.apk
+
+- [x] Compatibilidad Expo y Doctor 17/17; compilación cloud finalizada.
+- [ ] Instalar como actualización y completar `mobile/PRUEBA-APK-0.8.11.md`. No se declara validación física.
+- Push robusto y limpieza DEMO pos-lanzamiento siguen pendientes.
+
 ## Revisión del paquete acumulado — 2026-11-11
 
 Revisión técnica y regresiones completadas; dos ajustes de navegación corregidos. Evidencia y plan físico en `mobile/REVISION-PREBUILD.md`. El siguiente paso es decidir el único APK acumulado y ejecutar esa guía en teléfono. No se inició build en la revisión. Push robusto sigue aplazado.

@@ -1,5 +1,9 @@
 # Publicaciones web
 
+## APK 0.8.11 — 2026-11-11
+
+Build único solicitado por el usuario tras la revisión: `27eb8a55-ffe8-4b1a-9fce-d90d5a97a54d`, perfil preview Android APK, versión 0.8.11/versionCode 4, fuente `a45bdca5820bd3c8ad4e2b31b7e401d5a1227131`. Firma existente conservada. EAS recibió 16.1 MB; exclusiones de respaldos, herramientas, adjuntos y tmp conservadas. Compatibilidad Expo correcta, Doctor 17/17. Guía física: `mobile/PRUEBA-APK-0.8.11.md`. Estado **FINISHED**, completado 2026-11-11 05:42 ART. APK: https://expo.dev/artifacts/eas/fR7ojFo6RbhCJOOlXwP_KAC-yWzLSp-xVAWt80PpD8A.apk . No equivale a instalación ni validación física.
+
 ## 0.8.11 — Revisión previa al próximo APK
 
 Corregido el destino de novedades de avistamientos sobre solicitudes móviles propias: abre el detalle del aviso y mapa, mientras la respuesta de moderación sigue abriendo Mis solicitudes. Cliente descarta cargas antiguas de solicitudes que podrían reemplazar la selección abierta desde una novedad. Sin migraciones ni build.
