@@ -12,6 +12,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import {createSessionClient} from "./session-client.cjs";
 import SearchMap from "./SearchMap";
 import AdoptionActivity from "./AdoptionActivity";
+import ShelterInbox from "./ShelterInbox";
 
 const API = process.env.EXPO_PUBLIC_API_URL || "https://lazuna.up.railway.app/extraviados/api/v1";
 
@@ -168,6 +169,8 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   const [selectedAdoption, setSelectedAdoption] = useState(null);
   const [interestMessage, setInterestMessage] = useState("");
   const [adoptionInterests, setAdoptionInterests] = useState([]);
+  const [canManageAdoptions, setCanManageAdoptions] = useState(false);
+  const [adoptionAudience, setAdoptionAudience] = useState("applicant");
   const [interestsLoading, setInterestsLoading] = useState(false);
   const [interestsError, setInterestsError] = useState("");
   const [pendingVisitId, setPendingVisitId] = useState(null);
@@ -531,6 +534,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo cargar tu actividad.");
       setAdoptionInterests(data.interests);
+      setCanManageAdoptions(data.can_manage_adoption_requests === true);
     } catch (error) { setInterestsError(error.message || "No pudimos actualizar. Revisá tu conexión y volvé a intentar."); }
     finally { interestOperation.current = false; setInterestsLoading(false); }
   };
@@ -692,7 +696,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       const response = await sessionRequest(`${API}/adopciones/${selectedAdoption.id}/intereses/`, {method: "POST", headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`}, body: JSON.stringify({message: interestMessage})});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo enviar tu interés.");
-      setInterestMessage(""); setScreen("mi-actividad"); setMessage(data.detail); await loadAdoptionInterests();
+      setInterestMessage(""); setAdoptionAudience("applicant"); setScreen("mi-actividad"); setMessage(data.detail); await loadAdoptionInterests();
     } catch (error) { setMessage(error.message); }
   };
 
@@ -864,9 +868,16 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
         {adoptions.length ? adoptions.map(post => <AdoptionCard key={post.id} post={post} onShare={() => shareAdoption(post)} onInterest={() => { setSelectedAdoption(post); setInterestMessage(""); setScreen("interes-adopcion"); }}/>) : <Text style={styles.empty}>Todavía no hay animales publicados para adoptar.</Text>}
       </View> : null}
       {screen === "interes-adopcion" && selectedAdoption ? <View style={styles.stack}><Button title="← Volver a adopciones" onPress={() => setScreen("adopciones")}/><Text style={styles.sectionTitle}>Me interesa adoptar a {selectedAdoption.name}</Text><Text style={styles.help}>Tu mensaje llegará solo a la veterinaria o refugio responsable. Tus datos no se publicarán.</Text><View style={styles.field}><Text style={styles.fieldLabel}>Contanos por qué te interesa</Text><TextInput value={interestMessage} onChangeText={setInterestMessage} multiline placeholder="Ej.: Tengo experiencia, vivo en una casa con patio..." placeholderTextColor="#6c8378" style={[styles.input, styles.textarea]}/></View><Button title="Enviar interés privado" onPress={submitAdoptionInterest}/></View> : null}
-      {screen === "mi-actividad" ? <AdoptionActivity interests={adoptionInterests} loading={interestsLoading}
-        error={interestsError} pendingId={pendingVisitId} onRefresh={loadAdoptionInterests}
-        onRequest={requestAdoptionVisit} onError={setInterestsError}/> : null}
+      {screen === "mi-actividad" ? <View style={styles.stack}>
+        {canManageAdoptions ? <View style={styles.filterRow}>
+          <FilterPill active={adoptionAudience === "applicant"} label="Mis solicitudes" onPress={() => setAdoptionAudience("applicant")}/>
+          <FilterPill active={adoptionAudience === "institution"} label="Solicitudes recibidas" onPress={() => setAdoptionAudience("institution")}/>
+        </View> : null}
+        {canManageAdoptions && adoptionAudience === "institution" ? <ShelterInbox api={API} token={token} sessionRequest={sessionRequest}/> :
+          <AdoptionActivity interests={adoptionInterests} loading={interestsLoading}
+            error={interestsError} pendingId={pendingVisitId} onRefresh={loadAdoptionInterests}
+            onRequest={requestAdoptionVisit} onError={setInterestsError}/>}
+      </View> : null}
       {screen === "nueva-adopcion" ? <View style={styles.stack}>
         <Button title="← Volver a adopciones" onPress={() => setScreen("adopciones")}/><Text style={styles.sectionTitle}>Publicar para adopción</Text><Text style={styles.help}>Una veterinaria o refugio responsable revisará la publicación antes de mostrarla.</Text>
         {adoptionPhoto?.uri ? <Image source={{uri: adoptionPhoto.uri}} style={styles.requestPhoto}/> : <View style={styles.requestPhotoEmpty}><Text style={styles.reportPhotoIcon}>🐾</Text><Text style={styles.help}>Agregá una foto clara</Text></View>}

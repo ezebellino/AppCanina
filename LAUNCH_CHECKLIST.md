@@ -1,12 +1,24 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Acumulado tras 0.8.5: bandeja del refugio
+
+- [x] En Mi actividad, responsables de refugios verificados pueden abrir Solicitudes recibidas, filtrar nuevas/visitas, paginar, actualizar estado/mensaje y aceptar o rechazar visitas.
+- [x] Datos limitados a instituciones gestionadas; sin permisos globales por ser staff. Revocación y verificación comprobadas en cada operación. Protección frente a cambios simultáneos con versión de la solicitud.
+- [ ] Validación física en el próximo APK acumulado: dos responsables, dos refugios, adoptante, actualización, cambios sin red y cambio de cuenta. No generar build por este bloque.
+
+## Notificaciones push — decisión aplazada por el usuario
+
+Primero completar las features anteriores. En una integración futura decidir Expo/Firebase frente a una opción abierta (por ejemplo ntfy). Comparar mantenimiento: actualizaciones, seguridad/accesos, disponibilidad, monitoreo, respaldos, costos del servidor e integración Android/iOS. No migrar ni activar servicios ahora.
+
+El control futuro deberá incluir cola durable, límite global de envío por proyecto, reintentos espaciados con variación aleatoria, comprobantes de entrega, baja de tokens inválidos y prevención de duplicados. El envío actual es básico; no confundir aceptación del proveedor con entrega en teléfono. También queda pendiente la bandeja general de notificaciones del móvil con acceso a cada actividad.
+
 ## Acumulado tras 0.8.5: visitas de adopción en el APK
 
 - [x] API privada y pantalla del adoptante: solicitar visita, consultar respuesta/indicaciones y abrir ubicación aceptada en Maps.
 - [x] 20 pruebas Django y exportación Android; ver `RELEASING.md` 0.8.7.
 - [ ] Prueba física al generar el próximo APK acumulado, junto con mapas de extraviados. No iniciar build por este bloque.
-- [ ] Siguiente feature: bandeja institucional en el APK; mientras tanto el refugio responde desde la web.
-- [ ] Push real: revisar credenciales FCM/EAS y probar entrega en teléfono. El código usa Expo Notifications; presencia del código no demuestra entrega. Notificaciones de visitas por push todavía no implementadas (correos existentes sí).
+- [x] Bandeja institucional preparada en fuente (ver bloque superior); la web continúa disponible.
+- [ ] Push real (aplazado; proveedor por decidir): revisar credenciales y probar entrega en teléfono. El código usa Expo Notifications; presencia del código no demuestra entrega. Notificaciones de visitas por push todavía no implementadas (correos existentes sí).
 
 Confirmación del usuario (2026-11-10): vínculo familiar de mascotas y correos respectivos funcionan en uso real.
 

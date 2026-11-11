@@ -2,9 +2,12 @@ from django.urls import path
 
 from . import views
 from . import api
+from . import mobile_inbox
 
 
 urlpatterns = [
+    path("api/v1/adopciones/bandeja/", mobile_inbox.inbox, name="mobile_adoption_inbox"),
+    path("api/v1/adopciones/bandeja/<int:interest_id>/", mobile_inbox.update, name="mobile_adoption_inbox_update"),
     path("adopciones/novedades/", views.adoption_update_counts, name="adoption_update_counts"),
     path("", views.report_list, name="lost_pet_list"),
     path("adopciones/", views.adoption_list, name="adoption_list"),

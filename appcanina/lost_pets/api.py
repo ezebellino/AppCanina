@@ -644,7 +644,10 @@ def mobile_adoption_interest(request, post_id):
 @token_required("lost_pets.view_lostpetreport")
 def mobile_my_adoption_interests(request):
     interests = AdoptionInterest.objects.filter(applicant=request.mobile_user).select_related("post__organization")
-    response = JsonResponse({"interests": [_mobile_interest_data(interest) for interest in interests[:50]]})
+    response = JsonResponse({
+        "interests": [_mobile_interest_data(interest) for interest in interests[:50]],
+        "can_manage_adoption_requests": _mobile_managed_shelter_ids(request.mobile_user).exists(),
+    })
     response["Cache-Control"] = "no-store"
     return response
 

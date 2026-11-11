@@ -51,3 +51,9 @@ URL pública: https://lazuna.up.railway.app. Los APK anteriores al cambio de dom
 Mi actividad permite solicitar una visita a un refugio verificado, consultar la respuesta con Actualizar solicitudes y abrir Maps con la dirección compartida tras aceptar. El refugio continúa respondiendo desde su bandeja web. Incluye explicación de estados, espera, respuesta negativa e indicaciones; los datos son privados del solicitante. Reintentar una solicitud ya guardada no reenvía el correo.
 
 Backend mínimo para esta pantalla: 0.8.7. Validación de bundle Android realizada; en el próximo APK probar dos cuentas: solicitud desde móvil, aceptación/rechazo desde web, actualización y Maps. Probar falta de red y cierre/cambio de cuenta. No se generó APK por este bloque.
+
+## Bandeja del refugio — siguiente APK acumulado
+
+Con backend 0.8.8, Mi actividad habilita Solicitudes recibidas para responsables de refugios verificados. Permite filtrar Todas/Nuevas/Visitas pendientes, paginar y gestionar estado, mensaje y respuesta de visita. El mensaje es visible al adoptante; aceptar exige dirección completa. En conflictos o errores de red se pide actualizar antes de volver a guardar. El rol staff por sí solo no habilita esta bandeja.
+
+Prueba física pendiente: aceptar desde refugio y verificar dirección desde adoptante; rechazar sin revelar ubicación; cambiar estado/mensaje; doble envío, edición simultánea, falta de red y cuenta sin permisos. Push robusto/proveedor quedan aplazados; no se generó APK.

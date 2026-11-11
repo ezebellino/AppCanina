@@ -1,5 +1,13 @@
 # Publicaciones web
 
+## 0.8.8 — Bandeja institucional móvil; acumulado sin APK
+
+Nuevas API GET `/extraviados/api/v1/adopciones/bandeja/` y POST `/extraviados/api/v1/adopciones/bandeja/<id>/`: solicitudes de refugios verificados gestionados por la cuenta, filtros, contadores y páginas de 20. Edición de estado y mensaje visible al adoptante; aceptación/rechazo de visitas reutiliza los correos actuales. Se verifica pertenencia en cada operación, se evita sobrescribir una versión modificada y se conservan respuestas ante fallo SMTP. Sin migraciones; sin cambios al proveedor push.
+
+En Mi actividad del próximo APK, la capacidad devuelta por el servidor habilita Solicitudes recibidas. Formularios con límites, errores, actualización, bloqueo de doble envío y descarte de respuestas tras salir. La dirección se comparte solamente al aceptar. Cambiar el estado de una solicitud no cambia la publicación del animal.
+
+Validación: 28 pruebas Django (8 nuevas de bandeja, 8 del adoptante y 12 web); exportación Android de 750 módulos. Prueba física pendiente del próximo APK. Control completo de push y elección de proveedor aplazados por pedido del usuario; comparar mantenimiento antes de decidir.
+
 ## 0.8.7 — Visitas de adopción desde el móvil; acumulado sin APK
 
 El adoptante puede solicitar una visita desde Mi actividad, consultar la respuesta del refugio y abrir la dirección aceptada en Maps. Incluye institución, explicación breve del estado, indicaciones, actualización manual y mensajes de carga/error. La bandeja institucional nativa es otro bloque pendiente; el refugio responde desde la web existente.
