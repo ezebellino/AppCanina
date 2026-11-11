@@ -1,5 +1,13 @@
 # Publicaciones web
 
+## 0.8.7 — Visitas de adopción desde el móvil; acumulado sin APK
+
+El adoptante puede solicitar una visita desde Mi actividad, consultar la respuesta del refugio y abrir la dirección aceptada en Maps. Incluye institución, explicación breve del estado, indicaciones, actualización manual y mensajes de carga/error. La bandeja institucional nativa es otro bloque pendiente; el refugio responde desde la web existente.
+
+API: nuevo POST autenticado `/extraviados/api/v1/adopciones/solicitudes/<id>/visita/` y datos de visita en la actividad privada. Solo el solicitante puede acceder; requiere refugio verificado, publicación vigente y solicitud abierta. Actualización condicional evita duplicados y reenvío de correos en reintentos. Dirección únicamente tras aceptación, indicaciones tras respuesta, caché desactivada en actividad/respuesta. Fallos SMTP conservan la solicitud y devuelven aviso. Sin migraciones.
+
+Validación: 20 pruebas Django (8 nuevas y 12 del flujo web), exportación Android correcta de 749 módulos. Falta validación física en el próximo APK: solicitar, refrescar tras respuesta web, abrir Maps, reintentar sin red y cambiar de cuenta. No se ejecutó EAS Build.
+
 ## 0.8.6 — Datos del mapa móvil; cliente acumulado sin APK
 
 Nuevo GET autenticado `/extraviados/api/v1/avisos/<id>/`: detalle de avisos publicados/resueltos, última observación y puntos aproximados de las últimas 20 observaciones, ordenadas por fecha de avistamiento. Excluye avistamientos ocultos incluso para revisores y nunca serializa latitud/longitud exactas. Respuesta no-store; sin migraciones ni cambios a los endpoints anteriores.

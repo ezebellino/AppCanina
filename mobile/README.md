@@ -45,3 +45,9 @@ Para invitar a un cuidador: el responsable del refugio verificado abre una ficha
 Entrega pendiente: publicar el backend actualizado antes de distribuir la nueva APK y validar ambos recorridos en dos cuentas reales de prueba. No se generó un build EAS con este cambio.
 
 URL pública: https://lazuna.up.railway.app. Los APK anteriores al cambio de dominio necesitan actualizarse. Conservamos slug, android.package y extra.eas.projectId porque identifican la aplicación existente.
+
+## Visitas de adopción — siguiente APK acumulado
+
+Mi actividad permite solicitar una visita a un refugio verificado, consultar la respuesta con Actualizar solicitudes y abrir Maps con la dirección compartida tras aceptar. El refugio continúa respondiendo desde su bandeja web. Incluye explicación de estados, espera, respuesta negativa e indicaciones; los datos son privados del solicitante. Reintentar una solicitud ya guardada no reenvía el correo.
+
+Backend mínimo para esta pantalla: 0.8.7. Validación de bundle Android realizada; en el próximo APK probar dos cuentas: solicitud desde móvil, aceptación/rechazo desde web, actualización y Maps. Probar falta de red y cierre/cambio de cuenta. No se generó APK por este bloque.

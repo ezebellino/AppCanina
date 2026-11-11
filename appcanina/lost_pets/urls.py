@@ -34,6 +34,7 @@ urlpatterns = [
     path("api/v1/adopciones/solicitar/", api.mobile_adoption_request, name="mobile_adoption_request"),
     path("api/v1/adopciones/<int:post_id>/intereses/", api.mobile_adoption_interest, name="mobile_adoption_interest"),
     path("api/v1/adopciones/mis-intereses/", api.mobile_my_adoption_interests, name="mobile_my_adoption_interests"),
+    path("api/v1/adopciones/solicitudes/<int:interest_id>/visita/", api.mobile_adoption_visit_request, name="mobile_adoption_visit_request"),
     path("api/v1/solicitudes-busqueda/", api.mobile_search_request, name="mobile_search_request"),
     path("api/v1/solicitudes-busqueda/mias/", api.mobile_my_search_requests, name="mobile_my_search_requests"),
     path("api/v1/solicitudes-busqueda/<int:report_id>/editar/", api.mobile_search_request_edit, name="mobile_search_request_edit"),

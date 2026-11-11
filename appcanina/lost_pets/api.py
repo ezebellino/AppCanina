@@ -21,6 +21,7 @@ from PIL import UnidentifiedImageError
 from .forms import photo_without_location_metadata
 from .models import AdoptionInterest, AdoptionPost, CommunityDevicePermission, CommunityNotification, LostPetReport, MobileAccessToken, MobilePushDevice, Sighting
 from .notifications import notify_new_sighting
+from .adoption_email import notify_visit
 from .visibility import deliverable_notifications
 from .media import request_photo_url
 from organizations.forms import CommunityCollaboratorForm
@@ -201,8 +202,31 @@ def _mobile_adoption_data(request, post):
     }
 
 
+def _mobile_visit_available(interest):
+    organization = interest.post.organization
+    return bool(
+        organization and organization.kind == Organization.Kind.SHELTER and organization.is_verified
+        and interest.post.status == AdoptionPost.Status.PUBLISHED
+        and interest.status not in (AdoptionInterest.Status.CLOSED, AdoptionInterest.Status.COMPLETED)
+    )
+
+
 def _mobile_interest_data(interest):
-    return {"id": interest.id, "post_id": interest.post_id, "animal_name": interest.post.name, "species": interest.post.get_species_display(), "status": interest.status, "status_label": interest.get_status_display(), "staff_note": interest.staff_note, "message": interest.message, "updated_at": interest.updated_at.isoformat()}
+    # Only serialize for the authenticated applicant; never expose this in the public feed.
+    organization = interest.post.organization
+    accepted = interest.visit_status == AdoptionInterest.VisitStatus.ACCEPTED
+    answered = interest.visit_status in (AdoptionInterest.VisitStatus.ACCEPTED, AdoptionInterest.VisitStatus.DECLINED)
+    return {
+        "id": interest.id, "post_id": interest.post_id, "animal_name": interest.post.name,
+        "species": interest.post.get_species_display(), "status": interest.status,
+        "status_label": interest.get_status_display(), "staff_note": interest.staff_note,
+        "message": interest.message, "updated_at": interest.updated_at.isoformat(),
+        "organization_name": organization.name if organization else "",
+        "visit_status": interest.visit_status, "visit_status_label": interest.get_visit_status_display(),
+        "can_request_visit": _mobile_visit_available(interest) and interest.visit_status == AdoptionInterest.VisitStatus.NONE,
+        "visit_address": interest.visit_address if accepted else "",
+        "visit_instructions": interest.visit_instructions if answered else "",
+    }
 
 
 def _mobile_managed_shelter_ids(user):
@@ -619,8 +643,37 @@ def mobile_adoption_interest(request, post_id):
 @require_GET
 @token_required("lost_pets.view_lostpetreport")
 def mobile_my_adoption_interests(request):
-    interests = AdoptionInterest.objects.filter(applicant=request.mobile_user).select_related("post")
-    return JsonResponse({"interests": [_mobile_interest_data(interest) for interest in interests[:50]]})
+    interests = AdoptionInterest.objects.filter(applicant=request.mobile_user).select_related("post__organization")
+    response = JsonResponse({"interests": [_mobile_interest_data(interest) for interest in interests[:50]]})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@csrf_exempt
+@require_POST
+@token_required("lost_pets.view_lostpetreport")
+def mobile_adoption_visit_request(request, interest_id):
+    interest = AdoptionInterest.objects.filter(
+        pk=interest_id, applicant=request.mobile_user,
+    ).select_related("post__organization").first()
+    if not interest:
+        return JsonResponse({"detail": "Solicitud no encontrada."}, status=404)
+    if not _mobile_visit_available(interest):
+        return JsonResponse({"detail": "Esta solicitud no está disponible para coordinar una visita."}, status=409)
+    # Conditional update makes retries/double taps safe and avoids duplicate emails.
+    changed = AdoptionInterest.objects.filter(pk=interest.pk, visit_status=AdoptionInterest.VisitStatus.NONE).update(
+        visit_status=AdoptionInterest.VisitStatus.REQUESTED, visit_requested_at=timezone.now(),
+        updated_at=timezone.now(), institution_activity_at=timezone.now(),
+    )
+    interest.refresh_from_db()
+    detail = "La visita ya tiene una solicitud registrada."
+    if changed:
+        detail = "Solicitud de visita enviada al refugio."
+        if not notify_visit(interest, request):
+            detail = "La visita quedó solicitada, pero no pudimos enviar el correo. El refugio puede verla en su bandeja."
+    response = JsonResponse({"interest": _mobile_interest_data(interest), "detail": detail})
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @csrf_exempt

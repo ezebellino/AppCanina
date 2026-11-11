@@ -1,5 +1,15 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Acumulado tras 0.8.5: visitas de adopción en el APK
+
+- [x] API privada y pantalla del adoptante: solicitar visita, consultar respuesta/indicaciones y abrir ubicación aceptada en Maps.
+- [x] 20 pruebas Django y exportación Android; ver `RELEASING.md` 0.8.7.
+- [ ] Prueba física al generar el próximo APK acumulado, junto con mapas de extraviados. No iniciar build por este bloque.
+- [ ] Siguiente feature: bandeja institucional en el APK; mientras tanto el refugio responde desde la web.
+- [ ] Push real: revisar credenciales FCM/EAS y probar entrega en teléfono. El código usa Expo Notifications; presencia del código no demuestra entrega. Notificaciones de visitas por push todavía no implementadas (correos existentes sí).
+
+Confirmación del usuario (2026-11-10): vínculo familiar de mascotas y correos respectivos funcionan en uso real.
+
 ## Acumulado tras 0.8.5: mapa móvil de extraviados
 
 Backend 0.8.6 y cliente preparados para última ubicación aproximada y área estimativa entre observaciones públicas del mismo animal. Validación automatizada y visual HTML registrada en `RELEASING.md`. No se generó APK; probar WebView/Maps en teléfono, red ausente, avisos sin GPS, múltiples reportes y cambios rápidos de aviso al distribuir el próximo paquete.
