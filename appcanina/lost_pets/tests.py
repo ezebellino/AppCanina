@@ -74,7 +74,7 @@ class LostPetReportTests(TestCase):
         self.assertContains(response, "Nube")
         self.assertNotContains(response, "Tango")
         self.assertEqual(self.client.get(reverse("lost_pet_detail", args=[hidden.id])).status_code, 404)
-        self.assertEqual(self.client.get(reverse("lost_pet_create")).status_code, 403)
+        self.assertContains(self.client.get(reverse("lost_pet_create")), "Enviar búsqueda a revisión")
         self.assertEqual(self.client.get(reverse("patient_list")).status_code, 403)
 
         response = self.client.post(
@@ -619,7 +619,7 @@ class CommunityAdoptionBrowsingTests(TestCase):
             self.assertEqual(list(response.context["posts"]), [self.published])
             self.assertFalse(response.context["can_manage_adoptions"])
             self.assertNotContains(response, "Aprobar y publicar")
-            self.assertNotContains(response, "Publicar animal")
+            self.assertNotContains(response, 'href="' + reverse("adoption_create") + '"')
 
     def test_read_access_does_not_allow_creation_or_status_changes(self):
         self.assertEqual(self.client.get(reverse("adoption_create")).status_code, 403)

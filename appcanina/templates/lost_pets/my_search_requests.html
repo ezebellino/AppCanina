@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Mis búsquedas{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Comunidad</p><h1>Mis búsquedas</h1><p>Seguí la revisión de tus avisos y las búsquedas que publicaste.</p></div><a class="button" href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a></div>
+<section class="community-animal-grid">{% for report in page_obj %}<article class="community-animal-card">
+{% if report.photo %}<div class="community-animal-photo"><img src="{{ report.photo.url }}" alt="{{ report.name }}"></div>{% endif %}
+<div class="community-animal-body"><h2>{{ report.name }}</h2><p><strong>{% if report.status == 'hidden' %}En revisión{% elif report.status == 'resolved' %}Encontrado · Búsqueda finalizada{% else %}{{ report.get_status_display }}{% endif %}</strong></p><p>{{ report.area_label }}</p>
+{% if report.review_note %}<p>Mensaje del equipo: {{ report.review_note }}</p>{% endif %}
+{% if report.status == 'published' %}<div class="inline-actions"><a class="button button-ghost" href="{% url 'lost_pet_detail' report.id %}">Ver aviso</a><a class="button" href="{% url 'lost_pet_found' report.id %}">Se encontró · Finalizar búsqueda</a></div>
+{% elif report.requested_via_mobile and report.status == 'hidden' or report.requested_via_mobile and report.status == 'rejected' %}<a class="button button-ghost" href="{% url 'search_request_edit' report.id %}">Editar y enviar a revisión</a>{% endif %}
+</div></article>{% empty %}<article class="card"><p>Todavía no creaste búsquedas.</p></article>{% endfor %}</section>
+<div class="page-actions">{% if page_obj.has_previous %}<a class="button button-ghost" href="?page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="button button-ghost" href="?page={{ page_obj.next_page_number }}">Siguiente</a>{% endif %}</div>
+{% endblock %}

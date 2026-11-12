@@ -1,5 +1,13 @@
 # Publicaciones web
 
+## 0.8.12 — Publicación comunitaria y perfil web
+
+Accesos agrupados arriba del formulario personal: Mis animales, Publicar animal extraviado, Mis búsquedas y Mis solicitudes de adopción. La navegación y el listado de extraviados también permiten iniciar una búsqueda. Los colaboradores envían avisos privados a revisión; no pueden publicar directamente ni vincular animales ajenos. Mis búsquedas muestra los estados, permite corregir solicitudes pendientes/rechazadas y finalizar búsquedas publicadas propias. Se reutiliza el flujo de moderación existente y sus fotos protegidas, sin migraciones.
+
+Buscar se oculta para colaboradores y refugios en la web; sigue disponible para perfiles con búsqueda de pacientes/productos. El APK conserva su búsqueda funcional de animales y el acceso Pedir una búsqueda; no se cambió ni generó un APK.
+
+Validación: 68 pruebas Django de publicaciones, permisos y visibilidad correctas; git diff --check sin errores; comprobación del perfil renderizado con usuario ficticio en navegador de escritorio. No se logró capturar una imagen ni verificar visualmente el ancho móvil en la herramienta; esa comprobación queda para teléfono. Sin correos reales ni cambios en animales/cuentas de producción durante las pruebas.
+
 ## APK 0.8.11 — 2026-11-11
 
 Build único solicitado por el usuario tras la revisión: `27eb8a55-ffe8-4b1a-9fce-d90d5a97a54d`, perfil preview Android APK, versión 0.8.11/versionCode 4, fuente `a45bdca5820bd3c8ad4e2b31b7e401d5a1227131`. Firma existente conservada. EAS recibió 16.1 MB; exclusiones de respaldos, herramientas, adjuntos y tmp conservadas. Compatibilidad Expo correcta, Doctor 17/17. Guía física: `mobile/PRUEBA-APK-0.8.11.md`. Estado **FINISHED**, completado 2026-11-11 05:42 ART. APK: https://expo.dev/artifacts/eas/fR7ojFo6RbhCJOOlXwP_KAC-yWzLSp-xVAWt80PpD8A.apk . No equivale a instalación ni validación física.

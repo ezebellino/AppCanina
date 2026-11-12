@@ -6,6 +6,8 @@ from . import mobile_inbox, mobile_updates
 
 
 urlpatterns = [
+    path("mis-busquedas/", views.my_search_requests, name="my_search_requests"),
+    path("mis-busquedas/<int:report_id>/editar/", views.report_create, name="search_request_edit"),
     path("api/v1/novedades/", mobile_updates.feed, name="mobile_updates"),
     path("api/v1/novedades/<str:key>/", mobile_updates.detail, name="mobile_update_detail"),
     path("api/v1/novedades/<str:key>/leer/", mobile_updates.mark_read, name="mobile_update_read"),

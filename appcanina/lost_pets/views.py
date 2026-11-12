@@ -2,7 +2,9 @@ from config.public_urls import public_url
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
+from django.core.cache import cache
+from patients.ownership import owner_relations
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
@@ -284,26 +286,61 @@ def map_data(request):
     return JsonResponse({"markers": markers})
 
 
-@login_required
-@permission_required("lost_pets.add_lostpetreport", raise_exception=True)
-def report_create(request):
+@report_read_required
+@require_http_methods(["GET", "POST"])
+def report_create(request, report_id=None):
+    editing = None
+    if report_id is not None:
+        editing = get_object_or_404(LostPetReport, pk=report_id, reporter=request.user,
+                                    requested_via_mobile=True, status__in=["hidden", "rejected"])
+    direct = request.user.has_perm("lost_pets.add_lostpetreport") and editing is None
     patient_id = request.GET.get("patient")
-    initial = {"patient": patient_id, "last_seen_at": timezone.localtime().replace(second=0, microsecond=0)}
-    managed_organizations = organizations_managed_by(request.user)
-    visible_patients = Patient.objects.filter(active=True) if request.user.is_superuser else Patient.objects.filter(active=True, organization__in=managed_organizations)
+    initial = {"patient": patient_id, "last_seen_at": timezone.localtime().replace(second=0, microsecond=0)} if not editing else {}
+    own_ids = owner_relations(request.user).values("patient_id")
+    if direct:
+        managed = organizations_managed_by(request.user)
+    else:
+        managed = verified_shelters_managed_by(request.user)
+    visible_patients = Patient.objects.filter(active=True).filter(Q(pk__in=own_ids) | Q(organization__in=managed))
+    if request.user.is_superuser:
+        visible_patients = Patient.objects.filter(active=True)
     if patient_id:
         patient = get_object_or_404(visible_patients, pk=patient_id)
         initial.update({"name": patient.name, "species": patient.species, "breed": patient.breed})
-    form = LostPetReportForm(request.POST or None, request.FILES or None, initial=initial, patient_queryset=visible_patients)
+    form = LostPetReportForm(request.POST or None, request.FILES or None, initial=initial,
+                            instance=editing, patient_queryset=visible_patients)
+    form.fields["patient"].label = "Vincular con uno de mis animales (opcional)"
     if request.method == "POST" and form.is_valid():
-        report = form.save(commit=False)
-        report.reporter = request.user
-        report.status = LostPetReport.Status.PUBLISHED
-        report.save()
-        notify_new_report(report)
-        messages.success(request, "El aviso fue publicado y ya puede recibir avistamientos.")
-        return redirect("lost_pet_detail", report_id=report.id)
-    return render(request, "lost_pets/report_form.html", {"form": form})
+        key = f"mobile-search-request:{request.META.get('REMOTE_ADDR', 'unknown')}"
+        if not direct and not editing and cache.get(key, 0) >= 3:
+            form.add_error(None, "Ya enviaste varias búsquedas. Probá nuevamente más tarde.")
+        else:
+            report = form.save(commit=False)
+            report.reporter = request.user
+            report.status = LostPetReport.Status.PUBLISHED if direct else LostPetReport.Status.HIDDEN
+            report.requested_via_mobile = not direct  # Existing community moderation/preview workflow, shared with web.
+            report.review_note = ""
+            report.save()
+            if direct:
+                notify_new_report(report)
+                messages.success(request, "El aviso fue publicado y ya puede recibir avistamientos.")
+                return redirect("lost_pet_detail", report_id=report.id)
+            if not editing:
+                cache.set(key, cache.get(key, 0) + 1, 3600)
+            messages.success(request, "Recibimos tu búsqueda. El equipo la revisará antes de publicarla.")
+            return redirect("my_search_requests")
+    return render(request, "lost_pets/report_form.html", {"form": form, "direct_publish": direct, "editing_request": editing})
+
+
+@report_read_required
+@require_GET
+def my_search_requests(request):
+    reports = LostPetReport.objects.filter(reporter=request.user).order_by("-updated_at", "-id")
+    from django.core.paginator import Paginator
+    page = Paginator(reports, 20).get_page(request.GET.get("page"))
+    response = render(request, "lost_pets/my_search_requests.html", {"page_obj": page})
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @report_read_required

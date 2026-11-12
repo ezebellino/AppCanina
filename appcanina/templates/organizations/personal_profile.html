@@ -1,8 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Mi perfil · {{ app_name }}{% endblock %}
 {% block content %}
-<p><a class="button button-ghost" href="{% url 'my_animals' %}">🐾 Mis animales</a></p>
-<div class="page-heading"><div><p class="eyebrow">Mi cuenta</p><h1>Mi perfil</h1><p>Actualizá tus datos personales y el correo donde recibís los avisos.</p></div></div>
-<section class="card"><p><strong>Usuario:</strong> {{ user.username }}</p><form method="post" class="form-grid">{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<div class="form-actions"><button>Guardar mi perfil</button></div></form></section>
-{% if not organization_profile and not user.is_staff %}<section class="card"><h2>Tu espacio en la comunidad</h2><p>Podés colaborar con animales extraviados, conocer animales en adopción y seguir tus solicitudes.</p><a class="button button-ghost" href="{% url 'my_adoption_interests' %}">Mis solicitudes de adopción</a></section>{% endif %}
+<div class="page-heading"><div><p class="eyebrow">Mi cuenta</p><h1>Mi perfil</h1><p>Tus animales, tu actividad y tus datos personales, en un solo lugar.</p></div></div>
+<div class="profile-sections">
+<section class="card"><h2>Mis accesos</h2><p>Elegí qué querés hacer.</p><div class="profile-shortcuts">
+<a class="button button-ghost" href="{% url 'my_animals' %}">{% include "organizations/nav_icon.html" with icon="paw" %} Mis animales</a>
+{% if perms.lost_pets.view_lostpetreport or user.is_staff %}
+<a class="button" href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a>
+<a class="button button-ghost" href="{% url 'my_search_requests' %}">Mis búsquedas</a>
+<a class="button button-ghost" href="{% url 'my_adoption_interests' %}">Mis solicitudes de adopción</a>
+{% endif %}
+{% if can_receive_adoption_requests %}<a class="button button-ghost" href="{% url 'adoption_interest_list' %}">Solicitudes recibidas</a>{% endif %}
+</div></section>
+<section class="card"><h2>Mis datos personales</h2><p>Actualizá tus datos y el correo donde recibís los avisos.</p><p><strong>Usuario:</strong> {{ user.username }}</p>
+<form method="post" class="form-grid">{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<div class="form-actions"><button>Guardar mi perfil</button></div></form></section>
+</div>
 {% endblock %}

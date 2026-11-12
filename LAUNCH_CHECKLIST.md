@@ -1,5 +1,12 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Perfil y publicaciones web — 0.8.12
+
+- [x] Accesos agrupados antes de los datos personales; Buscar condicionado por rol.
+- [x] Solicitudes comunitarias de búsqueda con revisión previa, listado propio y corrección privada.
+- [ ] Comprobar en teléfono el perfil web y enviar una búsqueda desde Publicar animal extraviado. La revisión del navegador confirmó los accesos en escritorio; no sustituye la prueba visual móvil.
+- APK 0.8.11 conservado: incluye Pedir una búsqueda y Buscar animales. No se generó otro build.
+
 ## APK acumulado 0.8.11 disponible — 2026-11-11
 
 Build único `27eb8a55-ffe8-4b1a-9fce-d90d5a97a54d` **FINISHED**, Android versionCode 4, perfil preview y firma existente. Fuente `a45bdca`. APK: https://expo.dev/artifacts/eas/fR7ojFo6RbhCJOOlXwP_KAC-yWzLSp-xVAWt80PpD8A.apk

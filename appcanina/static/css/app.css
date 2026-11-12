@@ -101,3 +101,9 @@ input,select,textarea{min-height:48px;border-color:#bfc9c5;background:#f0f4f2;bo
 .request-unread-badge[hidden]{display:none}
 
 @media(max-width:720px){.community-bottom-nav{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}.community-bottom-nav a{padding:.2rem;text-align:center}}
+
+/* Profile: navigation stays together, separate from editable personal data. */
+.profile-sections { display: grid; gap: 24px; }
+.profile-shortcuts { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.profile-shortcuts .button { max-width: 100%; white-space: normal; }
+@media (max-width: 600px) { .profile-shortcuts { display: grid; grid-template-columns: minmax(0, 1fr); } .profile-shortcuts .button { justify-content: center; text-align: center; } }
