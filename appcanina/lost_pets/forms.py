@@ -23,6 +23,17 @@ class LostPetReportForm(forms.ModelForm):
         self.fields["patient"].queryset = queryset.filter(active=True).order_by("name")
         self.fields["patient"].empty_label = "No vincular por ahora"
         self.fields["area_label"].widget.attrs["placeholder"] = "Ej.: Parque Central, Barrio Norte"
+        self.linked_patient = None
+        if self.is_bound:
+            try:
+                self.linked_patient = self.fields["patient"].clean(self.data.get("patient"))
+            except forms.ValidationError:
+                pass  # Normal field validation reports invalid or unauthorized IDs.
+            if self.linked_patient:
+                self.data = self.data.copy()
+                for name in ("name", "species", "breed"):
+                    if not self.data.get(name, "").strip():
+                        self.data[name] = getattr(self.linked_patient, name)
 
     def clean(self):
         cleaned = super().clean()
@@ -32,7 +43,19 @@ class LostPetReportForm(forms.ModelForm):
         return cleaned
 
     def clean_photo(self):
-        return photo_without_location_metadata(self.cleaned_data.get("photo"))
+        photo = self.cleaned_data.get("photo")
+        patient = self.linked_patient
+        changed_patient = patient and self.instance.patient_id != patient.pk
+        if photo is not False and patient and (not photo or changed_patient) and not self.files.get("photo"):
+            if patient.photo:
+                try:
+                    with patient.photo.open("rb") as source:
+                        return photo_without_location_metadata(source)
+                except OSError as error:
+                    raise forms.ValidationError("No pudimos recuperar la foto de la ficha. Subí una foto para continuar.") from error
+            if changed_patient:
+                return None
+        return photo_without_location_metadata(photo)
 
 
 class SightingForm(forms.ModelForm):

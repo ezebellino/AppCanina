@@ -1,5 +1,11 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Autocompletado de búsquedas web — 0.8.13
+
+- [x] Datos y foto de animal vinculado, copia independiente del aviso y permisos verificados (70 pruebas Django y una Node).
+- [ ] En el formulario web seleccionar un animal, revisar sus datos/foto y completar fecha y zona. No es necesario enviar un aviso ficticio en producción.
+- Sin nuevo APK.
+
 ## Perfil y publicaciones web — 0.8.12
 
 - [x] Accesos agrupados antes de los datos personales; Buscar condicionado por rol.

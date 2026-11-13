@@ -1,5 +1,13 @@
 # Publicaciones web
 
+## 0.8.13 — Autocompletar animal vinculado en búsquedas web
+
+Seleccionar un animal completa nombre, especie y raza y muestra su foto disponible. La foto de la ficha se copia al aviso, procesada sin metadatos, si no se sube otra. Datos editables del aviso no modifican la ficha; no se copian notas clínicas. Cambiar de animal actualiza los datos identificatorios, conservando zona, fecha, señas y archivo elegido por el usuario. Los errores de validación conservan los valores ingresados. Al editar sin cambiar de animal se mantiene la foto actual del aviso.
+
+El servidor completa datos vacíos desde el animal autorizado y valida nuevamente la vinculación. JSON limitado al selector permitido, sin datos clínicos, con escape de plantilla y respuesta no-store. Sin migraciones ni cambios del APK.
+
+Validación: 70 pruebas Django de publicaciones/visibilidad y una prueba Node de selección, cambio de animal, foto elegida y conservación de datos. Copia real de imagen validada con almacenamiento temporal y datos ficticios. Sin pruebas de publicación con animales reales. Pendiente comprobación visual en teléfono.
+
 ## 0.8.12 — Publicación comunitaria y perfil web
 
 Accesos agrupados arriba del formulario personal: Mis animales, Publicar animal extraviado, Mis búsquedas y Mis solicitudes de adopción. La navegación y el listado de extraviados también permiten iniciar una búsqueda. Los colaboradores envían avisos privados a revisión; no pueden publicar directamente ni vincular animales ajenos. Mis búsquedas muestra los estados, permite corregir solicitudes pendientes/rechazadas y finalizar búsquedas publicadas propias. Se reutiliza el flujo de moderación existente y sus fotos protegidas, sin migraciones.

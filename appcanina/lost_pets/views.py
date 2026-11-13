@@ -329,7 +329,15 @@ def report_create(request, report_id=None):
                 cache.set(key, cache.get(key, 0) + 1, 3600)
             messages.success(request, "Recibimos tu búsqueda. El equipo la revisará antes de publicarla.")
             return redirect("my_search_requests")
-    return render(request, "lost_pets/report_form.html", {"form": form, "direct_publish": direct, "editing_request": editing})
+    animal_data = {str(patient.pk): {
+        "name": patient.name, "species": patient.species, "breed": patient.breed,
+        "photo": patient.photo.url if patient.photo else "",
+    } for patient in form.fields["patient"].queryset}
+    response = render(request, "lost_pets/report_form.html", {
+        "form": form, "direct_publish": direct, "editing_request": editing, "animal_data": animal_data,
+    })
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @report_read_required

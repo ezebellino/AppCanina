@@ -87,3 +87,49 @@ class WebSearchRequestTests(TestCase):
         shelter = Organization.objects.create(name="Refugio", kind="shelter", is_verified=True)
         OrganizationMembership.objects.create(user=self.user, organization=shelter, role="manager")
         self.assertNotContains(self.client.get(reverse("personal_profile")), 'href="' + reverse("global_search") + '"')
+
+    def test_linked_animal_autofills_missing_fields_and_copies_photo(self):
+        import tempfile
+        from io import BytesIO
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        image = BytesIO()
+        Image.new("RGB", (10, 10), "red").save(image, "PNG")
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            patient = Patient.objects.create(name="Alelí", species="cat", breed="Mestiza",
+                notes="Privado", photo=SimpleUploadedFile("animal.png", image.getvalue(), content_type="image/png"))
+            contact = Contact.objects.create(full_name="Responsable")
+            PatientContact.objects.create(patient=patient, contact=contact, role="responsible")
+            grant_ownership(self.user, contact, patient)
+            page = self.client.get(self.url)
+            self.assertNotContains(page, "Privado")
+            self.assertEqual(page.context["animal_data"][str(patient.pk)]["name"], "Alelí")
+            payload = {"patient": patient.pk, "last_seen_at": self.payload["last_seen_at"], "area_label": "Plaza"}
+            self.assertEqual(self.client.post(self.url, payload).status_code, 302)
+            report = LostPetReport.objects.get()
+            self.assertEqual((report.name, report.species, report.breed), ("Alelí", "cat", "Mestiza"))
+            self.assertTrue(report.photo.name.startswith("lost-pets/"))
+            self.assertNotEqual(report.photo.name, patient.photo.name)
+            with report.photo.open("rb") as copied:
+                self.assertEqual(Image.open(copied).size, (10, 10))
+            self.assertEqual(report.description, "")
+            edit = reverse("search_request_edit", args=[report.pk])
+            payload["name"] = "Alelí con collar"
+            self.assertEqual(self.client.post(edit, payload).status_code, 302)
+            report.refresh_from_db()
+            patient.refresh_from_db()
+            self.assertEqual(report.name, "Alelí con collar")
+            self.assertEqual(patient.name, "Alelí")
+
+    def test_prefill_never_exposes_foreign_animals_and_still_requires_event(self):
+        foreign = Patient.objects.create(name="Ajeno privado", species="dog")
+        page = self.client.get(self.url)
+        self.assertNotIn(str(foreign.pk), page.context["animal_data"])
+        self.assertEqual(page["Cache-Control"], "no-store")
+        response = self.client.post(self.url, {"patient": foreign.pk})
+        self.assertIn("patient", response.context["form"].errors)
+        self.assertIn("name", response.context["form"].errors)
+        self.assertIn("last_seen_at", response.context["form"].errors)
+        self.assertIn("area_label", response.context["form"].errors)
+        self.assertFalse(LostPetReport.objects.exists())
