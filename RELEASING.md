@@ -1,5 +1,11 @@
 # Publicaciones web
 
+## 0.8.14 — Moderación de búsquedas desde plataforma
+
+El administrador staff activo puede aprobar/rechazar avisos con el mismo criterio de autorización que ya permitía ver solicitudes privadas. No requiere superusuario ni pertenencia al grupo institucional Administrador. Panel y navegación incorporan Revisar búsquedas; pestaña Solicitudes y acciones del detalle reconocen staff. Publicar animal extraviado se oculta en listado, perfil y accesos del administrador, sin retirar la función a colaboradores ni cambiar la autorización de la ruta de creación.
+
+Se conserva el permiso explícito change_lostpetreport para moderadores existentes y la exigencia de motivo para rechazos. POST y CSRF obligatorios; colaboradores no pueden moderar ni sus propias solicitudes. No se cambian grupos, instituciones ni cuentas reales. Sin migraciones ni APK. Validación: 75 pruebas de plataforma, búsquedas web y visibilidad correctas; git diff --check sin errores. Aprobación/rechazo probados con notificaciones simuladas, sin envío real.
+
 ## 0.8.13 — Autocompletar animal vinculado en búsquedas web
 
 Seleccionar un animal completa nombre, especie y raza y muestra su foto disponible. La foto de la ficha se copia al aviso, procesada sin metadatos, si no se sube otra. Datos editables del aviso no modifican la ficha; no se copian notas clínicas. Cambiar de animal actualiza los datos identificatorios, conservando zona, fecha, señas y archivo elegido por el usuario. Los errores de validación conservan los valores ingresados. Al editar sin cambiar de animal se mantiene la foto actual del aviso.

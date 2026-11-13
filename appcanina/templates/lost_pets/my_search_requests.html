@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Mis búsquedas{% endblock %}
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">Comunidad</p><h1>Mis búsquedas</h1><p>Seguí la revisión de tus avisos y las búsquedas que publicaste.</p></div><a class="button" href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a></div>
+<div class="page-heading"><div><p class="eyebrow">Comunidad</p><h1>Mis búsquedas</h1><p>Seguí la revisión de tus avisos y las búsquedas que publicaste.</p></div>{% if not user.is_staff %}<a class="button" href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a>{% endif %}</div>
 <section class="community-animal-grid">{% for report in page_obj %}<article class="community-animal-card">
 {% if report.photo %}<div class="community-animal-photo"><img src="{{ report.photo.url }}" alt="{{ report.name }}"></div>{% endif %}
 <div class="community-animal-body"><h2>{{ report.name }}</h2><p><strong>{% if report.status == 'hidden' %}En revisión{% elif report.status == 'resolved' %}Encontrado · Búsqueda finalizada{% else %}{{ report.get_status_display }}{% endif %}</strong></p><p>{{ report.area_label }}</p>

@@ -3,4 +3,5 @@
     <a href="{% url 'organization_verification_list' %}" class="{% if request.resolver_match.url_name == 'organization_verification_list' %}active{% endif %}"><span aria-hidden="true">✓</span> Validar instituciones</a>
     <a href="{% url 'adoption_list' %}" class="{% if request.resolver_match.url_name == 'adoption_list' %}active{% endif %}"><span aria-hidden="true">♡</span> Explorar adopciones</a>
     <a href="{% url 'lost_pet_list' %}" class="{% if request.resolver_match.url_name == 'lost_pet_list' or request.resolver_match.url_name == 'lost_pet_detail' or request.resolver_match.url_name == 'lost_pet_map' %}active{% endif %}"><span aria-hidden="true">⌖</span> Animales extraviados</a>
-  </nav>
+  <a href="{% url 'lost_pet_list' %}?view=requests">Revisar búsquedas</a>
+</nav>

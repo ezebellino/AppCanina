@@ -3,10 +3,10 @@
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Mi cuenta</p><h1>Mi perfil</h1><p>Tus animales, tu actividad y tus datos personales, en un solo lugar.</p></div></div>
 <div class="profile-sections">
-<section class="card"><h2>Mis accesos</h2><p>Elegí qué querés hacer.</p><div class="profile-shortcuts">
+<section class="card"><h2>Mis accesos</h2><p>Elegí qué querés hacer.</p><div class="profile-shortcuts">{% if user.is_staff %}<a class="button" href="{% url 'lost_pet_list' %}?view=requests">Revisar búsquedas</a>{% endif %}
 <a class="button button-ghost" href="{% url 'my_animals' %}">{% include "organizations/nav_icon.html" with icon="paw" %} Mis animales</a>
 {% if perms.lost_pets.view_lostpetreport or user.is_staff %}
-<a class="button" href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a>
+{% if not user.is_staff %}<a class="button" href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a>{% endif %}
 <a class="button button-ghost" href="{% url 'my_search_requests' %}">Mis búsquedas</a>
 <a class="button button-ghost" href="{% url 'my_adoption_interests' %}">Mis solicitudes de adopción</a>
 {% endif %}

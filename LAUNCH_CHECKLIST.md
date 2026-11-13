@@ -1,5 +1,11 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Moderación de búsquedas — 0.8.14
+
+- [x] Administrador staff sin superusuario: acceso a Revisar búsquedas y aprobación/rechazo; acceso de publicación oculto.
+- [x] Colaboradores sin autoridad de moderación; permisos institucionales existentes conservados.
+- [ ] Verificar con lazuna_admin el panel y una solicitud real pendiente. No se moderaron avisos reales desde las pruebas.
+
 ## Autocompletado de búsquedas web — 0.8.13
 
 - [x] Datos y foto de animal vinculado, copia independiente del aviso y permisos verificados (70 pruebas Django y una Node).

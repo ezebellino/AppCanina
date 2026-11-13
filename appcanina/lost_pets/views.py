@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
 from django.db.models import Prefetch, Q
 from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
 from patients.ownership import owner_relations
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -35,7 +36,7 @@ def report_list(request):
     reports = visible_reports.select_related("patient", "reporter").prefetch_related(
         Prefetch("sightings", queryset=sightings_visible_to(request.user))
     )
-    if is_community_collaborator(request.user):
+    if is_community_collaborator(request.user) and not can_review_reports(request.user):
         view_mode = "active"
         reports = reports.filter(status=LostPetReport.Status.PUBLISHED)
     elif view_mode == "all":
@@ -388,9 +389,10 @@ def sighting_create(request, report_id):
 
 
 @login_required
-@permission_required("lost_pets.change_lostpetreport", raise_exception=True)
 @require_POST
 def report_change_status(request, report_id):
+    if not can_review_reports(request.user):
+        raise PermissionDenied
     report = get_object_or_404(LostPetReport, pk=report_id)
     allowed_statuses = {LostPetReport.Status.PUBLISHED, LostPetReport.Status.HIDDEN, LostPetReport.Status.REJECTED, LostPetReport.Status.RESOLVED, LostPetReport.Status.ARCHIVED}
     status = request.POST.get("status")

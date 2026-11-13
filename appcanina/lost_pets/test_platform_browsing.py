@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, Client
+from unittest.mock import patch
 from django.urls import reverse
 from django.utils import timezone
 
@@ -39,13 +40,52 @@ class PlatformLostReportBrowsingTests(TestCase):
             self.assertEqual(self.client.get(reverse("lost_pet_list"), {"view": mode}).status_code, 200)
         self.assertEqual(self.client.get(reverse("lost_pet_detail", args=[self.hidden.pk])).status_code, 200)
 
-    def test_staff_read_access_does_not_grant_writes(self):
+    def test_staff_has_moderation_without_superuser_and_no_publish_shortcuts(self):
         self.client.force_login(self.staff)
-        self.assertEqual(self.client.get(reverse("lost_pet_create")).status_code, 403)
+        self.assertFalse(self.staff.is_superuser)
+        self.assertFalse(self.staff.has_perm("lost_pets.change_lostpetreport"))
+        for name in ("personal_profile", "platform_dashboard", "lost_pet_list", "my_search_requests"):
+            page = self.client.get(reverse(name))
+            self.assertEqual(page.status_code, 200)
+            self.assertNotContains(page, 'href="' + reverse("lost_pet_create") + '"')
+            self.assertContains(page, "Revisar búsquedas")
+        page = self.client.get(reverse("lost_pet_list"), {"view": "requests"})
+        self.assertEqual(list(page.context["reports"]), [self.hidden])
+        self.assertContains(page, "Solicitudes (1)")
+        self.assertContains(self.client.get(reverse("lost_pet_detail", args=[self.hidden.pk])), "Aceptar y publicar")
+        action = reverse("lost_pet_change_status", args=[self.hidden.pk])
+        self.assertEqual(self.client.get(action).status_code, 405)
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.staff)
+        self.assertEqual(csrf_client.post(action, {"status": "published"}).status_code, 403)
+        with patch("lost_pets.views.notify_new_report") as published, patch("lost_pets.views.notify_request_review") as reviewed:
+            self.assertEqual(self.client.post(action, {"status": "rejected"}).status_code, 302)
+            self.hidden.refresh_from_db()
+            self.assertEqual(self.hidden.status, "hidden")
+            reviewed.assert_not_called()
+            self.client.post(action, {"status": "rejected", "review_note": "Confirmar zona"})
+            self.hidden.refresh_from_db()
+            self.assertEqual(self.hidden.status, "rejected")
+            self.assertEqual(self.hidden.review_note, "Confirmar zona")
+            self.client.post(action, {"status": "published"})
+            self.hidden.refresh_from_db()
+            self.assertEqual(self.hidden.status, "published")
+            self.assertEqual(self.hidden.review_note, "")
+            published.assert_called_once()
+            self.assertEqual(reviewed.call_count, 2)
         self.assertEqual(self.client.get(reverse("sighting_create", args=[self.report.pk])).status_code, 403)
-        self.assertEqual(self.client.post(reverse("lost_pet_change_status", args=[self.report.pk]), {"status": "resolved"}).status_code, 403)
-        self.report.refresh_from_db()
-        self.assertEqual(self.report.status, "published")
+
+    def test_collaborator_cannot_moderate_even_own_request(self):
+        user = get_user_model().objects.create_user("request-owner")
+        user.groups.add(ensure_base_roles()["collaborator"])
+        self.hidden.reporter = user
+        self.hidden.save()
+        action = reverse("lost_pet_change_status", args=[self.hidden.pk])
+        self.assertEqual(self.client.post(action, {"status": "published"}).status_code, 302)
+        self.client.force_login(user)
+        self.assertEqual(self.client.post(action, {"status": "published"}).status_code, 403)
+        self.hidden.refresh_from_db()
+        self.assertEqual(self.hidden.status, "hidden")
 
     def test_anonymous_and_unprivileged_users_remain_denied(self):
         for url in self.urls:
