@@ -1,5 +1,10 @@
 # Publicaciones web
 
+## APK 0.8.16 disponible
+
+Build único autorizado `9c83cd33-335e-4cfc-90a1-599cf12a6132`, estado **FINISHED**, Android versionCode 5, perfil preview, firma existente conservada. Fuente `c0589356945efdac8d33d24cdcc9245926ceefab`. Incluye Firebase Android y navegación desde push. APK: https://expo.dev/artifacts/eas/XbZaqlOyoDiOwmxPuqpg_FCagq67P9dUBC1Q-_u9nZE.apk . Guía: `mobile/PRUEBA-APK-0.8.16.md`. Instalación y recepción física todavía pendientes.
+
+
 ## 0.8.16 — Cola Expo Push y configuración Android
 
 Cola persistente por notificación/dispositivo/sesión, lotes de 100 separados al menos dos segundos mediante concesión compartida en SQLite, reintentos con backoff y Retry-After, tickets/recibos, cancelación por visibilidad/sesión y baja de dispositivos inválidos. Worker supervisado junto con gunicorn; migración 0014. Diagnóstico agregado mediante push_status. Ver mobile/EXPO-PUSH.md para límites y alcance.

@@ -1,5 +1,11 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## APK 0.8.16 disponible
+
+Build único `9c83cd33-335e-4cfc-90a1-599cf12a6132` **FINISHED**, versionCode 5. APK: https://expo.dev/artifacts/eas/XbZaqlOyoDiOwmxPuqpg_FCagq67P9dUBC1Q-_u9nZE.apk
+
+- [ ] Instalar como actualización y completar `mobile/PRUEBA-APK-0.8.16.md`. La compilación finalizada no confirma entrega física.
+
 ## Expo Push — 0.8.16
 
 - [x] Firebase Android registrado, configuración incorporada, credencial FCM V1 existente en EAS verificada visualmente.
