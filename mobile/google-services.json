@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "450161955402",
+    "project_id": "tu-veterinaria-comunidad",
+    "storage_bucket": "tu-veterinaria-comunidad.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:450161955402:android:0a271e9a77d6b0db7c4cb3",
+        "android_client_info": {
+          "package_name": "com.vasco88.tuveterinariacomunidad"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBd5lHw0VOVVCenpELS5IFso88SAfk6_qg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

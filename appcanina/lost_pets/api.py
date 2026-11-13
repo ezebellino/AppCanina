@@ -1,6 +1,7 @@
 from patients.ownership import grant_ownership, owner_contact_ids, owner_relations
 from config.public_urls import public_url
 import hashlib
+import re
 import json
 from datetime import timedelta
 from functools import wraps
@@ -848,9 +849,11 @@ def mobile_push_device_register(request):
         payload = json.loads(request.body)
     except (TypeError, ValueError):
         return JsonResponse({"detail": "JSON inválido."}, status=400)
-    push_token = (payload.get("push_token") or "").strip()
-    platform = (payload.get("platform") or "").lower()
-    if not push_token.startswith(("ExponentPushToken[", "ExpoPushToken[")):
+    if not isinstance(payload, dict) or not isinstance(payload.get("push_token"), str) or not isinstance(payload.get("platform"), str):
+        return JsonResponse({"detail": "Datos inválidos."}, status=400)
+    push_token = payload["push_token"].strip()
+    platform = payload["platform"].lower()
+    if len(push_token) > 255 or not re.fullmatch(r"(?:ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]+\]", push_token):
         return JsonResponse({"detail": "Token de notificación inválido."}, status=400)
     if platform not in {MobilePushDevice.Platform.ANDROID, MobilePushDevice.Platform.IOS}:
         return JsonResponse({"detail": "Plataforma de dispositivo inválida."}, status=400)

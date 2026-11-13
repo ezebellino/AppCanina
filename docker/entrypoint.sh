@@ -26,4 +26,4 @@ if [ "${SEED_COMMUNITY_DEMO_ON_START:-0}" = "1" ]; then
     python manage.py seed_community_demo
 fi
 
-exec gunicorn config.wsgi:application --bind "0.0.0.0:${PORT:-8000}" --workers 1 --access-logfile - --error-logfile -
+exec python -m config.run_services

@@ -27,3 +27,7 @@ mobile/node_modules/
 mobile/.expo/
 mobile/.tmp-expo-export/
 mobile/dist/
+
+# Private Firebase / Google service-account keys (not the public google-services.json)
+**/*firebase-adminsdk*.json
+**/*service-account*.json

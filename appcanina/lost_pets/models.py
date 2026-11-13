@@ -234,6 +234,27 @@ class MobilePushDevice(models.Model):
         verbose_name_plural = "dispositivos con notificaciones"
 
 
+class PushDelivery(models.Model):
+    notification = models.ForeignKey("CommunityNotification", on_delete=models.CASCADE)
+    device = models.ForeignKey(MobilePushDevice, on_delete=models.CASCADE)
+    session = models.ForeignKey(MobileAccessToken, on_delete=models.CASCADE)
+    state = models.CharField(max_length=16, default="pending", db_index=True)
+    ticket = models.CharField(max_length=100, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    due_at = models.DateTimeField(default=timezone.now, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    outcome = models.CharField(max_length=40, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["notification", "device"], name="unique_notification_device_push")]
+
+
+class PushWorkerLease(models.Model):
+    # One shared lease across workers, deployments and processes using this DB.
+    name = models.CharField(max_length=30, primary_key=True)
+    available_at = models.DateTimeField(default=timezone.now)
+
+
 class CommunityDevicePermission(models.Model):
     class PermissionStatus(models.TextChoices):
         UNKNOWN = "unknown", "Sin definir"

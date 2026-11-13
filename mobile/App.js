@@ -218,6 +218,22 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
     return () => { clearInterval(timer); subscription.remove(); notificationRefresh.current++; };
   }, [token]);
 
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    const openInbox = response => {
+      if (!active || !response) return;
+      // The inbox revalidates the signed-in account; never trust payload content.
+      setScreen("notificaciones");
+      loadNotifications().catch(() => {});
+      Notifications.clearLastNotificationResponseAsync().catch(() => {});
+    };
+    const tapped = Notifications.addNotificationResponseReceivedListener(openInbox);
+    const received = Notifications.addNotificationReceivedListener(() => loadNotifications().catch(() => {}));
+    Notifications.getLastNotificationResponseAsync().then(openInbox).catch(() => {});
+    return () => { active = false; tapped.remove(); received.remove(); };
+  }, [token]);
+
   const openNotification = async (item, isCurrent) => {
     const response = await sessionRequest(`${API}/novedades/${item.key}/`, {headers: {Authorization: `Bearer ${token}`}});
     const data = await response.json();
@@ -371,25 +387,25 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       setMessage("Las alertas push requieren un teléfono físico.");
       return;
     }
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("animales-extraviados", {
-        name: "Animales extraviados",
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 200, 250],
-      });
-    }
-    const current = await Notifications.getPermissionsAsync();
-    const permission = current.status === "granted" ? current : await Notifications.requestPermissionsAsync();
-    if (permission.status !== "granted") {
-      setMessage("No autorizaste las alertas. Podés activarlas más adelante desde la configuración del teléfono.");
-      return;
-    }
-    const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId || process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
-    if (!projectId) {
-      setMessage("Falta asociar el proyecto de notificaciones antes de activar alertas en este dispositivo.");
-      return;
-    }
     try {
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("animales-extraviados", {
+          name: "Animales extraviados",
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 200, 250],
+        });
+      }
+      const current = await Notifications.getPermissionsAsync();
+      const permission = current.status === "granted" ? current : await Notifications.requestPermissionsAsync();
+      if (permission.status !== "granted") {
+        setMessage("No autorizaste las alertas. Podés activarlas más adelante desde la configuración del teléfono.");
+        return;
+      }
+      const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId || process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+      if (!projectId) {
+        setMessage("Falta asociar el proyecto de notificaciones antes de activar alertas en este dispositivo.");
+        return;
+      }
       const pushToken = (await Notifications.getExpoPushTokenAsync({projectId})).data;
       const response = await sessionRequest(`${API}/dispositivos/push/`, {
         method: "POST",

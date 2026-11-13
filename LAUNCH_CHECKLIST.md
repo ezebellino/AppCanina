@@ -1,5 +1,15 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Expo Push — 0.8.16
+
+- [x] Firebase Android registrado, configuración incorporada, credencial FCM V1 existente en EAS verificada visualmente.
+- [x] Cola, límites, tickets/recibos, reintentos y procesos supervisados preparados.
+- [ ] Instalar el próximo APK y probar recepción física con teléfono bloqueado, apertura y cambio de cuenta.
+- [ ] Confirmar receipt de Expo/FCM; no equivale a lectura. Extender push a adopciones/familia en otro bloque si se requiere.
+
+Guía: mobile/EXPO-PUSH.md. No se envió una notificación real desde las pruebas.
+
+
 ## Avisos de búsquedas — 0.8.15
 
 - [x] Novedad web y contador de Mis búsquedas; lectura privada compartida con app.

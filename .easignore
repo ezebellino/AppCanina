@@ -22,3 +22,7 @@
 **/.tmp_excel_sample/**
 **/output/**
 **/tmp/**
+
+# Private Firebase / Google service-account keys (not the public google-services.json)
+**/*firebase-adminsdk*.json
+**/*service-account*.json

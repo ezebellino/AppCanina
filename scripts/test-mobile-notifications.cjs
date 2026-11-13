@@ -12,6 +12,7 @@ const babel = mobileRequire('@babel/core');
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
 function harness() {
+  let pushListener;
   const cache = new Map();
   const calls = [];
   let handler = () => null;
@@ -29,7 +30,7 @@ function harness() {
     'react-native-webview': {WebView: 'View'},
     'expo-secure-store': {getItemAsync: async key => key === 'community-token' ? 'test-token' : null, setItemAsync: async () => {}, deleteItemAsync: async () => {}},
     'expo-local-authentication': {hasHardwareAsync: async () => false, isEnrolledAsync: async () => false},
-    'expo-notifications': {setNotificationHandler() {}, getPermissionsAsync: permission},
+    'expo-notifications': {setNotificationHandler() {}, getPermissionsAsync: permission, addNotificationResponseReceivedListener: fn => { pushListener = fn; return {remove() { pushListener = null; }}; }, addNotificationReceivedListener: () => ({remove() {}}), getLastNotificationResponseAsync: async () => null, clearLastNotificationResponseAsync: async () => {}},
     'expo-image-picker': {getCameraPermissionsAsync: permission},
     'expo-location': {getForegroundPermissionsAsync: permission},
     'expo-constants': {expoConfig: {version: 'review'}},
@@ -70,6 +71,7 @@ function harness() {
   };
   let renderer;
   return {
+    async tapPush() { await act(async () => pushListener({notification: {request: {content: {data: {report_id: 999}}}}})); },
     calls, response, setHandler: fn => {handler = fn;},
     async start() { const App = load(path.join(repo, 'mobile/App.js')).default; await act(async () => {renderer = create(React.createElement(App));}); },
     async press(label) {
@@ -146,5 +148,16 @@ test('old adoption list cannot replace the request selected through a notificati
     await h.press('Notificaciones,'); await h.press('Ver novedad');
     await act(async () => resolve(h.response({interests: [{id: 99, animal_name: 'Stale animal', visit_status: 'none'}]})));
     assert.ok(h.contains('Selected animal')); assert.equal(h.contains('Stale animal'), false);
+  } finally { await h.stop(); }
+});
+
+
+test('tapping push opens authenticated inbox without trusting or reading payload target', async () => {
+  const h = harness();
+  h.setHandler(url => url.includes('/novedades/?filter=') ? feed(h) : null);
+  try {
+    await h.start(); await h.tapPush();
+    assert.ok(h.contains('Aviso de Luna'));
+    assert.equal(h.calls.filter(x => x.url.includes('/avisos/999/') || x.url.endsWith('/leer/')).length, 0);
   } finally { await h.stop(); }
 });

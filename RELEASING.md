@@ -1,5 +1,12 @@
 # Publicaciones web
 
+## 0.8.16 — Cola Expo Push y configuración Android
+
+Cola persistente por notificación/dispositivo/sesión, lotes de 100 separados al menos dos segundos mediante concesión compartida en SQLite, reintentos con backoff y Retry-After, tickets/recibos, cancelación por visibilidad/sesión y baja de dispositivos inválidos. Worker supervisado junto con gunicorn; migración 0014. Diagnóstico agregado mediante push_status. Ver mobile/EXPO-PUSH.md para límites y alcance.
+
+Firebase Android registrado, configuración pública incorporada y credencial FCM V1 existente verificada en la interfaz EAS. Cliente abre la bandeja al tocar push y captura fallos de canal/permisos. Claves privadas no incorporadas al repositorio. 145 pruebas Django del módulo lost_pets correctas. Exportación Android 751 módulos, compatibilidad Expo correcta, cinco pruebas Node de navegación y arranque/cierre conjunto de servicios en contenedor aislado correctos. Prueba física y próximo APK pendientes.
+
+
 ## 0.8.15 — Avisos de revisión de búsquedas en web y correo
 
 Mis búsquedas muestra las notificaciones internas pendientes de los avisos propios, incluyendo aprobación/rechazo y avistamientos entregables. Contador en accesos del perfil y navegación, actualizado al cargar, volver a la pestaña y cada 30 segundos visible. Lectura explícita por POST con CSRF, limitada al destinatario/autor y al ID visto: no consume novedades posteriores ni se marca al abrir una página. Usa los registros y lecturas existentes del APK; las notificaciones antiguas no leídas se muestran sin aprobar otra vez.

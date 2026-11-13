@@ -118,6 +118,8 @@ class HiddenVisibilityTests(TestCase):
         MobilePushDevice.objects.create(user=self.reader, token="ExponentPushToken[test]", platform="android", access_token=self.session)
         with patch("lost_pets.push.urlopen") as send:
             send_expo_push([note])
+            from .push import process_push_batch
+            process_push_batch()
             send.assert_called_once()
             send.reset_mock()
             Sighting.objects.filter(pk=self.visible.pk).update(status="hidden")
@@ -137,6 +139,8 @@ class HiddenVisibilityTests(TestCase):
         self.report.save()
         with patch("lost_pets.push.urlopen") as send:
             notify_request_review(self.report)
+            from .push import process_push_batch
+            process_push_batch()
             send.assert_called_once()
             payload = json.loads(send.call_args.args[0].data)
             self.assertIn("rechazada", payload[0]["title"])

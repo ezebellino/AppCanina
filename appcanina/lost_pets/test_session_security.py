@@ -95,14 +95,23 @@ class MobileSessionSecurityTests(TestCase):
         device = MobilePushDevice.objects.create(user=self.user, token="ExponentPushToken[test]", platform="android", access_token=self.token)
         with patch("lost_pets.push.urlopen") as send:
             send_expo_push([notification])
+            from .push import process_push_batch
+            process_push_batch()
             send.assert_called_once()
             send.reset_mock()
             self.client.post(reverse("mobile_logout"), HTTP_AUTHORIZATION=f"Bearer {self.raw}")
             send_expo_push([notification])
             send.assert_not_called()
             device.access_token = self.other_token
+            device.active = True
             device.save()
+            # A new session gets new notifications, never an old queued payload.
+            notification = CommunityNotification.objects.create(recipient=self.user, report=report, title="New", body="New")
+            from .models import PushWorkerLease
+            PushWorkerLease.objects.update(available_at=timezone.now())
             send_expo_push([notification])
+            from .push import process_push_batch
+            process_push_batch()
             send.assert_called_once()
             send.reset_mock()
             self.user.set_password("Replacement!Secret-948")
