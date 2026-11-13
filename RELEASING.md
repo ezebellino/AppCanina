@@ -1,5 +1,15 @@
 # Publicaciones web
 
+## 0.8.15 — Avisos de revisión de búsquedas en web y correo
+
+Mis búsquedas muestra las notificaciones internas pendientes de los avisos propios, incluyendo aprobación/rechazo y avistamientos entregables. Contador en accesos del perfil y navegación, actualizado al cargar, volver a la pestaña y cada 30 segundos visible. Lectura explícita por POST con CSRF, limitada al destinatario/autor y al ID visto: no consume novedades posteriores ni se marca al abrir una página. Usa los registros y lecturas existentes del APK; las notificaciones antiguas no leídas se muestran sin aprobar otra vez.
+
+Las nuevas respuestas de moderación envían correo al solicitante activo con dirección válida y enlace a Mis búsquedas. Sin coordenadas ni motivo privado en el correo, asuntos fijos y logs por categoría sin datos sensibles. Si SMTP falla, conserva la decisión y novedad interna y advierte al moderador. Actualización condicional del estado evita envíos duplicados al repetir la misma respuesta. No se reenvían correos retroactivos.
+
+Validación: 86 pruebas Django (plataforma, búsquedas web, visibilidad y novedades móviles), incluyendo aprobación con correo en memoria, fallo SMTP simulado, reintento sin duplicados, lectura por destinatario, CSRF y conservación de novedades posteriores. Sintaxis JavaScript y git diff --check correctos.
+
+Sin migraciones ni nuevo APK. Push existente de mejor esfuerzo permanece sin cambios; recepción con app cerrada depende de registro, sesión vigente, credenciales y permisos del dispositivo. No se afirma entrega física ni recepción de correo real. La integración robusta de push continúa pendiente según lo acordado.
+
 ## 0.8.14 — Moderación de búsquedas desde plataforma
 
 El administrador staff activo puede aprobar/rechazar avisos con el mismo criterio de autorización que ya permitía ver solicitudes privadas. No requiere superusuario ni pertenencia al grupo institucional Administrador. Panel y navegación incorporan Revisar búsquedas; pestaña Solicitudes y acciones del detalle reconocen staff. Publicar animal extraviado se oculta en listado, perfil y accesos del administrador, sin retirar la función a colaboradores ni cambiar la autorización de la ruta de creación.

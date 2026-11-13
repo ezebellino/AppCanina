@@ -1,5 +1,12 @@
 # Lazuna — pendientes de administración y lanzamiento
 
+## Avisos de búsquedas — 0.8.15
+
+- [x] Novedad web y contador de Mis búsquedas; lectura privada compartida con app.
+- [x] Correo para nuevas aprobaciones/rechazos, sin duplicar reintentos y sin perder respuesta ante fallo de envío.
+- [ ] Confirmar recepción real del próximo correo de revisión y revisar la novedad en web/app. No se reenviaron respuestas anteriores.
+- [ ] Verificar push físico con app cerrada y permisos habilitados; servicio robusto de push sigue pendiente. Sin nuevo build.
+
 ## Moderación de búsquedas — 0.8.14
 
 - [x] Administrador staff sin superusuario: acceso a Revisar búsquedas y aprobación/rechazo; acceso de publicación oculto.

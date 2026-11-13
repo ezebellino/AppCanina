@@ -24,6 +24,7 @@
       pending = false;
     }
   }
+  refresh();
   setInterval(refresh, 30000);
   document.addEventListener('visibilitychange', refresh);
 })();

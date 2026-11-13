@@ -7,7 +7,7 @@
 <a class="button button-ghost" href="{% url 'my_animals' %}">{% include "organizations/nav_icon.html" with icon="paw" %} Mis animales</a>
 {% if perms.lost_pets.view_lostpetreport or user.is_staff %}
 {% if not user.is_staff %}<a class="button" href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a>{% endif %}
-<a class="button button-ghost" href="{% url 'my_search_requests' %}">Mis búsquedas</a>
+{% include "lost_pets/search_nav.html" with link_class="button button-ghost" %}
 <a class="button button-ghost" href="{% url 'my_adoption_interests' %}">Mis solicitudes de adopción</a>
 {% endif %}
 {% if can_receive_adoption_requests %}<a class="button button-ghost" href="{% url 'adoption_interest_list' %}">Solicitudes recibidas</a>{% endif %}

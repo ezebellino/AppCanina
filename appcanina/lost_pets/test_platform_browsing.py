@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from unittest.mock import patch
 from django.urls import reverse
 from django.utils import timezone
@@ -104,3 +104,60 @@ class PlatformLostReportBrowsingTests(TestCase):
         self.assertEqual(self.client.get(reverse("lost_pet_detail", args=[self.hidden.pk])).status_code, 404)
         response = self.client.get(reverse("lost_pet_list"), {"view": "all"})
         self.assertEqual(list(response.context["reports"]), [self.report])
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_approval_notification_is_visible_to_owner_on_web_and_read_is_private(self):
+        from .models import CommunityNotification
+        from django.core import mail
+        owner = get_user_model().objects.create_user("search-owner", email="owner@example.com")
+        owner.groups.add(ensure_base_roles()["collaborator"])
+        self.hidden.reporter = owner
+        self.hidden.save()
+        self.client.force_login(self.staff)
+        with patch("lost_pets.notifications.send_expo_push"):
+            self.client.post(reverse("lost_pet_change_status", args=[self.hidden.pk]), {"status": "published"})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["owner@example.com"])
+        self.assertIn("ya está publicada", mail.outbox[0].subject)
+        self.assertIn(reverse("my_search_requests"), mail.outbox[0].body)
+        self.client.post(reverse("lost_pet_change_status", args=[self.hidden.pk]), {"status": "published"})
+        self.assertEqual(len(mail.outbox), 1)
+        notification = CommunityNotification.objects.get(recipient=owner, report=self.hidden)
+        self.client.force_login(owner)
+        counts = reverse("adoption_update_counts")
+        self.assertEqual(self.client.get(counts).json()["search_unread_count"], 1)
+        page = self.client.get(reverse("my_search_requests"))
+        self.assertContains(page, notification.title)
+        self.assertContains(page, "Marcar como leído")
+        notification.refresh_from_db()
+        self.assertIsNone(notification.read_at)
+        mark = reverse("search_update_read", args=[notification.pk])
+        self.assertEqual(self.client.get(mark).status_code, 405)
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(owner)
+        self.assertEqual(csrf_client.post(mark).status_code, 403)
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(counts).json()["search_unread_count"], 0)
+        self.assertEqual(self.client.post(mark).status_code, 404)
+        self.client.force_login(owner)
+        newer = CommunityNotification.objects.create(recipient=owner, report=self.hidden, title="Otra novedad", body="Detalle")
+        self.assertEqual(self.client.post(mark).status_code, 302)
+        self.assertEqual(self.client.get(counts).json()["search_unread_count"], 1)
+        newer.refresh_from_db()
+        self.assertIsNone(newer.read_at)
+        notification.refresh_from_db()
+        self.assertIsNotNone(notification.read_at)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_review_mail_failure_preserves_decision_and_private_notification(self):
+        from .models import CommunityNotification
+        self.staff.email = "staff@example.com"
+        self.staff.save()
+        self.client.force_login(self.staff)
+        with patch("lost_pets.notifications.send_expo_push"), patch("lost_pets.search_email.EmailMessage.send", side_effect=OSError("private smtp error")):
+            response = self.client.post(reverse("lost_pet_change_status", args=[self.hidden.pk]),
+                {"status": "rejected", "review_note": "Confirmar la zona"}, follow=True)
+        self.assertContains(response, "no pudimos enviar el correo")
+        self.hidden.refresh_from_db()
+        self.assertEqual(self.hidden.status, "rejected")
+        self.assertEqual(CommunityNotification.objects.filter(recipient=self.staff, report=self.hidden).count(), 1)

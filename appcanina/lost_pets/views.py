@@ -16,10 +16,11 @@ from .forms import AdoptionPostForm, LostPetReportForm, SightingForm
 from .models import AdoptionInterest, AdoptionPost, LostPetReport, Sighting
 from .notifications import notify_new_report, notify_new_sighting, notify_request_review
 from .adoption_email import notify_visit
+from .search_email import notify_search_review
 from .resolution import manageable_searches, finish_search
 from .permissions import report_read_required
 from .visibility import reports_visible_to, sightings_visible_to, can_review_reports
-from .adoption_updates import managed_interest_organizations, read_inbox, unread_counts
+from .adoption_updates import managed_interest_organizations, read_inbox, unread_counts, search_updates
 from organizations.roles import can_manage_organization, is_community_collaborator, organizations_managed_by, verified_shelters_managed_by
 
 
@@ -347,9 +348,23 @@ def my_search_requests(request):
     reports = LostPetReport.objects.filter(reporter=request.user).order_by("-updated_at", "-id")
     from django.core.paginator import Paginator
     page = Paginator(reports, 20).get_page(request.GET.get("page"))
+    updates = search_updates(request.user).filter(report_id__in=[report.pk for report in page], read_at__isnull=True).order_by("-created_at", "-id")
+    by_report = {}
+    for update in updates:
+        by_report.setdefault(update.report_id, []).append(update)
+    for report in page:
+        report.pending_updates = by_report.get(report.pk, [])
     response = render(request, "lost_pets/my_search_requests.html", {"page_obj": page})
     response["Cache-Control"] = "no-store"
     return response
+
+
+@report_read_required
+@require_POST
+def search_update_read(request, notification_id):
+    update = get_object_or_404(search_updates(request.user), pk=notification_id)
+    search_updates(request.user).filter(pk=update.pk, read_at__isnull=True).update(read_at=timezone.now())
+    return redirect("my_search_requests")
 
 
 @report_read_required
@@ -402,12 +417,22 @@ def report_change_status(request, report_id):
         messages.error(request, "Indicá un motivo breve para rechazar la solicitud.")
     else:
         was_published = report.status == LostPetReport.Status.PUBLISHED
+        old_status, old_note = report.status, report.review_note
         report.status = status
         report.review_note = request.POST.get("review_note", "").strip()[:280] if status == LostPetReport.Status.REJECTED else ""
-        report.save(update_fields=["status", "review_note", "updated_at"])
+        if (old_status, old_note) == (report.status, report.review_note):
+            messages.info(request, "El aviso ya tenía esa respuesta.")
+            return redirect("lost_pet_detail", report_id=report.id)
+        changed = LostPetReport.objects.filter(pk=report.pk, status=old_status, review_note=old_note).update(
+            status=report.status, review_note=report.review_note, updated_at=timezone.now())
+        if not changed:
+            messages.info(request, "El aviso cambió mientras lo revisabas. Revisá su estado actual.")
+            return redirect("lost_pet_detail", report_id=report.id)
         if status == LostPetReport.Status.PUBLISHED and not was_published:
             notify_new_report(report)
         if report.requested_via_mobile and status in {LostPetReport.Status.PUBLISHED, LostPetReport.Status.REJECTED}:
             notify_request_review(report)
+            if not notify_search_review(report, request):
+                messages.warning(request, "La respuesta quedó guardada y disponible en la cuenta del solicitante, pero no pudimos enviar el correo.")
         messages.success(request, f"Aviso marcado como {report.get_status_display().lower()}.")
     return redirect("lost_pet_detail", report_id=report.id)

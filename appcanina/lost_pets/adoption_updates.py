@@ -3,6 +3,11 @@ from django.utils import timezone
 
 from organizations.roles import organizations_managed_by, verified_shelters_managed_by
 from .models import AdoptionInterest, AdoptionReadReceipt
+from .visibility import deliverable_notifications
+
+
+def search_updates(user):
+    return deliverable_notifications().filter(recipient=user, report__reporter=user)
 
 
 def managed_interest_organizations(user):
@@ -26,6 +31,7 @@ def unread_interests(interests, user, audience):
 def unread_counts(user):
     institutions = managed_interest_organizations(user)
     return {
+        "search_unread_count": search_updates(user).filter(read_at__isnull=True).count(),
         "applicant_unread_count": unread_interests(AdoptionInterest.objects.filter(applicant=user), user, "applicant").count(),
         "institution_unread_count": unread_interests(AdoptionInterest.objects.filter(post__organization__in=institutions), user, "institution").count(),
         "can_receive_adoption_requests": institutions.exists(),

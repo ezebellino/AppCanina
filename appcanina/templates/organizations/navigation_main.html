@@ -1,7 +1,7 @@
 <nav class="sidebar-nav" aria-label="Navegación principal">
     <a href="{% url 'my_animals' %}" class="{% if request.resolver_match.url_name == 'my_animals' or request.resolver_match.url_name == 'my_animal_history' %}active{% endif %}">{% include "organizations/nav_icon.html" with icon="paw" %} Mis animales</a>
     <a href="{% url 'lost_pet_list' %}">{% include "organizations/nav_icon.html" with icon="community" %} Comunidad</a>
-    {% if perms.lost_pets.view_lostpetreport and not user.is_staff %}<a href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a><a href="{% url 'my_search_requests' %}">Mis búsquedas</a>{% endif %}
+    {% if perms.lost_pets.view_lostpetreport and not user.is_staff %}<a href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a>{% include "lost_pets/search_nav.html" %}{% endif %}
     {% include "lost_pets/request_nav.html" %}
     {% if is_shelter_manager %}<a href="{% url 'adoption_list' %}?view=all">{% include "organizations/nav_icon.html" with icon="paw" %} Animales del refugio</a>{% endif %}
     <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">{% include "organizations/nav_icon.html" with icon="home" %} Inicio</a>
