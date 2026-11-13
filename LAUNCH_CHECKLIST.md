@@ -165,3 +165,10 @@ Informe de la revisión `19f19e1` (scan `b5b5179b-ec86-4799-9cf4-f9404d814bec`),
 - El gitlink legado `pet_grooming_appointments` no estaba disponible para el informe original; mantener esa limitación hasta verificar su relevancia y contenido.
 
 No se requieren builds para revisar estos puntos de servidor/operación. Preparar un único APK acumulado cuando los controles previos estén completos; probar login, recuperación, expiración, logout sin red, cambio de cuenta, biometría y notificaciones en teléfono real.
+
+## Acumulado para el próximo APK — 0.8.17
+
+- Ícono Android de notificaciones: huella monocroma blanca, fondo transparente. Preparado y verificado en configuración; falta comprobar visualmente en teléfono tras el próximo build autorizado.
+- Anuncios de adopción: bloque opcional de colaboración al refugio con alias seleccionable y botón Copiar alias. Web/backend publicables sin build; móvil preparado.
+- Prueba manual: desde Mi Institución guardar alias y mensaje, abrir una adopción publicada del refugio verificado y copiar el alias. Vaciar el alias oculta el bloque. No requiere hacer una transferencia.
+- El usuario confirmó recepción real de push en APK 0.8.16. No generar otro APK por estos cambios aislados.

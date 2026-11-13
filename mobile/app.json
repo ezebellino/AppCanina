@@ -2,28 +2,34 @@
   "expo": {
     "name": "Lazuna",
     "slug": "tu-veterinaria-comunidad",
-    "version": "0.8.16",
+    "version": "0.8.17",
     "icon": "./assets/icon.png",
     "newArchEnabled": false,
     "plugins": [
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Lazuna usa tu ubicación solo cuando elegís compartir el lugar de un avistamiento."
+          "locationWhenInUsePermission": "Lazuna usa tu ubicaciÃ³n solo cuando elegÃ­s compartir el lugar de un avistamiento."
         }
       ],
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Lazuna usa la cámara solo para adjuntar una foto a un aviso o avistamiento.",
-          "photosPermission": "Lazuna necesita acceso a tus fotos solo cuando elegís adjuntar una imagen."
+          "cameraPermission": "Lazuna usa la cÃ¡mara solo para adjuntar una foto a un aviso o avistamiento.",
+          "photosPermission": "Lazuna necesita acceso a tus fotos solo cuando elegÃ­s adjuntar una imagen."
         }
       ],
-      "expo-notifications"
-      ,[
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0b6355"
+        }
+      ],
+      [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Lazuna usa la biometría solo para desbloquear tu sesión guardada en este teléfono."
+          "faceIDPermission": "Lazuna usa la biometrÃ­a solo para desbloquear tu sesiÃ³n guardada en este telÃ©fono."
         }
       ]
     ],
@@ -34,7 +40,9 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#f7faf8"
       },
-      "blockedPermissions": ["android.permission.RECORD_AUDIO"],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",

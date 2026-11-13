@@ -1,3 +1,4 @@
+import ShelterDonation from "./ShelterDonation";
 import React, {useEffect, useRef, useState} from "react";
 import {AppState, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View} from "react-native";
 import {SafeAreaProvider, SafeAreaView} from "react-native-safe-area-context";
@@ -104,8 +105,9 @@ function AdoptionCard({post, onInterest, onShare}) {
       <Text style={styles.adoptionLocation}>⌖ {post.area}</Text>
       <Text numberOfLines={3} style={styles.adoptionDescription}>{post.description || "Esperando conocer a su próxima familia."}</Text>
       {post.organization?.name ? <View style={styles.adoptionOrganization}><View style={styles.organizationMiniMark}>{post.organization.logo_url ? <Image source={{uri: post.organization.logo_url}} style={styles.organizationMiniLogo}/> : <Text style={styles.organizationMiniLetter}>{post.organization.name[0]}</Text>}</View><Text style={styles.adoptionOrganizationName}>Acompañado por {post.organization.name}</Text></View> : null}
-      {post.organization?.donation_message ? <View style={styles.donationCard}><Text style={styles.donationText}>{post.organization.donation_message}</Text></View> : null}
+
       <Pressable accessibilityRole="button" onPress={onInterest} style={({pressed}) => [styles.adoptionCta, pressed && styles.pressed]}><Text style={styles.adoptionCtaText}>Quiero conocer a {post.name}</Text><Text style={styles.adoptionCtaArrow}>→</Text></Pressable><Button title="Compartir adopción" variant="outline" onPress={onShare}/>
+      <ShelterDonation organization={post.organization}/>
     </View>
   </View>;
 }

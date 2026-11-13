@@ -107,3 +107,9 @@ input,select,textarea{min-height:48px;border-color:#bfc9c5;background:#f0f4f2;bo
 .profile-shortcuts { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .profile-shortcuts .button { max-width: 100%; white-space: normal; }
 @media (max-width: 600px) { .profile-shortcuts { display: grid; grid-template-columns: minmax(0, 1fr); } .profile-shortcuts .button { justify-content: center; text-align: center; } }
+
+.shelter-donation { background: #eef7f2; color: #164e41; border: 1px solid #c7dfd3; border-radius: 14px; padding: 16px; display: grid; gap: 8px; min-width: 0; }
+.shelter-donation p { margin: 0; }
+.shelter-donation-alias { font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; user-select: all; }
+.shelter-donation button { justify-self: start; min-height: 44px; }
+.shelter-donation small { line-height: 1.5; }

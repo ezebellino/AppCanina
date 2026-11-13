@@ -1,0 +1,11 @@
+{% if post.status == 'published' and post.organization.kind == 'shelter' and post.organization.is_verified and post.organization.donation_alias %}
+<aside class="shelter-donation" aria-label="Colaborar con el refugio">
+  <strong>Colaborá con {{ post.organization.name }}</strong>
+  <p>{{ post.organization.donation_message|default:"Tu aporte ayuda a cuidar a los animales del refugio." }}</p>
+  <span class="muted">Alias para transferencias</span>
+  <code class="shelter-donation-alias">{{ post.organization.donation_alias }}</code>
+  <button type="button" class="button button-small button-ghost" data-copy-donation="{{ post.organization.donation_alias }}">Copiar alias</button>
+  <p data-donation-status role="status" aria-live="polite"></p>
+  <small>Colaboración voluntaria, independiente de la adopción. Verificá el destinatario en tu banco antes de transferir.</small>
+</aside>
+{% endif %}

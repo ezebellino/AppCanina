@@ -183,8 +183,10 @@ def _mobile_request_data(request, report):
 
 def _mobile_adoption_data(request, post):
     organization = post.organization
+    donation_alias = (organization.donation_alias.strip() if organization and organization.kind == "shelter"
+                      and organization.is_verified and post.status == AdoptionPost.Status.PUBLISHED else "")
     donation_message = ""
-    if organization and organization.donation_alias:
+    if donation_alias:
         donation_message = organization.donation_message or (
             f"Si querés colaborar con {organization.name}, podés transferirnos a {organization.donation_alias}. "
             "Por más mínimo que sea, nos ayudás muchísimo."
@@ -199,7 +201,7 @@ def _mobile_adoption_data(request, post):
             "id": organization.id,
             "name": organization.name,
             "logo_url": public_url(request, organization.logo.url) if organization and organization.logo else None,
-            "donation_alias": organization.donation_alias,
+            "donation_alias": donation_alias,
             "donation_message": donation_message,
         } if organization else None,
     }

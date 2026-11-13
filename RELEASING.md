@@ -1,8 +1,16 @@
 # Publicaciones web
 
+## 0.8.17 — Colaboraciones voluntarias e ícono push preparado
+
+Anuncios publicados de refugios verificados muestran alias opcional, mensaje y botón Copiar alias al pie. Configurable desde Mi Institución; sin pasarela de pagos ni requisito para adoptar. Web y API ocultan colaboraciones de instituciones no verificadas, veterinarias y publicaciones no vigentes. Copia con confirmación y alternativa manual si el navegador o teléfono la rechaza.
+
+Cliente móvil preparado con el mismo bloque y una huella blanca transparente de 96 × 96 para notificaciones Android, configurada en expo-notifications. Arte reproducible mediante scripts/New-NotificationIcon.ps1. **Sin nuevo build EAS**: el APK instalado conserva su ícono hasta la próxima actualización.
+
+Validación: 16 pruebas Django (colaboraciones, perfil y ubicación), 7 pruebas móviles (copia y notificaciones), exportación local Android de 752 módulos y manifiesto Expo con ícono para Firebase y notificaciones locales. Verificación visual del PNG blanco/transparente. Sin migraciones.
+
 ## APK 0.8.16 disponible
 
-Build único autorizado `9c83cd33-335e-4cfc-90a1-599cf12a6132`, estado **FINISHED**, Android versionCode 5, perfil preview, firma existente conservada. Fuente `c0589356945efdac8d33d24cdcc9245926ceefab`. Incluye Firebase Android y navegación desde push. APK: https://expo.dev/artifacts/eas/XbZaqlOyoDiOwmxPuqpg_FCagq67P9dUBC1Q-_u9nZE.apk . Guía: `mobile/PRUEBA-APK-0.8.16.md`. Instalación y recepción física todavía pendientes.
+Build único autorizado `9c83cd33-335e-4cfc-90a1-599cf12a6132`, estado **FINISHED**, Android versionCode 5, perfil preview, firma existente conservada. Fuente `c0589356945efdac8d33d24cdcc9245926ceefab`. Incluye Firebase Android y navegación desde push. APK: https://expo.dev/artifacts/eas/XbZaqlOyoDiOwmxPuqpg_FCagq67P9dUBC1Q-_u9nZE.apk . Guía: `mobile/PRUEBA-APK-0.8.16.md`. Instalación y recepción física confirmadas por el usuario; captura de notificación recibida con el nombre del animal.
 
 
 ## 0.8.16 — Cola Expo Push y configuración Android

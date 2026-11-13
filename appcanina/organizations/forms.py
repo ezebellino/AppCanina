@@ -44,7 +44,7 @@ class BusinessProfileForm(forms.ModelForm):
         help_texts = {
             "logo": "Opcional. Se verá en el perfil y junto al nombre del negocio.",
             "donation_alias": "Opcional. Ej.: veterinaria.parque. Podés compartirlo con clientes para transferencias.",
-            "donation_message": "Opcional. Se muestra junto al alias en este perfil.",
+            "donation_message": "Opcional. En refugios verificados, también se muestra junto al alias en sus anuncios de adopción.",
         }
 
 
