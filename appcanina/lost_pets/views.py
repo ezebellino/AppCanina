@@ -145,7 +145,7 @@ def adoption_interest_create(request, post_id):
             interest, created = AdoptionInterest.objects.get_or_create(
                 post=post, applicant=request.user, defaults={"message": message},
             )
-            messages.success(request, "Tu interés quedó registrado de forma privada." if created else "Ya enviaste tu interés por este animal.")
+            messages.success(request, "Tu interés quedó registrado de forma privada." if created else "Ya enviaste tu interés por este animal.", extra_tags="motion-sent" if created else "")
             return redirect("adoption_interest_create", post_id=post.id)
     return render(request, "lost_pets/adoption_interest_form.html", {"post": post, "interest": interest, "message": message, "error": error})
 
@@ -220,7 +220,7 @@ def adoption_visit_respond(request, interest_id):
             visit_address=address if action == "accept" else "", visit_instructions=instructions,
             visit_answered_at=timezone.now(), updated_at=timezone.now(), applicant_activity_at=timezone.now(),
         )
-        messages.success(request, "Respuesta guardada. La persona la verá en Mis solicitudes." if changed else "Esta visita ya fue respondida o no fue solicitada.")
+        messages.success(request, "Respuesta guardada. La persona la verá en Mis solicitudes." if changed else "Esta visita ya fue respondida o no fue solicitada.", extra_tags="motion-visit" if changed and action == "accept" else "")
         if changed:
             interest.refresh_from_db()
             if not notify_visit(interest, request):
@@ -394,7 +394,7 @@ def report_found(request, report_id):
     report = get_object_or_404(manageable_searches(request.user), pk=report_id, status__in=["published", "resolved"])
     if request.method == "POST":
         changed = finish_search(request.user, report.pk)
-        messages.success(request, f"¡{report.name} fue encontrado! La búsqueda quedó finalizada." if changed else "La búsqueda ya no está activa.")
+        messages.success(request, f"¡{report.name} fue encontrado! La búsqueda quedó finalizada." if changed else "La búsqueda ya no está activa.", extra_tags="motion-found" if changed else "")
         return redirect("lost_pet_list")
     return render(request, "lost_pets/report_found.html", {"report": report})
 

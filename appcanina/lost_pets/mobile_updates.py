@@ -90,7 +90,8 @@ def detail(request, key):
     kind, item = find(request.mobile_user, key)
     if not item:
         return response({"detail": "Esta novedad ya no está disponible para tu cuenta."}, 404)
-    data = {"key": key, "activity_at": activity(item, kind).isoformat()}
+    data = {"key": key, "activity_at": activity(item, kind).isoformat(),
+            "unread": pending(sources(request.mobile_user)[kind].filter(pk=item.pk), kind, request.mobile_user).exists()}
     if kind == "community":
         own_request = not item.sighting_id and item.report.requested_via_mobile and item.report.reporter_id == request.mobile_user.pk
         if own_request:

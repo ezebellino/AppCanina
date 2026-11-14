@@ -35,6 +35,13 @@ class SearchResolutionTests(TestCase):
         self.assertEqual(self.client.post(self.url).status_code, 302)
         self.assertEqual(self.client.post(reverse("sighting_create", args=[self.report.pk])).status_code, 403)
 
+    def test_success_motion_only_on_first_resolution(self):
+        self.client.force_login(self.author)
+        first = self.client.post(self.url, follow=True)
+        self.assertContains(first, 'data-success-motion="found"')
+        repeat = self.client.post(self.url, follow=True)
+        self.assertNotContains(repeat, 'data-success-motion="found"')
+
     def test_other_user_cannot_close_or_see_button(self):
         self.client.force_login(self.other)
         self.assertNotContains(self.client.get(reverse("lost_pet_detail", args=[self.report.pk])), "Se encontró · Finalizar búsqueda")

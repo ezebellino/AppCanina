@@ -1,5 +1,12 @@
 # Publicaciones web
 
+## 0.8.21 — Confirmaciones y menús con movimiento
+
+- Web y próximo APK: huella al finalizar búsqueda, sobre al enviar solicitud, perfiles al vincular familia y calendario al aceptar visita. Éxito solo después de respuesta confirmada; resolución repetida no vuelve a animar.
+- Menú hamburguesa con entrada/salida hacia abajo; menú de usuario web suave. Escape, clic exterior, pulsaciones rápidas y movimiento reducido comprobados. Menú nativo desplazable para pantallas pequeñas.
+- Validación: 41 pruebas Django, 11 pruebas móviles, 6 pruebas web; navegador a 1280 px y 390 px. Exportación Android local correcta, sin build EAS. Verificación física del menú nativo pendiente del próximo APK.
+
+
 ## 0.8.20 — Corrección de la URL al archivar desde web
 
 Un botón name="action" sustituía la propiedad form.action por el propio botón. Los logs confirmaron POST a [object HTMLButtonElement] con 404; no llegaban a la operación de archivo. Ahora se lee el atributo action explícito. Se comprueba el tipo de respuesta, redirecciones de sesión y confirmaciones inválidas antes de animar; errores recuperables sin mostrar excepciones técnicas.

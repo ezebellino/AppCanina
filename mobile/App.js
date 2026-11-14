@@ -1,6 +1,8 @@
+import MenuMotion from "./MenuMotion";
+import SuccessMotion from "./SuccessMotion";
 import ShelterDonation from "./ShelterDonation";
 import React, {useEffect, useRef, useState} from "react";
-import {AppState, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View} from "react-native";
+import {AppState, Image, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View} from "react-native";
 import {SafeAreaProvider, SafeAreaView} from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import * as SecureStore from "expo-secure-store";
@@ -152,6 +154,19 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   const [institutionNotice, setInstitutionNotice] = useState(null);
   const notificationRefresh = useRef(0);
   const [screen, setScreen] = useState("panel");
+  const [successMoment, setSuccessMoment] = useState(null);
+  const momentSequence = useRef(0);
+  const seenVisitMoments = useRef(new Set());
+  const showSuccess = (kind, destination = screen, interestId = null) => setSuccessMoment({kind, screen: destination, interestId, key: ++momentSequence.current});
+  const showAcceptedVisit = interest => {
+    if (interest.visit_status !== "accepted") return;
+    const key = `${interest.id}:${interest.visit_answered_at || interest.updated_at}`;
+    if (seenVisitMoments.current.has(key)) return;
+    seenVisitMoments.current.add(key);
+    showSuccess("visit", "mi-actividad", interest.id);
+  };
+  useEffect(() => {setSuccessMoment(current => current?.screen !== screen ? null : current);}, [screen]);
+
   const [reportState, setReportState] = useState("activos");
   const [reports, setReports] = useState([]);
   const [reportQuery, setReportQuery] = useState("");
@@ -255,6 +270,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       activityLoad.current++; setInterestsLoading(false); setInterestsError("");
       setAdoptionView(data.interest.is_archived ? "archived" : "all"); setAdoptionCounts({});
       setAdoptionInterests([data.interest]); setAdoptionAudience("applicant"); setScreen("mi-actividad");
+      if (data.unread) showAcceptedVisit(data.interest);
     } else if (data.target === "institution") {
       activityLoad.current++; setInterestsLoading(false); setInterestsError("");
       setCanManageAdoptions(true); setAdoptionAudience("institution");
@@ -555,6 +571,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       if (loadId === reportLoad.current) {
         setSelectedReport(current => current?.id === reportId ? {...current, status: data.status, can_finish_search: false} : current);
         setConfirmFound(false); setMessage(data.detail);
+        if (data.changed === true) showSuccess("found");
       }
     } catch (error) { if (loadId === reportLoad.current) setMessage(error.message); }
     finally { closingSearch.current = false; setFinishingSearch(false); }
@@ -630,6 +647,8 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       const data = await response.json();
       if (loadId !== activityLoad.current) return;
       if (!response.ok) throw Error(data.detail || "No se pudo cargar tu actividad.");
+      const newlyAccepted = data.interests.find(item => item.visit_status === "accepted" && adoptionInterests.some(previous => previous.id === item.id && previous.visit_status === "requested"));
+      if (newlyAccepted) showAcceptedVisit(newlyAccepted);
       setAdoptionInterests(data.interests);
       setAdoptionView(nextView); setAdoptionCounts(data.counts || {});
       setCanManageAdoptions(data.can_manage_adoption_requests === true);
@@ -795,6 +814,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       if (!response.ok) throw Error(data.detail || "No se pudo vincular el animal.");
       setFamilyCode(""); setMyAnimals(current => [...current.filter(animal => animal.id !== data.animal.id), data.animal].sort((a, b) => a.name.localeCompare(b.name)));
       openAnimal(data.animal); setMessage(data.detail);
+      showSuccess("family", "mi-animal");
     } catch (error) { setMessage(error.message); }
   };
 
@@ -818,7 +838,8 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       const response = await sessionRequest(`${API}/adopciones/${selectedAdoption.id}/intereses/`, {method: "POST", headers: {"Content-Type": "application/json", Authorization: `Bearer ${token}`}, body: JSON.stringify({message: interestMessage})});
       const data = await response.json();
       if (!response.ok) throw Error(data.detail || "No se pudo enviar tu interés.");
-      setInterestMessage(""); setAdoptionAudience("applicant"); setScreen("mi-actividad"); setMessage(data.detail); await loadAdoptionInterests();
+      setInterestMessage(""); setAdoptionAudience("applicant"); setScreen("mi-actividad"); setMessage(data.detail);
+      showSuccess("sent", "mi-actividad"); await loadAdoptionInterests("all");
     } catch (error) { setMessage(error.message); }
   };
 
@@ -887,6 +908,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   const sharedHistoryCount = myAnimals.filter(animal => animal.sharing_enabled).length;
 
   return <SafeAreaView style={styles.screen}>
+    {token && successMoment ? <SuccessMotion key={successMoment.key} kind={successMoment.kind} onDismiss={() => setSuccessMoment(null)}/> : null}
     <ScrollView contentContainerStyle={styles.content}>
       {!token ? <><Text style={styles.title}>Lazuna</Text><Text style={styles.subtitle}>Comunidad · animales extraviados</Text></> : null}
       {!token ? isRestoringSession ? <View style={styles.stack}><Text style={styles.help}>Preparando tu sesión segura…</Text></View> : pendingBiometricToken ? <View style={styles.stack}><Text style={styles.sectionTitle}>Volvé a ingresar</Text><Text style={styles.help}>Tu sesión está guardada en este teléfono y protegida con biometría.</Text><Button title="Ingresar con huella" onPress={unlockWithBiometrics}/><Button title="Usar otra cuenta" onPress={logout}/></View> : <View style={styles.stack}>
@@ -911,9 +933,8 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
         </View>
         <WorkspaceSwitcher active={workspace} onSelect={switchWorkspace}/>
       </View>
-      <Modal visible={menuOpen} transparent animationType="slide" onRequestClose={() => setMenuOpen(false)}>
-        <SafeAreaProvider><View style={styles.modalScrim}><Pressable style={styles.scrimTouch} onPress={() => setMenuOpen(false)}/><SafeAreaView edges={["bottom", "left", "right"]} style={styles.menuSheet}>
-          <View style={styles.sheetHandle}/><View style={styles.sheetHeading}><View><Text style={styles.menuHeading}>{workspace === "community" ? "Comunidad" : "Veterinaria"}</Text><Text style={styles.menuSubheading}>{workspace === "community" ? "Ayudá a encontrar y adoptar." : "Tus animales y su atención."}</Text></View><Pressable accessibilityRole="button" onPress={() => setMenuOpen(false)} style={styles.closeButton}><Text style={styles.closeButtonText}>×</Text></Pressable></View>
+      <MenuMotion visible={menuOpen} onClose={() => setMenuOpen(false)}>
+          <View style={styles.sheetHandle}/><View style={styles.sheetHeading}><View><Text style={styles.menuHeading}>{workspace === "community" ? "Comunidad" : "Veterinaria"}</Text><Text style={styles.menuSubheading}>{workspace === "community" ? "Ayudá a encontrar y adoptar." : "Tus animales y su atención."}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={() => setMenuOpen(false)} style={styles.closeButton}><Text style={styles.closeButtonText}>×</Text></Pressable></View>
           <WorkspaceSwitcher active={workspace} onSelect={switchWorkspace}/>
           {workspace === "community" ? <>
             <MenuItem active={screen === "panel"} icon="⌂" label="Panel" onPress={() => navigate("panel", loadReports)}/>
@@ -928,8 +949,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
             <MenuItem active={screen === "vincular-familia"} icon="⌘" label="Vincular mascota familiar" onPress={() => { setFamilyCode(""); navigate("vincular-familia"); }}/>
           </>}
           <View style={styles.menuDivider}/><MenuItem active={screen === "notificaciones"} icon="◉" label={`Notificaciones${unreadNotifications ? ` (${unreadNotifications})` : ""}`} onPress={() => navigate("notificaciones")}/><MenuItem active={screen === "ajustes"} icon="⚙" label="Mi teléfono y alertas" onPress={() => navigate("ajustes")}/><MenuItem danger icon="↪" label="Cerrar sesión" onPress={logout}/>
-        </SafeAreaView></View></SafeAreaProvider>
-      </Modal>
+        </MenuMotion>
       {screen === "panel" ? <View style={styles.stack}>
         <View style={styles.panelIntro}><Text style={styles.sectionKicker}>COMUNIDAD ACTIVA</Text><Text style={styles.sectionTitle}>Animales que necesitan ayuda</Text><Text style={styles.help}>Revisá avisos reales y colaborá solo si contás con información segura.</Text></View>
         <View style={styles.filterRow}><FilterPill active={reportState === "activos"} label="Se buscan" onPress={() => changeReportState("activos")}/><FilterPill active={reportState === "encontrados"} label="Encontrados" onPress={() => changeReportState("encontrados")}/><FilterPill label="Actualizar" onPress={() => loadReports()}/></View>
@@ -1006,8 +1026,8 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
           <FilterPill active={adoptionAudience === "applicant"} label="Mis solicitudes" onPress={() => setAdoptionAudience("applicant")}/>
           <FilterPill active={adoptionAudience === "institution"} label="Solicitudes recibidas" onPress={() => setAdoptionAudience("institution")}/>
         </View> : null}
-        {canManageAdoptions && adoptionAudience === "institution" ? <ShelterInbox api={API} token={token} sessionRequest={sessionRequest} initialData={institutionNotice}/> :
-          <AdoptionActivity interests={adoptionInterests} loading={interestsLoading}
+        {canManageAdoptions && adoptionAudience === "institution" ? <ShelterInbox onSuccess={interest => showSuccess("visit", "mi-actividad", interest.id)} api={API} token={token} sessionRequest={sessionRequest} initialData={institutionNotice}/> :
+          <AdoptionActivity visitMoment={successMoment?.kind === "visit" ? successMoment : null} interests={adoptionInterests} loading={interestsLoading}
             error={interestsError} pendingId={pendingVisitId} onRefresh={() => loadAdoptionInterests()} view={adoptionView} counts={adoptionCounts} onView={loadAdoptionInterests} onArchive={archiveAdoptionInterest}
             onRequest={requestAdoptionVisit} onError={setInterestsError}/>}
       </View> : null}

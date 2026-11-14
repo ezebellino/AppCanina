@@ -231,6 +231,7 @@ def _mobile_interest_data(interest):
         "message": interest.message, "updated_at": interest.updated_at.isoformat(),
         "organization_name": organization.name if organization else "",
         "visit_status": interest.visit_status, "visit_status_label": interest.get_visit_status_display(),
+        "visit_answered_at": interest.visit_answered_at.isoformat() if interest.visit_answered_at else None,
         "can_request_visit": _mobile_visit_available(interest) and interest.visit_status == AdoptionInterest.VisitStatus.NONE,
         "visit_address": interest.visit_address if accepted else "",
         "visit_instructions": interest.visit_instructions if answered else "",
@@ -410,9 +411,9 @@ def mobile_report_found(request, report_id):
     report = manageable_searches(request.mobile_user).filter(pk=report_id, status__in=["published", "resolved"]).first()
     if not report:
         return JsonResponse({"detail": "Aviso no encontrado o sin permiso para finalizarlo."}, status=404)
-    finish_search(request.mobile_user, report.id)
+    changed = finish_search(request.mobile_user, report.id)
     report.refresh_from_db()
-    response = JsonResponse({"status": report.status, "detail": "La búsqueda ya no está activa."})
+    response = JsonResponse({"status": report.status, "changed": bool(changed), "detail": "La búsqueda ya no está activa."})
     response["Cache-Control"] = "no-store"
     return response
 

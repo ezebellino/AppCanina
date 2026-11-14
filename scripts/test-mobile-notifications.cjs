@@ -21,8 +21,8 @@ function harness({reduceMotion = false} = {}) {
   const mocks = {
     'react': React,
     'react-native': {
-      AccessibilityInfo: {isReduceMotionEnabled: async () => reduceMotion},
-      Animated: {View: 'View', Value: class {interpolate() {return 0;} stopAnimation() {}}, multiply: () => 0, timing: (_value, config) => config, sequence: steps => ({start: done => {motions.push(steps); done({finished: true});}})},
+      AccessibilityInfo: {isReduceMotionEnabled: async () => reduceMotion, addEventListener: () => ({remove() {}})},
+      Animated: {View: 'View', Value: class {interpolate() {return 0;} stopAnimation() {} setValue() {}}, multiply: () => 0, timing: (_value, config) => ({...config, start: done => {motions.push([config]); done?.({finished: true});}}), sequence: steps => ({start: done => {motions.push(steps); done({finished: true});}})},
       ...Object.fromEntries(['View', 'Text', 'Image', 'ScrollView', 'TextInput', 'Pressable'].map(x => [x, x])),
       Modal: ({visible, children}) => visible ? children : null,
       Platform: {OS: 'android'}, StyleSheet: {create: x => x},
@@ -232,5 +232,18 @@ test('reduced motion still archives without starting animation', async () => {
   try {
     await h.start(); await h.press('Abrir menú'); await h.press('Mi actividad'); await h.press('Archivar solicitud');
     assert.equal(archived, true); assert.equal(h.motions.length, 0); assert.equal(h.contains('Mía'), false);
+  } finally { await h.stop(); }
+});
+
+for (const reduceMotion of [false, true]) test(`menu opens and closes with reduced motion ${reduceMotion}`, async () => {
+  const h = harness({reduceMotion});
+  try {
+    await h.start(); h.motions.length = 0;
+    await h.press('Abrir menú');
+    assert.ok(h.contains('Cerrar sesión'));
+    await h.press('Cerrar menú');
+    assert.ok(!h.contains('Cerrar sesión'));
+    if (reduceMotion) assert.equal(h.motions.length, 0);
+    else assert.ok(h.motions.some(steps => steps[0].duration === 220));
   } finally { await h.stop(); }
 });

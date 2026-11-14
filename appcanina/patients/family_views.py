@@ -80,7 +80,7 @@ def family_accept(request):
                 form.add_error("code", str(error))
             else:
                 request.session.pop("pending_family_invitation", None)
-                messages.success(request, f"{patient.name} ya aparece en Mis animales. Comparten la misma ficha e historial.")
+                messages.success(request, f"{patient.name} ya aparece en Mis animales. Comparten la misma ficha e historial.", extra_tags="motion-family")
                 return redirect("my_animals")
     next_query = "?" + urlencode({"next": reverse("family_accept")})
     response = render(request, "patients/family_accept.html", {

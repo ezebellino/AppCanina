@@ -1,3 +1,4 @@
+import {VisitReveal} from "./SuccessMotion";
 import ArchiveMotion from "./ArchiveMotion";
 import React from "react";
 import {Linking, Pressable, StyleSheet, Text, View} from "react-native";
@@ -17,7 +18,7 @@ function Action({title, onPress, disabled}) {
   </Pressable>;
 }
 
-export default function AdoptionActivity({interests, loading, error, pendingId, onRefresh, onRequest, onError, view = "all", counts = {}, onView, onArchive}) {
+export default function AdoptionActivity({interests, loading, error, pendingId, onRefresh, onRequest, onError, view = "all", counts = {}, onView, onArchive, visitMoment}) {
   const openMap = async address => {
     try {
       await Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`);
@@ -43,7 +44,7 @@ export default function AdoptionActivity({interests, loading, error, pendingId, 
       <Text style={styles.help}>{explanations[interest.status] || "Consultá las novedades de tu solicitud."}</Text>
       <Text style={styles.text}>Tu mensaje: {interest.message}</Text>
       {interest.staff_note ? <Text style={styles.text}>Mensaje del equipo: {interest.staff_note}</Text> : null}
-      {interest.visit_status && interest.visit_status !== "none" ? <View style={styles.visit}>
+      {interest.visit_status && interest.visit_status !== "none" ? <VisitReveal eventKey={interest.visit_status === "accepted" && visitMoment?.interestId === interest.id ? visitMoment.key : null} style={styles.visit}>
         <Text style={styles.status}>{interest.visit_status_label}</Text>
         {interest.visit_status === "requested" ? <Text style={styles.text}>El refugio debe aceptar la visita antes de compartirte la dirección. Usá “Actualizar solicitudes” para consultar su respuesta.</Text> : null}
         {interest.visit_status === "accepted" ? <>
@@ -53,7 +54,7 @@ export default function AdoptionActivity({interests, loading, error, pendingId, 
         {interest.visit_status === "declined" ? <Text style={styles.text}>El refugio no pudo aceptar esta visita.</Text> : null}
         {interest.visit_instructions ? <Text selectable style={styles.text}>{interest.visit_instructions}</Text> : null}
         {interest.visit_status === "accepted" && interest.visit_address ? <Action title="Ver ubicación en Maps" onPress={() => openMap(interest.visit_address)}/> : null}
-      </View> : null}
+      </VisitReveal> : null}
       {interest.can_request_visit ? <Action title={pendingId === interest.id ? "Enviando solicitud…" : "Coordinar visita"}
         disabled={pendingId !== null || loading} onPress={() => onRequest(interest.id)}/> : null}
       {interest.can_archive || interest.is_archived ? <Action title={interest.is_archived ? "Restaurar en mi bandeja" : "Archivar solicitud"}

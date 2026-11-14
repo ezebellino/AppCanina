@@ -54,7 +54,7 @@ function RequestCard({item, choices, disabled, onSave}) {
   </>}</ArchiveMotion>;
 }
 
-export default function ShelterInbox({api, token, sessionRequest, initialData}) {
+export default function ShelterInbox({api, token, sessionRequest, initialData, onSuccess}) {
   const [data, setData] = useState(initialData || {interests: [], counts: {}, status_choices: [], has_next: false});
   const [view, setView] = useState("all");
   const [focused, setFocused] = useState(Boolean(initialData));
@@ -108,6 +108,7 @@ export default function ShelterInbox({api, token, sessionRequest, initialData}) 
       }
       if (changes.action === "archive") await animate?.();
       if (operation.current.id !== id) return;
+      if (changes.action === "accept" && result.interest?.visit_status === "accepted") onSuccess?.(result.interest);
       setNotice(result.detail);
       setData(current => ({...current, interests: archiving ? current.interests.filter(existing => existing.id !== item.id) : current.interests.map(existing => existing.id === item.id ? result.interest : existing)}));
       operation.current.busy = false;

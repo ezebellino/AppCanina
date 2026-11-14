@@ -182,3 +182,9 @@ No se requieren builds para revisar estos puntos de servidor/operación. Prepara
 ## Acumulado para el próximo APK — 0.8.19
 
 - Animación al archivar: tarjeta plegada, sobre y archivador. Se ejecuta tras confirmación del servidor; sin movimiento si está activado Reducir movimiento. Pendiente de prueba física en el próximo APK autorizado.
+
+## Microanimaciones 0.8.21 — acumuladas para próximo APK
+
+- [x] Cuatro confirmaciones y apertura/cierre de menús; movimiento reducido y errores preservados.
+- [x] Pruebas focalizadas y exportación local Android, sin EAS.
+- [ ] En próximo APK comprobar menú en vertical/apaisado, botón Atrás y texto grande; confirmar las cuatro animaciones con operaciones reales.

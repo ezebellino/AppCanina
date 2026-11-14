@@ -4,6 +4,7 @@
   const main = document.querySelector('main');
   const status = document.getElementById('page-loading-status');
   let showTimer, slowTimer;
+  const closeMenu = () => { if (menu?.dataset.motionMenu) menu.dispatchEvent(new Event('navigation-close')); else if (menu) menu.open = false; };
   function reset() {
     clearTimeout(showTimer);
     clearTimeout(slowTimer);
@@ -12,7 +13,7 @@
   }
   function start() {
     reset();
-    if (menu) menu.open = false;
+    closeMenu();
     showTimer = setTimeout(() => {
       overlay.hidden = false;
       main?.setAttribute('aria-busy', 'true');
@@ -25,7 +26,7 @@
   // Full-page Django navigation: show placeholders while awaiting the next HTML.
   // Do not intercept downloads, external links, modified clicks, or form POSTs.
   document.addEventListener('click', event => {
-    if (menu?.open && !menu.contains(event.target)) menu.open = false;
+    if (menu?.open && !menu.dataset.motionMenu && !menu.contains(event.target)) menu.open = false;
     const link = event.target.closest('a[href]');
     if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
     const url = new URL(link.href, location.href);
@@ -36,7 +37,7 @@
     if (!event.defaultPrevented && event.target.method.toLowerCase() === 'get' && !event.target.target) start();
   });
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') { reset(); if (menu) menu.open = false; }
+    if (event.key === 'Escape') { reset(); if (!menu?.dataset.motionMenu) closeMenu(); }
   });
   document.getElementById('page-loading-dismiss')?.addEventListener('click', reset);
   window.addEventListener('pageshow', reset);

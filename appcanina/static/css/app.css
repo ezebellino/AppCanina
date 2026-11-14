@@ -124,3 +124,22 @@ input,select,textarea{min-height:48px;border-color:#bfc9c5;background:#f0f4f2;bo
 .archive-tray::before { content: ''; position: absolute; top: 9px; left: 14px; right: 14px; height: 5px; border-radius: 3px; background: #0d3d30; }
 [data-archive-status]:empty { display: none; }
 @media (prefers-reduced-motion: reduce) { .archive-envelope, .archive-tray { display: none; } }
+
+.success-motion { display: flex; align-items: center; gap: 14px; color: #164e41; min-width: 0; }
+.success-motion-icon { width: 88px; height: 76px; flex: 0 0 88px; overflow: visible; }
+.success-motion strong { display: block; font-size: 1.05rem; }
+.success-motion p { margin: 5px 0 0; line-height: 1.5; }
+.motion-main, .motion-envelope, .motion-check { transform-box: fill-box; transform-origin: center; }
+.motion-play .motion-main { animation: success-pop 620ms cubic-bezier(.22,1,.36,1) both; }
+.motion-play .motion-check { animation: success-pop 420ms 280ms cubic-bezier(.22,1,.36,1) both; }
+.motion-play .motion-envelope { animation: success-envelope 800ms ease-in-out both; }
+.motion-play .motion-person-left { animation: success-person-left 650ms ease-out both; }
+.motion-play .motion-person-right { animation: success-person-right 650ms ease-out both; }
+.motion-reveal { animation: success-details 500ms ease-out both; }
+@keyframes success-pop { from { opacity: 0; transform: scale(.55); } 65% { opacity: 1; transform: scale(1.06); } to { opacity: 1; transform: scale(1); } }
+@keyframes success-envelope { from { opacity: 0; transform: translate(-16px,10px) rotate(-12deg) scale(.8); } 60% { opacity: 1; transform: translate(5px,-5px) rotate(5deg); } to { opacity: 1; transform: translate(0,0) rotate(0); } }
+@keyframes success-person-left { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes success-person-right { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes success-details { from { opacity: .4; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .motion-play *, .motion-reveal { animation: none !important; } }
+@media(max-width:480px) { .success-motion-icon { width: 66px; height: 60px; flex-basis: 66px; } }

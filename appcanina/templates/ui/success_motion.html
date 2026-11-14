@@ -1,0 +1,15 @@
+<div class="success-motion" data-success-motion="{{ kind }}"{% if motion_key %} data-motion-key="{{ motion_key }}"{% endif %} role="status">
+  <svg class="success-motion-icon" viewBox="0 0 96 80" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    {% if kind == 'found' %}
+    <g class="motion-main"><ellipse cx="24" cy="30" rx="7" ry="10"/><ellipse cx="40" cy="18" rx="7" ry="10"/><ellipse cx="57" cy="18" rx="7" ry="10"/><ellipse cx="72" cy="30" rx="7" ry="10"/><path d="M27 55c5-7 10-18 21-18s16 11 21 18c8 13-5 19-14 14a16 16 0 0 0-14 0c-9 5-22-1-14-14Z"/></g>
+    {% elif kind == 'sent' %}
+    <g class="motion-envelope"><rect x="14" y="18" width="64" height="46" rx="7"/><path d="m16 21 30 23 30-23M16 61l21-20m20 0 19 20"/></g>
+    {% elif kind == 'family' %}
+    <g class="motion-person-left"><circle cx="26" cy="24" r="10"/><path d="M11 57v-7a15 15 0 0 1 30 0v7"/></g><g class="motion-person-right"><circle cx="70" cy="24" r="10"/><path d="M55 57v-7a15 15 0 0 1 30 0v7"/></g><g class="motion-main"><circle cx="48" cy="56" r="13" fill="#e8f6ef"/><path d="M42 60q6-14 12 0ZM42 51h.1M47 47h.1M52 48h.1M56 52h.1" stroke-width="4"/></g>
+    {% elif kind == 'visit' %}
+    <g class="motion-main"><rect x="18" y="15" width="58" height="52" rx="8"/><path d="M18 30h58M32 9v14M62 9v14M29 42h7m9 0h7m-23 12h7"/></g>
+    {% endif %}
+    <g class="motion-check"><circle cx="76" cy="61" r="15" fill="#176b55" stroke="#e8f6ef"/><path d="m68 61 5 5 10-11" stroke="white"/></g>
+  </svg>
+  <div><strong>{% if kind == 'found' %}¡Volvió a casa!{% elif kind == 'sent' %}Solicitud enviada{% elif kind == 'family' %}Ahora lo cuidan juntos{% elif kind == 'visit' %}Visita aceptada{% endif %}</strong>{% if detail %}<p>{{ detail }}</p>{% endif %}</div>
+</div>
