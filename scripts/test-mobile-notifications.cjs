@@ -11,15 +11,18 @@ const {create, act} = reviewRequire('react-test-renderer');
 const babel = mobileRequire('@babel/core');
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-function harness() {
+function harness({reduceMotion = false} = {}) {
   let pushListener;
   const cache = new Map();
   const calls = [];
+  const motions = [];
   let handler = () => null;
   const permission = async () => ({status: 'denied'});
   const mocks = {
     'react': React,
     'react-native': {
+      AccessibilityInfo: {isReduceMotionEnabled: async () => reduceMotion},
+      Animated: {View: 'View', Value: class {interpolate() {return 0;} stopAnimation() {}}, multiply: () => 0, timing: (_value, config) => config, sequence: steps => ({start: done => {motions.push(steps); done({finished: true});}})},
       ...Object.fromEntries(['View', 'Text', 'Image', 'ScrollView', 'TextInput', 'Pressable'].map(x => [x, x])),
       Modal: ({visible, children}) => visible ? children : null,
       Platform: {OS: 'android'}, StyleSheet: {create: x => x},
@@ -72,7 +75,7 @@ function harness() {
   let renderer;
   return {
     async tapPush() { await act(async () => pushListener({notification: {request: {content: {data: {report_id: 999}}}}})); },
-    calls, response, setHandler: fn => {handler = fn;},
+    calls, motions, response, setHandler: fn => {handler = fn;},
     async start() { const App = load(path.join(repo, 'mobile/App.js')).default; await act(async () => {renderer = create(React.createElement(App));}); },
     async press(label) {
       const found = renderer.root.findAllByType('Pressable').find(node => node.props.accessibilityLabel?.startsWith(label) || node.findAllByType('Text').some(text => typeof text.props.children === 'string' && text.props.children === label));
@@ -216,5 +219,18 @@ test('shelter archives via institution scope and retrieves archived requests', a
     await h.press('Archivar solicitud'); assert.equal(h.contains('Luna'), false);
     await h.press('Archivadas (1)'); assert.ok(h.contains('Luna'));
     await h.press('Restaurar en mi bandeja'); assert.equal(h.contains('Luna'), false);
+  } finally { await h.stop(); }
+});
+
+
+test('reduced motion still archives without starting animation', async () => {
+  const h = harness({reduceMotion: true}); let archived = false;
+  h.setHandler(url => {
+    if (url.includes('/adopciones/mis-intereses/')) return h.response({interests: archived ? [] : [{id: 7, animal_name: 'Mía', status: 'closed', can_archive: true, updated_at: 'current', visit_status: 'none'}]});
+    if (url.endsWith('/archivo/applicant/7/')) {archived = true; return h.response({detail: 'Archivada'});}
+  });
+  try {
+    await h.start(); await h.press('Abrir menú'); await h.press('Mi actividad'); await h.press('Archivar solicitud');
+    assert.equal(archived, true); assert.equal(h.motions.length, 0); assert.equal(h.contains('Mía'), false);
   } finally { await h.stop(); }
 });

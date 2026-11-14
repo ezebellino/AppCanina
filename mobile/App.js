@@ -637,7 +637,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
     finally { interestOperation.current = false; if (loadId === activityLoad.current) setInterestsLoading(false); }
   };
 
-  const archiveAdoptionInterest = async item => {
+  const archiveAdoptionInterest = async (item, animate) => {
     if (interestOperation.current) return;
     interestOperation.current = true;
     const loadId = ++activityLoad.current;
@@ -650,6 +650,8 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       const data = await response.json();
       if (loadId !== activityLoad.current) return;
       if (!response.ok) throw Error(data.detail || "No se pudo archivar. Actualizá para comprobar el resultado.");
+      if (!item.is_archived) await animate?.();
+      if (loadId !== activityLoad.current) return;
       setMessage(data.detail);
       setAdoptionInterests(current => current.filter(existing => existing.id !== item.id));
       interestOperation.current = false;

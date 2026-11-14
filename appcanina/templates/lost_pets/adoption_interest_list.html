@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Solicitudes recibidas{% endblock %}
 {% block content %}
 {% include "lost_pets/adoption_status_help.html" %}
@@ -13,4 +14,5 @@
 {% include "lost_pets/archive_action.html" with audience="institution" %}
 </article>{% empty %}<div class="empty card"><h2>No hay solicitudes en esta vista</h2><p>Las solicitudes para animales de tu institución aparecerán aquí.</p></div>{% endfor %}</section>
 <nav class="community-bottom-nav" aria-label="Navegación de solicitudes"><a href="{% url 'adoption_list' %}?view=all">Animales</a>{% include "lost_pets/request_nav.html" %}</nav>
+<script defer src="{% static 'js/adoption-archive.js' %}?v={{ app_version }}"></script>
 {% endblock %}

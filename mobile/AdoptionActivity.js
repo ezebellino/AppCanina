@@ -1,3 +1,4 @@
+import ArchiveMotion from "./ArchiveMotion";
 import React from "react";
 import {Linking, Pressable, StyleSheet, Text, View} from "react-native";
 
@@ -35,7 +36,7 @@ export default function AdoptionActivity({interests, loading, error, pendingId, 
     <Action title={loading ? "Actualizando…" : "Actualizar solicitudes"} disabled={loading || pendingId !== null} onPress={onRefresh}/>
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     {!loading && !error && !interests.length ? <Text style={styles.help}>No hay solicitudes en esta vista.</Text> : null}
-    {interests.map(interest => <View key={interest.id} style={styles.card}>
+    {interests.map(interest => <ArchiveMotion key={interest.id} style={styles.card}>{animate => <>
       <Text style={styles.name}>{interest.animal_name} · {interest.species}</Text>
       {interest.organization_name ? <Text style={styles.help}>{interest.organization_name}</Text> : null}
       <Text style={styles.status}>{interest.status_label}</Text>
@@ -56,8 +57,8 @@ export default function AdoptionActivity({interests, loading, error, pendingId, 
       {interest.can_request_visit ? <Action title={pendingId === interest.id ? "Enviando solicitud…" : "Coordinar visita"}
         disabled={pendingId !== null || loading} onPress={() => onRequest(interest.id)}/> : null}
       {interest.can_archive || interest.is_archived ? <Action title={interest.is_archived ? "Restaurar en mi bandeja" : "Archivar solicitud"}
-        disabled={pendingId !== null || loading} onPress={() => onArchive(interest)}/> : null}
-    </View>)}
+        disabled={pendingId !== null || loading} onPress={() => onArchive(interest, animate)}/> : null}
+    </>}</ArchiveMotion>)}
   </View>;
 }
 

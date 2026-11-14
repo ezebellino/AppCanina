@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Mis solicitudes de adopción{% endblock %}
 {% block content %}
 {% include "lost_pets/adoption_status_help.html" %}
@@ -25,4 +26,5 @@
 {% empty %}<div class="empty card"><h2>No hay solicitudes en esta vista</h2><p>{% if archived %}Las solicitudes que archives aparecerán aquí. Podés restaurarlas cuando quieras.{% else %}Las solicitudes nuevas y las que todavía no archivaste aparecerán aquí.{% endif %}</p><a class="button" href="{% url 'adoption_list' %}">Explorar adopciones</a></div>{% endfor %}
 </section>
 <nav class="community-bottom-nav" aria-label="Navegación de comunidad"><a href="{% url 'lost_pet_list' %}"><span>⌂</span>Perdidos</a><a href="{% url 'adoption_list' %}"><span>♡</span>Adoptar</a>{% include "lost_pets/request_nav.html" %}</nav>
+<script defer src="{% static 'js/adoption-archive.js' %}?v={{ app_version }}"></script>
 {% endblock %}

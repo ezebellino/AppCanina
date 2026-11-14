@@ -178,3 +178,7 @@ No se requieren builds para revisar estos puntos de servidor/operación. Prepara
 - Archivo personal de solicitudes de adopción: finalizar como Adopción concretada o No continuó, archivar, abrir Archivadas y restaurar. Verificar también desde el refugio; ninguna acción oculta la solicitud a otra cuenta.
 - Una respuesta nueva o reapertura devuelve la solicitud a la bandeja. Archivo no equivale a borrar ni cambia el estado de la adopción.
 - No se generó otro build. Mientras se usa APK 0.8.16, consultar/restaurar archivos desde la web.
+
+## Acumulado para el próximo APK — 0.8.19
+
+- Animación al archivar: tarjeta plegada, sobre y archivador. Se ejecuta tras confirmación del servidor; sin movimiento si está activado Reducir movimiento. Pendiente de prueba física en el próximo APK autorizado.

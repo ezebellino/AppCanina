@@ -32,6 +32,8 @@ def archive(request, audience, interest_id):
     response = redirect(target)
     if request.POST.get("action") == "restore":
         response["Location"] += "?view=archived"
+    if request.headers.get("Accept") == "application/json":
+        return JsonResponse({"detail": detail, "redirect_url": response["Location"]})
     return response
 
 

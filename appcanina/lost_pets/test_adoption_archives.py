@@ -126,3 +126,15 @@ class AdoptionArchiveTests(TestCase):
             set_archive(AdoptionInterest.objects.all(), self.applicant, "applicant", self.interest.pk,
                         "archive", self.interest.updated_at.isoformat())
         self.assertFalse(with_archive_state(AdoptionInterest.objects.all(), self.applicant, "applicant").get().is_archived)
+
+    def test_web_json_confirmation_only_after_archive_and_no_redirect_on_conflict(self):
+        self.client.force_login(self.applicant)
+        url = reverse("adoption_archive", args=["applicant", self.interest.pk])
+        response = self.client.post(url, {"action": "archive", "expected_updated_at": "stale"}, HTTP_ACCEPT="application/json")
+        self.assertEqual(response.status_code, 409)
+        self.assertNotIn("redirect_url", response.json())
+        self.assertEqual(AdoptionArchive.objects.count(), 0)
+        response = self.client.post(url, {"action": "archive", "expected_updated_at": self.interest.updated_at.isoformat()}, HTTP_ACCEPT="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["redirect_url"], reverse("my_adoption_interests"))
+        self.assertEqual(AdoptionArchive.objects.count(), 1)

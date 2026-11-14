@@ -1,5 +1,12 @@
 # Publicaciones web
 
+## 0.8.19 — Animación de archivado
+
+Tras confirmar el servidor, la tarjeta se pliega y un sobre entra en un archivador. Sin animación de éxito ante errores; botón deshabilitado durante la operación, reintento disponible ante fallo y respeto por movimiento reducido. Web usa confirmación JSON conservando POST con CSRF y formulario tradicional sin JavaScript. Móvil preparado con Animated y sin dependencias nuevas; no se generó APK.
+
+Validación: prueba visual en navegador local a 390 y 1280 px, error/reintento, llegada a la pantalla posterior y movimiento reducido. Nueve pruebas de interacción móvil verifican archivo/restauración, movimiento reducido y ausencia de animación ante conflicto. Nueve pruebas Django del archivo y confirmación JSON. Exportación Android local correcta: 753 módulos.
+
+
 ## 0.8.18 — Archivo personal de solicitudes de adopción
 
 Después de “Adopción concretada” o “No continuó”, cada solicitante o responsable puede archivar la solicitud desde su propia bandeja y restaurarla desde Archivadas. No borra historial ni modifica el estado compartido; otros responsables conservan sus propias vistas. Si cambia la solicitud, reaparece automáticamente. Contadores y novedades excluyen los archivos personales vigentes; las nuevas respuestas vuelven a mostrarse.

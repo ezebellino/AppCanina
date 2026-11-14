@@ -1,3 +1,4 @@
+import ArchiveMotion from "./ArchiveMotion";
 import React, {useEffect, useRef, useState} from "react";
 import {Pressable, StyleSheet, Text, TextInput, View} from "react-native";
 
@@ -14,7 +15,7 @@ function RequestCard({item, choices, disabled, onSave}) {
   const [note, setNote] = useState(item.staff_note || "");
   const [address, setAddress] = useState(item.visit_address || "");
   const [instructions, setInstructions] = useState(item.visit_instructions || "");
-  return <View style={styles.card}>
+  return <ArchiveMotion style={styles.card}>{animate => <>
     <Text style={styles.name}>{item.animal_name} · {item.organization_name}</Text>
     <Text style={styles.label}>{item.applicant_name}</Text>
     <Text style={styles.text}>{item.message}</Text>
@@ -23,7 +24,7 @@ function RequestCard({item, choices, disabled, onSave}) {
     {item.visit_address ? <Text selectable style={styles.text}>{item.visit_address}</Text> : null}
     {item.visit_instructions ? <Text style={styles.text}>{item.visit_instructions}</Text> : null}
     {item.can_archive || item.is_archived ? <Action title={item.is_archived ? "Restaurar en mi bandeja" : "Archivar solicitud"} disabled={disabled}
-      onPress={() => onSave(item, {action: item.is_archived ? "restore" : "archive"})}/> : null}
+      onPress={() => onSave(item, {action: item.is_archived ? "restore" : "archive"}, animate)}/> : null}
     <Action title={editing ? "Cerrar edición" : "Gestionar solicitud"} disabled={disabled} onPress={() => setEditing(!editing)}/>
     {editing ? <View style={styles.stack}>
       <Text style={styles.label}>Estado de la solicitud</Text>
@@ -50,7 +51,7 @@ function RequestCard({item, choices, disabled, onSave}) {
           onPress={() => onSave(item, {action: "decline", visit_instructions: instructions})}/>
       </View> : null}
     </View> : null}
-  </View>;
+  </>}</ArchiveMotion>;
 }
 
 export default function ShelterInbox({api, token, sessionRequest, initialData}) {
@@ -88,7 +89,7 @@ export default function ShelterInbox({api, token, sessionRequest, initialData}) 
     return () => { operation.current.id++; operation.current.busy = false; };
   }, []);
 
-  const save = async (item, changes) => {
+  const save = async (item, changes, animate) => {
     if (operation.current.busy || needsRefresh) return;
     const id = ++operation.current.id;
     operation.current.busy = true; setBusy(true); setError(""); setNotice("");
@@ -105,6 +106,8 @@ export default function ShelterInbox({api, token, sessionRequest, initialData}) 
         if ([403, 404].includes(response.status)) setData({interests: [], counts: {}, status_choices: []});
         throw Error(result.detail || "No pudimos guardar. Actualizá para comprobar el resultado.");
       }
+      if (changes.action === "archive") await animate?.();
+      if (operation.current.id !== id) return;
       setNotice(result.detail);
       setData(current => ({...current, interests: archiving ? current.interests.filter(existing => existing.id !== item.id) : current.interests.map(existing => existing.id === item.id ? result.interest : existing)}));
       operation.current.busy = false;
