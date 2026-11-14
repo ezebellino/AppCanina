@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from datetime import timedelta
 from django.shortcuts import get_object_or_404, redirect, render
@@ -47,7 +48,8 @@ def agenda(request):
 def appointment_create(request):
     form = GroomingAppointmentForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        appointment = form.save()
+        messages.success(request, f"{appointment.patient.name}: el turno quedó reservado.", extra_tags="motion-booking")
         return redirect("grooming_agenda")
     return render(request, "grooming/appointment_form.html", {"form": form})
 
@@ -67,9 +69,13 @@ def appointment_edit(request, appointment_id):
 def appointment_status(request, appointment_id, status):
     appointment = get_object_or_404(visible_appointments(request.user), pk=appointment_id)
     valid_statuses = {GroomingAppointment.Status.DONE, GroomingAppointment.Status.CANCELED, GroomingAppointment.Status.CONFIRMED}
-    if status in valid_statuses:
+    if status in valid_statuses and appointment.status != status:
         appointment.status = status
         appointment.save(update_fields=["status"])
+        if status == GroomingAppointment.Status.DONE:
+            messages.success(request, f"{appointment.patient.name}: el servicio quedó finalizado.", extra_tags="motion-grooming")
+        elif status == GroomingAppointment.Status.CONFIRMED:
+            messages.success(request, f"{appointment.patient.name}: el turno quedó confirmado.", extra_tags="motion-booking")
     return redirect("grooming_agenda")
 
 @login_required

@@ -538,6 +538,7 @@ def clinical_record_create(request, patient_id):
         record.professional = request.user
         record.organization = patient.organization
         record.save()
+        messages.success(request, "La atención quedó agregada al historial.", extra_tags="motion-clinical")
         return redirect("patient_detail", patient_id=patient.id)
     return render(request, "patients/clinical_record_form.html", {"patient": patient, "form": form})
 

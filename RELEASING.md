@@ -1,5 +1,13 @@
 # Publicaciones web
 
+## 0.8.23 — Confirmaciones de veterinaria y peluquería
+
+- Atención guardada: ficha clínica con cruz y confirmación, tanto en pacientes propios de la institución como en atención autorizada por el responsable.
+- Turno reservado/confirmado: calendario. Servicio de peluquería finalizado: tijeras y destello breve. Repetir el mismo estado no vuelve a celebrar; cancelaciones y errores no celebran.
+- Conserva 3 segundos de lectura, desvanecimiento, contraste y movimiento reducido. Sin nuevo APK.
+- Validación visual con plantillas reales; pruebas de grooming/patients y del componente web.
+
+
 ## 0.8.22 — Cierre automático de confirmaciones web
 
 - Las confirmaciones flotantes permanecen 3 segundos y luego se desvanecen en 250 ms. Con movimiento reducido se retiran sin animación. Las indicaciones de visita dentro de las tarjetas permanecen visibles.

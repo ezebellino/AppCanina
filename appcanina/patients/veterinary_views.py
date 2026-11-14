@@ -121,7 +121,7 @@ def authorized_history(request, authorization_id):
         record.organization = grant.organization
         record.authorization = grant
         record.save()
-        messages.success(request, 'Atención agregada al historial. El responsable ya puede consultarla.')
+        messages.success(request, 'Atención agregada al historial. El responsable ya puede consultarla.', extra_tags='motion-clinical')
         return redirect('veterinary_authorized_history', authorization_id=grant.pk)
     VeterinaryAccessLog.objects.get_or_create(authorization=grant, professional=request.user)
     return render(request, 'patients/authorized_history.html', {
