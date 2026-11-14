@@ -1,5 +1,12 @@
 # Publicaciones web
 
+## 0.8.20 — Corrección de la URL al archivar desde web
+
+Un botón name="action" sustituía la propiedad form.action por el propio botón. Los logs confirmaron POST a [object HTMLButtonElement] con 404; no llegaban a la operación de archivo. Ahora se lee el atributo action explícito. Se comprueba el tipo de respuesta, redirecciones de sesión y confirmaciones inválidas antes de animar; errores recuperables sin mostrar excepciones técnicas.
+
+Validación: tres pruebas Node de URL, respuestas HTML/sesión/JSON inválido y conflictos. Reproducción en DOM real con el botón action y respuesta interceptada únicamente en la ruta correcta: POST, animación y navegación completados. Sin cambios móviles ni nuevo build. La prueba visual anterior simulaba cualquier fetch y por eso no detectó la URL incorrecta; esta comprobación restringe la URL.
+
+
 ## 0.8.19 — Animación de archivado
 
 Tras confirmar el servidor, la tarjeta se pliega y un sobre entra en un archivador. Sin animación de éxito ante errores; botón deshabilitado durante la operación, reintento disponible ante fallo y respeto por movimiento reducido. Web usa confirmación JSON conservando POST con CSRF y formulario tradicional sin JavaScript. Móvil preparado con Animated y sin dependencias nuevas; no se generó APK.

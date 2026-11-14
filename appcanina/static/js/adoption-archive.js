@@ -51,17 +51,28 @@
       button.disabled = true;
       form.setAttribute('aria-busy', 'true');
       status.textContent = button.value === 'archive' ? 'Guardando en Archivadas…' : 'Restaurando solicitud…';
+      let failureMessage = 'No pudimos confirmar el cambio. Recargá la bandeja para comprobar el resultado y volver a intentar.';
       try {
-        const response = await fetch(form.action, {method: 'POST', body: payload, credentials: 'same-origin', headers: {Accept: 'application/json'}});
+        // A control named "action" shadows HTMLFormElement.action.
+        const response = await fetch(form.getAttribute('action'), {method: 'POST', body: payload, credentials: 'same-origin', headers: {Accept: 'application/json'}});
+        if (response.redirected || response.status === 403) {
+          failureMessage = 'Tu sesión cambió o venció. Recargá la página y volvé a intentar; si te lo pide, iniciá sesión.';
+          throw Error();
+        }
+        if (!response.headers.get('content-type')?.includes('application/json')) throw Error();
         const data = await response.json();
-        if (!response.ok) throw Error(data.detail || 'No pudimos guardar el cambio. Actualizá la bandeja.');
+        if (!response.ok) {
+          if (typeof data?.detail === 'string') failureMessage = data.detail;
+          throw Error();
+        }
+        if (typeof data?.redirect_url !== 'string' || !data.redirect_url) throw Error();
         const target = new URL(data.redirect_url, location.href);
-        if (target.origin !== location.origin) throw Error('Actualizá la bandeja para comprobar el resultado.');
+        if (target.origin !== location.origin) throw Error();
         status.textContent = data.detail;
         if (button.value === 'archive') await flyToArchive(form.closest('article'), button);
         window.location.assign(target.href);
-      } catch (error) {
-        status.textContent = error.message || 'Revisá tu conexión y actualizá la bandeja para comprobar si se guardó.';
+      } catch {
+        status.textContent = failureMessage;
         button.disabled = false;
         busy = false;
         form.removeAttribute('aria-busy');
