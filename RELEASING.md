@@ -1,5 +1,12 @@
 # Publicaciones web
 
+## 0.8.22 — Cierre automático de confirmaciones web
+
+- Las confirmaciones flotantes permanecen 3 segundos y luego se desvanecen en 250 ms. Con movimiento reducido se retiran sin animación. Las indicaciones de visita dentro de las tarjetas permanecen visibles.
+- Fondo claro y contraste corregido en las cuatro confirmaciones. Sin cambios de APK.
+- Validación: cinco pruebas del componente web, incluyendo temporización y movimiento reducido.
+
+
 ## 0.8.21 — Confirmaciones y menús con movimiento
 
 - Web y próximo APK: huella al finalizar búsqueda, sobre al enviar solicitud, perfiles al vincular familia y calendario al aceptar visita. Éxito solo después de respuesta confirmada; resolución repetida no vuelve a animar.

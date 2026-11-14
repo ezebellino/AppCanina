@@ -129,6 +129,7 @@ input,select,textarea{min-height:48px;border-color:#bfc9c5;background:#f0f4f2;bo
 .success-motion-icon { width: 88px; height: 76px; flex: 0 0 88px; overflow: visible; }
 .success-motion strong { display: block; font-size: 1.05rem; }
 .success-motion p { margin: 5px 0 0; line-height: 1.5; }
+.toast:has(.success-motion) { background: #e8f6ef; border: 1px solid #a8d3bd; color: #164e41; }
 .motion-main, .motion-envelope, .motion-check { transform-box: fill-box; transform-origin: center; }
 .motion-play .motion-main { animation: success-pop 620ms cubic-bezier(.22,1,.36,1) both; }
 .motion-play .motion-check { animation: success-pop 420ms 280ms cubic-bezier(.22,1,.36,1) both; }
