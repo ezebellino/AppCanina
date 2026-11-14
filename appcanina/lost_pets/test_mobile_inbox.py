@@ -33,7 +33,7 @@ class MobileInboxTests(TestCase):
         AdoptionInterest.objects.create(post=post, applicant=self.applicant, message="Invisible")
         response = self.client.get(self.url, **self.headers)
         self.assertEqual(response["Cache-Control"], "no-store")
-        self.assertEqual(response.json()["counts"], {"all": 1, "received": 1, "visits": 1})
+        self.assertEqual(response.json()["counts"], {"all": 1, "received": 1, "visits": 1, "archived": 0})
         self.assertEqual(response.json()["interests"][0]["applicant_name"], "applicant")
         self.assertNotIn("email", response.json()["interests"][0])
         for number in range(20):

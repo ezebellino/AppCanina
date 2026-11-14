@@ -172,3 +172,9 @@ No se requieren builds para revisar estos puntos de servidor/operación. Prepara
 - Anuncios de adopción: bloque opcional de colaboración al refugio con alias seleccionable y botón Copiar alias. Web/backend publicables sin build; móvil preparado.
 - Prueba manual: desde Mi Institución guardar alias y mensaje, abrir una adopción publicada del refugio verificado y copiar el alias. Vaciar el alias oculta el bloque. No requiere hacer una transferencia.
 - El usuario confirmó recepción real de push en APK 0.8.16. No generar otro APK por estos cambios aislados.
+
+## Acumulado para el próximo APK — 0.8.18
+
+- Archivo personal de solicitudes de adopción: finalizar como Adopción concretada o No continuó, archivar, abrir Archivadas y restaurar. Verificar también desde el refugio; ninguna acción oculta la solicitud a otra cuenta.
+- Una respuesta nueva o reapertura devuelve la solicitud a la bandeja. Archivo no equivale a borrar ni cambia el estado de la adopción.
+- No se generó otro build. Mientras se usa APK 0.8.16, consultar/restaurar archivos desde la web.

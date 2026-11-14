@@ -1,4 +1,5 @@
 """In-app activity only; independent of push transport."""
+from .adoption_archives import with_archive_state
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
@@ -58,6 +59,8 @@ def feed(request):
         return response({"unread_count": unread_count})
     items = []
     for kind, query in queries.items():
+        if kind != "community":
+            query = with_archive_state(query, request.mobile_user, kind).filter(is_archived=False)
         query = pending(query, kind, request.mobile_user) if unread_only else query
         field = "created_at" if kind == "community" else f"{kind}_activity_at"
         batch = list(query.order_by(f"-{field}", "-id")[:page * 20 + 1])
@@ -73,6 +76,8 @@ def find(user, key):
     try:
         kind, raw_id = key.split("-", 1)
         query = sources(user)[kind]
+        if kind != "community":
+            query = with_archive_state(query, user, kind)
         return kind, query.filter(pk=int(raw_id)).first()
     except (KeyError, ValueError):
         return None, None

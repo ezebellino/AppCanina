@@ -1,3 +1,4 @@
+from .adoption_archives import with_archive_state
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
@@ -18,6 +19,7 @@ def managed_interest_organizations(user):
 
 
 def unread_interests(interests, user, audience):
+    interests = with_archive_state(interests, user, audience).filter(is_archived=False)
     activity = f"{audience}_activity_at"
     receipts = AdoptionReadReceipt.objects.filter(
         interest_id=OuterRef("pk"), user=user, audience=audience,

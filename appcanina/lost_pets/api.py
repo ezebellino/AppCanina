@@ -1,3 +1,4 @@
+from .adoption_archives import with_archive_state, FINAL_STATUSES
 from patients.ownership import grant_ownership, owner_contact_ids, owner_relations
 from config.public_urls import public_url
 import hashlib
@@ -222,6 +223,8 @@ def _mobile_interest_data(interest):
     accepted = interest.visit_status == AdoptionInterest.VisitStatus.ACCEPTED
     answered = interest.visit_status in (AdoptionInterest.VisitStatus.ACCEPTED, AdoptionInterest.VisitStatus.DECLINED)
     return {
+        "is_archived": getattr(interest, "is_archived", False),
+        "can_archive": interest.status in FINAL_STATUSES,
         "id": interest.id, "post_id": interest.post_id, "animal_name": interest.post.name,
         "species": interest.post.get_species_display(), "status": interest.status,
         "status_label": interest.get_status_display(), "staff_note": interest.staff_note,
@@ -664,7 +667,14 @@ def mobile_adoption_interest(request, post_id):
 @token_required("lost_pets.view_lostpetreport")
 def mobile_my_adoption_interests(request):
     interests = AdoptionInterest.objects.filter(applicant=request.mobile_user).select_related("post__organization")
+    interests = with_archive_state(interests, request.mobile_user, "applicant")
+    view = request.GET.get("view", "all")
+    if view not in ("all", "archived"):
+        return JsonResponse({"detail": "Filtro inválido."}, status=400)
+    counts = {"all": interests.filter(is_archived=False).count(), "archived": interests.filter(is_archived=True).count()}
+    interests = interests.filter(is_archived=(view == "archived"))
     response = JsonResponse({
+        "view": view, "counts": counts,
         "interests": [_mobile_interest_data(interest) for interest in interests[:50]],
         "can_manage_adoption_requests": _mobile_managed_shelter_ids(request.mobile_user).exists(),
     })

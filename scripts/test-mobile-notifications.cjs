@@ -161,3 +161,60 @@ test('tapping push opens authenticated inbox without trusting or reading payload
     assert.equal(h.calls.filter(x => x.url.includes('/avisos/999/') || x.url.endsWith('/leer/')).length, 0);
   } finally { await h.stop(); }
 });
+
+
+test('applicant archives and restores only its own request with the version shown', async () => {
+  const h = harness(); let archived = false;
+  const item = {id: 7, animal_name: 'Mía', status: 'completed', status_label: 'Adopción concretada', can_archive: true, updated_at: '2026-11-14T10:00:00+00:00', visit_status: 'none'};
+  h.setHandler((url, options) => {
+    if (url.includes('/adopciones/mis-intereses/')) {
+      const showingArchive = url.includes('view=archived');
+      return h.response({interests: showingArchive === archived ? [{...item, is_archived: archived}] : [], counts: {all: archived ? 0 : 1, archived: archived ? 1 : 0}});
+    }
+    if (url.endsWith('/archivo/applicant/7/')) {
+      const payload = JSON.parse(options.body);
+      assert.equal(payload.expected_updated_at, item.updated_at);
+      archived = payload.action === 'archive';
+      return h.response({detail: archived ? 'Archivada' : 'Restaurada'});
+    }
+  });
+  try {
+    await h.start(); await h.press('Abrir menú'); await h.press('Mi actividad');
+    await h.press('Archivar solicitud');
+    assert.equal(h.contains('Mía'), false);
+    await h.press('Archivadas (1)');
+    assert.ok(h.contains('Mía'));
+    await h.press('Restaurar en mi bandeja');
+    assert.equal(h.contains('Mía'), false);
+    await h.press('Mi bandeja (1)');
+    assert.ok(h.contains('Mía'));
+  } finally { await h.stop(); }
+});
+
+test('failed archive keeps request visible and reports conflict', async () => {
+  const h = harness();
+  h.setHandler(url => {
+    if (url.includes('/adopciones/mis-intereses/')) return h.response({interests: [{id: 7, animal_name: 'Mía', status: 'closed', can_archive: true, updated_at: 'old', visit_status: 'none'}]});
+    if (url.endsWith('/archivo/applicant/7/')) return h.response({detail: 'La solicitud cambió. Actualizá la bandeja.'}, 409);
+  });
+  try {
+    await h.start(); await h.press('Abrir menú'); await h.press('Mi actividad'); await h.press('Archivar solicitud');
+    assert.ok(h.contains('Mía')); assert.ok(h.contains('La solicitud cambió'));
+  } finally { await h.stop(); }
+});
+
+test('shelter archives via institution scope and retrieves archived requests', async () => {
+  const h = harness(); let archived = false;
+  const item = {id: 9, animal_name: 'Luna', status: 'closed', status_label: 'No continuó', can_archive: true, updated_at: 'version', visit_status: 'none'};
+  h.setHandler((url, options) => {
+    if (url.includes('/adopciones/mis-intereses/')) return h.response({interests: [], can_manage_adoption_requests: true});
+    if (url.includes('/adopciones/bandeja/?')) return h.response({interests: url.includes('view=archived') === archived ? [{...item, is_archived: archived}] : [], counts: {all: archived ? 0 : 1, archived: archived ? 1 : 0}, status_choices: [], page: 1});
+    if (url.endsWith('/archivo/institution/9/')) { archived = JSON.parse(options.body).action === 'archive'; return h.response({detail: 'Guardado'}); }
+  });
+  try {
+    await h.start(); await h.press('Abrir menú'); await h.press('Mi actividad'); await h.press('Solicitudes recibidas');
+    await h.press('Archivar solicitud'); assert.equal(h.contains('Luna'), false);
+    await h.press('Archivadas (1)'); assert.ok(h.contains('Luna'));
+    await h.press('Restaurar en mi bandeja'); assert.equal(h.contains('Luna'), false);
+  } finally { await h.stop(); }
+});

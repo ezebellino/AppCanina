@@ -1,0 +1,10 @@
+{% if interest.is_archived or interest.status == 'completed' or interest.status == 'closed' %}
+<div class="review-note">
+  <p>{% if interest.is_archived %}Archivada en tu bandeja. El historial se conserva.{% else %}Esta solicitud finalizó. Podés archivarla para despejar tu bandeja sin perder el historial.{% endif %}</p>
+  <form method="post" action="{% url 'adoption_archive' audience interest.id %}">
+    {% csrf_token %}
+    <input type="hidden" name="expected_updated_at" value="{{ interest.updated_at.isoformat }}">
+    <button class="button button-small button-ghost" name="action" value="{% if interest.is_archived %}restore{% else %}archive{% endif %}">{% if interest.is_archived %}Restaurar en mi bandeja{% else %}Archivar solicitud{% endif %}</button>
+  </form>
+</div>
+{% endif %}

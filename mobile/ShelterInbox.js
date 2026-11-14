@@ -22,6 +22,8 @@ function RequestCard({item, choices, disabled, onSave}) {
     {item.staff_note ? <Text style={styles.text}>Mensaje enviado: {item.staff_note}</Text> : null}
     {item.visit_address ? <Text selectable style={styles.text}>{item.visit_address}</Text> : null}
     {item.visit_instructions ? <Text style={styles.text}>{item.visit_instructions}</Text> : null}
+    {item.can_archive || item.is_archived ? <Action title={item.is_archived ? "Restaurar en mi bandeja" : "Archivar solicitud"} disabled={disabled}
+      onPress={() => onSave(item, {action: item.is_archived ? "restore" : "archive"})}/> : null}
     <Action title={editing ? "Cerrar edición" : "Gestionar solicitud"} disabled={disabled} onPress={() => setEditing(!editing)}/>
     {editing ? <View style={styles.stack}>
       <Text style={styles.label}>Estado de la solicitud</Text>
@@ -91,7 +93,9 @@ export default function ShelterInbox({api, token, sessionRequest, initialData}) 
     const id = ++operation.current.id;
     operation.current.busy = true; setBusy(true); setError(""); setNotice("");
     try {
-      const response = await sessionRequest(`${api}/adopciones/bandeja/${item.id}/`, {
+      const archiving = ["archive", "restore"].includes(changes.action);
+      const route = archiving ? `archivo/institution/${item.id}` : `bandeja/${item.id}`;
+      const response = await sessionRequest(`${api}/adopciones/${route}/`, {
         method: "POST", headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
         body: JSON.stringify({...changes, expected_updated_at: item.updated_at}),
       });
@@ -102,7 +106,7 @@ export default function ShelterInbox({api, token, sessionRequest, initialData}) 
         throw Error(result.detail || "No pudimos guardar. Actualizá para comprobar el resultado.");
       }
       setNotice(result.detail);
-      setData(current => ({...current, interests: current.interests.map(existing => existing.id === item.id ? result.interest : existing)}));
+      setData(current => ({...current, interests: archiving ? current.interests.filter(existing => existing.id !== item.id) : current.interests.map(existing => existing.id === item.id ? result.interest : existing)}));
       operation.current.busy = false;
       await load(view, page);
     } catch (err) {
@@ -114,8 +118,8 @@ export default function ShelterInbox({api, token, sessionRequest, initialData}) 
 
   return <View style={styles.stack}>
     <Text style={styles.title}>Solicitudes recibidas</Text>
-    <Text style={styles.help}>Administrá las adopciones de los refugios verificados que tenés a cargo.</Text>
-    {focused ? <Text style={styles.help}>Solicitud abierta desde una notificación. Actualizá la bandeja para ver todas.</Text> : <View style={styles.row}>{[["all", "Todas"], ["received", "Nuevas"], ["visits", "Visitas pendientes"]].map(([value, label]) =>
+    <Text style={styles.help}>Administrá las adopciones de tus refugios. Archivar solo ordena tu bandeja y conserva el historial.</Text>
+    {focused ? <Text style={styles.help}>Solicitud abierta desde una notificación. Actualizá la bandeja para ver todas.</Text> : <View style={styles.row}>{[["all", "Mi bandeja"], ["received", "Nuevas"], ["visits", "Visitas pendientes"], ["archived", "Archivadas"]].map(([value, label]) =>
       <Action key={value} title={`${label} (${data.counts[value] ?? 0})`} selected={view === value} disabled={busy} onPress={() => load(value, 1)}/>)}</View>}
     <Action title={busy ? "Cargando…" : "Actualizar bandeja"} disabled={busy} onPress={() => load()}/>
     {notice ? <Text accessibilityLiveRegion="polite" style={styles.text}>{notice}</Text> : null}

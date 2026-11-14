@@ -3,6 +3,8 @@
 {% block content %}
 {% include "lost_pets/adoption_status_help.html" %}
 <div class="page-heading"><div><p class="eyebrow">Comunidad</p><h1>Mis solicitudes de adopción</h1><p>Seguí tus solicitudes y las respuestas del equipo. Solo vos podés ver este listado.</p></div><a class="button button-ghost" href="{% url 'adoption_list' %}">Ver animales en adopción</a></div>
+<nav class="agenda-toolbar card" aria-label="Filtrar solicitudes"><div class="agenda-view-switch adoption-inbox-filters"><a class="{% if not archived %}active{% endif %}" href="?view=all">Mi bandeja ({{ counts.all }})</a><a class="{% if archived %}active{% endif %}" href="?view=archived">Archivadas ({{ counts.archived }})</a></div></nav>
+<p class="form-help">Archivar solo ordena tu bandeja. Si hay una nueva respuesta, la solicitud vuelve a aparecer.</p>
 <section class="visit-grid">
 {% for interest in interests %}
 <article class="card visit-card{% if interest.has_new_activity %} request-has-update{% endif %}">{% if interest.has_new_activity %}<span class="request-unread-badge">Novedad</span>{% endif %}
@@ -18,8 +20,9 @@
 {% elif interest.post.status == 'published' and interest.post.organization.kind == 'shelter' and interest.post.organization.is_verified and interest.status != 'closed' and interest.status != 'completed' %}<form method="post" action="{% url 'adoption_visit_request' interest.id %}">{% csrf_token %}<button class="button" type="submit">Coordinar visita</button></form><p class="form-help">El refugio debe aceptar antes de que puedas ver la ubicación.</p>
 {% else %}<p class="form-help">La coordinación de visitas no está disponible para esta solicitud.</p>{% endif %}</div>
 {% if interest.post.status != 'published' %}<p class="form-help">La publicación figura como {{ interest.post.get_status_display|lower }}. Tu solicitud permanece en este historial.</p>{% endif %}
+{% include "lost_pets/archive_action.html" with audience="applicant" %}
 </article>
-{% empty %}<div class="empty card"><h2>Todavía no enviaste solicitudes</h2><p>Elegí un animal y tocá «Quiero conocerlo» para enviar tu interés.</p><a class="button" href="{% url 'adoption_list' %}">Explorar adopciones</a></div>{% endfor %}
+{% empty %}<div class="empty card"><h2>No hay solicitudes en esta vista</h2><p>{% if archived %}Las solicitudes que archives aparecerán aquí. Podés restaurarlas cuando quieras.{% else %}Las solicitudes nuevas y las que todavía no archivaste aparecerán aquí.{% endif %}</p><a class="button" href="{% url 'adoption_list' %}">Explorar adopciones</a></div>{% endfor %}
 </section>
 <nav class="community-bottom-nav" aria-label="Navegación de comunidad"><a href="{% url 'lost_pet_list' %}"><span>⌂</span>Perdidos</a><a href="{% url 'adoption_list' %}"><span>♡</span>Adoptar</a>{% include "lost_pets/request_nav.html" %}</nav>
 {% endblock %}

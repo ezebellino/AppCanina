@@ -165,6 +165,16 @@ class AdoptionInterest(models.Model):
         verbose_name_plural = "intereses de adopción"
 
 
+class AdoptionArchive(models.Model):
+    interest = models.ForeignKey(AdoptionInterest, on_delete=models.CASCADE, related_name="archives")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    audience = models.CharField(max_length=16, choices=[("applicant", "Solicitante"), ("institution", "Institución")])
+    version = models.DateTimeField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["interest", "user", "audience"], name="unique_adoption_archive")]
+
+
 class AdoptionReadReceipt(models.Model):
     interest = models.ForeignKey(AdoptionInterest, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Lazuna",
     "slug": "tu-veterinaria-comunidad",
-    "version": "0.8.17",
+    "version": "0.8.18",
     "icon": "./assets/icon.png",
     "newArchEnabled": false,
     "plugins": [

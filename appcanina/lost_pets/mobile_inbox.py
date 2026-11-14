@@ -1,4 +1,5 @@
 """Private adoption inbox for managers of verified shelters."""
+from .adoption_archives import with_archive_state
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -38,8 +39,9 @@ def _item(interest):
 def inbox(request):
     if not _mobile_managed_shelter_ids(request.mobile_user).exists():
         return _response({"detail": "Esta bandeja está disponible para responsables de refugios verificados."}, 403)
-    interests = _scope(request.mobile_user)
-    counts = {"all": interests.count(), "received": interests.filter(status="received").count(),
+    all_interests = with_archive_state(_scope(request.mobile_user), request.mobile_user, "institution")
+    interests = all_interests.filter(is_archived=False)
+    counts = {"archived": all_interests.filter(is_archived=True).count(), "all": interests.count(), "received": interests.filter(status="received").count(),
               "visits": interests.filter(visit_status="requested").count()}
     view = request.GET.get("view", "all")
     if view not in counts:
@@ -50,7 +52,9 @@ def inbox(request):
             raise ValueError
     except (ValueError, TypeError):
         return _response({"detail": "Página inválida."}, 400)
-    if view == "received":
+    if view == "archived":
+        interests = all_interests.filter(is_archived=True)
+    elif view == "received":
         interests = interests.filter(status="received")
     elif view == "visits":
         interests = interests.filter(visit_status="requested")

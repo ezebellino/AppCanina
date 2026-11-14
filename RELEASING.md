@@ -1,5 +1,14 @@
 # Publicaciones web
 
+## 0.8.18 — Archivo personal de solicitudes de adopción
+
+Después de “Adopción concretada” o “No continuó”, cada solicitante o responsable puede archivar la solicitud desde su propia bandeja y restaurarla desde Archivadas. No borra historial ni modifica el estado compartido; otros responsables conservan sus propias vistas. Si cambia la solicitud, reaparece automáticamente. Contadores y novedades excluyen los archivos personales vigentes; las nuevas respuestas vuelven a mostrarse.
+
+Migración aditiva 0015_adoptionarchive. Acciones web por POST con CSRF, API autenticada y permisos de institución vigentes; versión de la solicitud requerida para no archivar cambios que todavía no se vieron. API y cliente móvil preparados; **sin build EAS**. El APK anterior no incluye el filtro Archivadas: hasta actualizarlo, se pueden recuperar desde la web.
+
+
+Validación del archivo: 31 pruebas Django focalizadas (8 nuevas de archivo, 8 de bandeja móvil y 15 de solicitudes/visitas web), 8 pruebas de interacción móvil y exportación local Android de 752 módulos. Revisión general de 148 pruebas: tres expectativas de interfaz actualizadas y verificadas en la repetición focalizada. Migraciones sin diferencias pendientes.
+
 ## 0.8.17 — Colaboraciones voluntarias e ícono push preparado
 
 Anuncios publicados de refugios verificados muestran alias opcional, mensaje y botón Copiar alias al pie. Configurable desde Mi Institución; sin pasarela de pagos ni requisito para adoptar. Web y API ocultan colaboraciones de instituciones no verificadas, veterinarias y publicaciones no vigentes. Copia con confirmación y alternativa manual si el navegador o teléfono la rechaza.

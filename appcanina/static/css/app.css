@@ -113,3 +113,6 @@ input,select,textarea{min-height:48px;border-color:#bfc9c5;background:#f0f4f2;bo
 .shelter-donation-alias { font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; user-select: all; }
 .shelter-donation button { justify-self: start; min-height: 44px; }
 .shelter-donation small { line-height: 1.5; }
+
+.adoption-inbox-filters { flex-wrap: wrap; max-width: 100%; }
+.adoption-inbox-filters a { min-height: 44px; display: flex; align-items: center; }

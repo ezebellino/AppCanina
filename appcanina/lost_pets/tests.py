@@ -720,7 +720,7 @@ class MyAdoptionInterestsTests(TestCase):
         self.assertNotContains(response, "Respuesta de otra persona")
 
     def test_empty_state_and_links_after_submission(self):
-        self.assertContains(self.client.get(self.url), "Todavía no enviaste solicitudes")
+        self.assertContains(self.client.get(self.url), "No hay solicitudes en esta vista")
         self.assertContains(self.client.get(reverse("adoption_list")), self.url)
         self.assertContains(self.client.get(reverse("lost_pet_list")), self.url)
         response = self.client.post(reverse("adoption_interest_create", args=[self.post.id]), {"message": "Me interesa conocer a Mora"}, follow=True)
@@ -785,7 +785,7 @@ class AdoptionVisitTests(TestCase):
         self.assertContains(response, "Solicitudes recibidas")
         self.assertContains(response, self.interest.message)
         self.assertNotContains(response, "Other private request")
-        self.assertEqual(response.context["counts"], {"total": 1, "received": 1, "visits": 0})
+        self.assertEqual(response.context["counts"], {"total": 1, "received": 1, "visits": 0, "archived": 0})
         response = self.client.get(reverse("adoption_interest_list"), {"view": "visits"})
         self.assertEqual(list(response.context["interests"]), [])
         self.interest.visit_status = "requested"

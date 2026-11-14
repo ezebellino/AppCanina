@@ -16,7 +16,7 @@ function Action({title, onPress, disabled}) {
   </Pressable>;
 }
 
-export default function AdoptionActivity({interests, loading, error, pendingId, onRefresh, onRequest, onError}) {
+export default function AdoptionActivity({interests, loading, error, pendingId, onRefresh, onRequest, onError, view = "all", counts = {}, onView, onArchive}) {
   const openMap = async address => {
     try {
       await Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`);
@@ -27,9 +27,14 @@ export default function AdoptionActivity({interests, loading, error, pendingId, 
   return <View style={styles.stack}>
     <Text style={styles.title}>Mis solicitudes de adopción</Text>
     <Text style={styles.help}>Seguí la respuesta del refugio y coordiná una visita para conocer al animal.</Text>
+    <Text style={styles.help}>Archivar conserva el historial y solo ordena tu bandeja. Una nueva respuesta vuelve a mostrar la solicitud.</Text>
+    <View style={{flexDirection: "row", flexWrap: "wrap", gap: 8}}>
+      <Action title={`Mi bandeja (${counts.all ?? 0})${view === "all" ? " · Seleccionada" : ""}`} disabled={loading || pendingId !== null} onPress={() => onView("all")}/>
+      <Action title={`Archivadas (${counts.archived ?? 0})${view === "archived" ? " · Seleccionada" : ""}`} disabled={loading || pendingId !== null} onPress={() => onView("archived")}/>
+    </View>
     <Action title={loading ? "Actualizando…" : "Actualizar solicitudes"} disabled={loading || pendingId !== null} onPress={onRefresh}/>
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-    {!loading && !error && !interests.length ? <Text style={styles.help}>Todavía no enviaste solicitudes de adopción.</Text> : null}
+    {!loading && !error && !interests.length ? <Text style={styles.help}>No hay solicitudes en esta vista.</Text> : null}
     {interests.map(interest => <View key={interest.id} style={styles.card}>
       <Text style={styles.name}>{interest.animal_name} · {interest.species}</Text>
       {interest.organization_name ? <Text style={styles.help}>{interest.organization_name}</Text> : null}
@@ -50,6 +55,8 @@ export default function AdoptionActivity({interests, loading, error, pendingId, 
       </View> : null}
       {interest.can_request_visit ? <Action title={pendingId === interest.id ? "Enviando solicitud…" : "Coordinar visita"}
         disabled={pendingId !== null || loading} onPress={() => onRequest(interest.id)}/> : null}
+      {interest.can_archive || interest.is_archived ? <Action title={interest.is_archived ? "Restaurar en mi bandeja" : "Archivar solicitud"}
+        disabled={pendingId !== null || loading} onPress={() => onArchive(interest)}/> : null}
     </View>)}
   </View>;
 }

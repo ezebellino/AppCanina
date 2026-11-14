@@ -1,3 +1,4 @@
+from .adoption_archives import with_archive_state
 from config.public_urls import public_url
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
@@ -155,7 +156,13 @@ def my_adoption_interests(request):
     interests = AdoptionInterest.objects.filter(applicant=request.user).select_related(
         "post", "post__organization"
     ).order_by("-updated_at", "-id")
-    return render(request, "lost_pets/my_adoption_interests.html", {"interests": read_inbox(interests, request.user, "applicant")})
+    interests = with_archive_state(interests, request.user, "applicant")
+    archived = request.GET.get("view") == "archived"
+    counts = {"all": interests.filter(is_archived=False).count(), "archived": interests.filter(is_archived=True).count()}
+    return render(request, "lost_pets/my_adoption_interests.html", {
+        "interests": read_inbox(interests.filter(is_archived=archived), request.user, "applicant"),
+        "archived": archived, "counts": counts,
+    })
 
 
 @login_required
@@ -227,9 +234,15 @@ def adoption_interest_list(request):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied
     interests = AdoptionInterest.objects.select_related("post", "post__organization", "applicant").filter(post__organization__in=_interest_manager_organizations(request.user))
-    counts = {"total": interests.count(), "received": interests.filter(status=AdoptionInterest.Status.RECEIVED).count(), "visits": interests.filter(visit_status=AdoptionInterest.VisitStatus.REQUESTED).count()}
+    interests = with_archive_state(interests, request.user, "institution")
+    archived_count = interests.filter(is_archived=True).count()
+    archive_interests = interests.filter(is_archived=True)
+    interests = interests.filter(is_archived=False)
+    counts = {"archived": archived_count, "total": interests.count(), "received": interests.filter(status=AdoptionInterest.Status.RECEIVED).count(), "visits": interests.filter(visit_status=AdoptionInterest.VisitStatus.REQUESTED).count()}
     view_mode = request.GET.get("view", "all")
-    if view_mode == "received":
+    if view_mode == "archived":
+        interests = archive_interests
+    elif view_mode == "received":
         interests = interests.filter(status=AdoptionInterest.Status.RECEIVED)
     elif view_mode == "visits":
         interests = interests.filter(visit_status=AdoptionInterest.VisitStatus.REQUESTED)

@@ -179,6 +179,8 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   const [selectedAdoption, setSelectedAdoption] = useState(null);
   const [interestMessage, setInterestMessage] = useState("");
   const [adoptionInterests, setAdoptionInterests] = useState([]);
+  const [adoptionView, setAdoptionView] = useState("all");
+  const [adoptionCounts, setAdoptionCounts] = useState({});
   const [canManageAdoptions, setCanManageAdoptions] = useState(false);
   const [adoptionAudience, setAdoptionAudience] = useState("applicant");
   const [interestsLoading, setInterestsLoading] = useState(false);
@@ -251,6 +253,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       searchRequestsLoad.current++; setMyRequests([data.request]); setScreen("mis-solicitudes");
     } else if (data.target === "adoption") {
       activityLoad.current++; setInterestsLoading(false); setInterestsError("");
+      setAdoptionView(data.interest.is_archived ? "archived" : "all"); setAdoptionCounts({});
       setAdoptionInterests([data.interest]); setAdoptionAudience("applicant"); setScreen("mi-actividad");
     } else if (data.target === "institution") {
       activityLoad.current++; setInterestsLoading(false); setInterestsError("");
@@ -615,21 +618,45 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
     } catch (error) { setMessage(error.message); }
   };
 
-  const loadAdoptionInterests = async () => {
+  const loadAdoptionInterests = async (nextView = adoptionView) => {
+    if (typeof nextView !== "string") nextView = adoptionView;
     setInstitutionNotice(null);
     if (interestOperation.current) return;
     interestOperation.current = true;
     const loadId = ++activityLoad.current;
     setInterestsLoading(true); setInterestsError("");
     try {
-      const response = await sessionRequest(`${API}/adopciones/mis-intereses/`, {headers: {Authorization: `Bearer ${token}`}});
+      const response = await sessionRequest(`${API}/adopciones/mis-intereses/${nextView === "archived" ? "?view=archived" : ""}`, {headers: {Authorization: `Bearer ${token}`}});
       const data = await response.json();
       if (loadId !== activityLoad.current) return;
       if (!response.ok) throw Error(data.detail || "No se pudo cargar tu actividad.");
       setAdoptionInterests(data.interests);
+      setAdoptionView(nextView); setAdoptionCounts(data.counts || {});
       setCanManageAdoptions(data.can_manage_adoption_requests === true);
     } catch (error) { if (loadId === activityLoad.current) setInterestsError(error.message || "No pudimos actualizar. Revisá tu conexión y volvé a intentar."); }
     finally { interestOperation.current = false; if (loadId === activityLoad.current) setInterestsLoading(false); }
+  };
+
+  const archiveAdoptionInterest = async item => {
+    if (interestOperation.current) return;
+    interestOperation.current = true;
+    const loadId = ++activityLoad.current;
+    setPendingVisitId(item.id); setInterestsError("");
+    try {
+      const response = await sessionRequest(`${API}/adopciones/archivo/applicant/${item.id}/`, {
+        method: "POST", headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
+        body: JSON.stringify({action: item.is_archived ? "restore" : "archive", expected_updated_at: item.updated_at}),
+      });
+      const data = await response.json();
+      if (loadId !== activityLoad.current) return;
+      if (!response.ok) throw Error(data.detail || "No se pudo archivar. Actualizá para comprobar el resultado.");
+      setMessage(data.detail);
+      setAdoptionInterests(current => current.filter(existing => existing.id !== item.id));
+      interestOperation.current = false;
+      await loadAdoptionInterests(adoptionView);
+    } catch (error) {
+      if (loadId === activityLoad.current) setInterestsError(error.message || "Revisá tu conexión y actualizá la bandeja.");
+    } finally { interestOperation.current = false; setPendingVisitId(null); }
   };
 
   const requestAdoptionVisit = async interestId => {
@@ -979,7 +1006,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
         </View> : null}
         {canManageAdoptions && adoptionAudience === "institution" ? <ShelterInbox api={API} token={token} sessionRequest={sessionRequest} initialData={institutionNotice}/> :
           <AdoptionActivity interests={adoptionInterests} loading={interestsLoading}
-            error={interestsError} pendingId={pendingVisitId} onRefresh={loadAdoptionInterests}
+            error={interestsError} pendingId={pendingVisitId} onRefresh={() => loadAdoptionInterests()} view={adoptionView} counts={adoptionCounts} onView={loadAdoptionInterests} onArchive={archiveAdoptionInterest}
             onRequest={requestAdoptionVisit} onError={setInterestsError}/>}
       </View> : null}
       {screen === "nueva-adopcion" ? <View style={styles.stack}>
