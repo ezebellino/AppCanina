@@ -2,7 +2,7 @@
 
 ## Configuración verificada
 
-Firebase existente: tu-veterinaria-comunidad. Se registró Android con paquete com.vasco88.tuveterinariacomunidad y alias Lazuna. google-services.json público incorporado a mobile/app.json. EAS ya muestra una clave FCM V1 del mismo proyecto (cargada anteriormente); no fue reemplazada. No se inspeccionó su clave privada ni se probó su validez mediante entrega. El titular generó otra clave en Firebase durante la preparación; no se utilizó ni incorporó al repositorio. No revocar la clave activa en EAS al limpiar claves sin uso.
+Firebase existente: tu-veterinaria-comunidad. Se registró Android con paquete com.vasco88.tuveterinariacomunidad y alias Lazuna. La configuración Android se resuelve desde mobile/app.config.js: archivo secreto de EAS GOOGLE_SERVICES_JSON o copia local google-services.json, fuera de Git. EAS ya muestra una clave FCM V1 del mismo proyecto (cargada anteriormente); no fue reemplazada. No se inspeccionó su clave privada ni se probó su validez mediante entrega. El titular generó otra clave en Firebase durante la preparación; no se utilizó ni incorporó al repositorio. No revocar la clave activa en EAS al limpiar claves sin uso.
 
 ## Recorrido
 
@@ -27,3 +27,14 @@ Alcance: búsquedas nuevas, avistamientos y respuesta de revisión comunitaria. 
 Instalar el próximo APK como actualización. Iniciar sesión personal, abrir Mi teléfono y alertas, pulsar Activar alertas en este teléfono y conceder permiso. Bloquear el teléfono sin forzar la detención de Lazuna. Usar una revisión real acordada de una búsqueda de esa cuenta. Comprobar aparición de la notificación, apertura de bandeja al tocarla y resultado del recibo tras 15 minutos. Repetir con app abierta y tras cambiar de cuenta. No confundir permiso concedido con registro correcto o ticket con entrega física.
 
 Fuentes: https://docs.expo.dev/push-notifications/fcm-credentials/ y https://docs.expo.dev/push-notifications/sending-notifications/
+
+## Configuración Firebase fuera de Git — 2026-11-16
+
+- GitHub secret-scanning #1 señaló la API key cliente de `mobile/google-services.json`, no una clave privada de cuenta de servicio. El archivo se conserva localmente, pero se retira del seguimiento Git y del archivo de subida EAS.
+- `GOOGLE_SERVICES_JSON` está configurado como variable de tipo archivo y visibilidad secret, scope project, en development, preview y production de `@vasco_88/tu-veterinaria-comunidad`. Su valor en build es una ruta al archivo. No usar `EXPO_PUBLIC_` ni pegar el JSON en app.json o logs.
+- Un clon nuevo necesita la configuración local descargada de Firebase o la variable de archivo del entorno EAS. La copia local no se versiona. Mantener el paquete Android y el projectId EAS originales.
+- Google Cloud: Android key reducida de 25 a 6 APIs: FCM Registration, Firebase Installations, Firebase Management, Cloud Logging, Identity Toolkit y Token Service. Se conservó Identity Toolkit porque Google detectó uso activo; Token Service acompaña la autenticación. No se forzó la advertencia de interrupción.
+- Restricciones de aplicación siguen sin modificar: antes de limitar por paquete y certificado debe verificarse la firma del APK y la compatibilidad de los SDK. No revocar/rotar sin coordinar la actualización de los APK instalados. La credencial privada FCM V1 de EAS no se cambió.
+- Quitar el archivo de Git no borra el historial ni el valor incluido en APK anteriores. La alerta sigue abierta: no declarar revocación ni ausencia de abuso; falta prueba física de registro/recepción push tras la propagación de las restricciones (hasta 5 minutos según Google).
+- Comprobaciones: `node --test scripts/test-firebase-config.cjs`; Expo config prebuild local y con ruta de archivo EAS (salida filtrada, nunca imprimir el contenido del archivo).
+- Fuente de compatibilidad: https://firebase.google.com/docs/projects/api-keys

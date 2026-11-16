@@ -26,3 +26,6 @@
 # Private Firebase / Google service-account keys (not the public google-services.json)
 **/*firebase-adminsdk*.json
 **/*service-account*.json
+
+# Provisioned by the EAS secret file variable GOOGLE_SERVICES_JSON.
+**/google-services.json

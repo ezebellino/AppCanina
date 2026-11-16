@@ -31,3 +31,6 @@ mobile/dist/
 # Private Firebase / Google service-account keys (not the public google-services.json)
 **/*firebase-adminsdk*.json
 **/*service-account*.json
+
+# Firebase client configuration is provisioned outside Git (see mobile/EXPO-PUSH.md).
+**/google-services.json
