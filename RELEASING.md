@@ -1,5 +1,14 @@
 # Publicaciones web
 
+## 0.8.24 — Comprobantes de compra para WhatsApp
+
+- Al finalizar el cobro se abre el comprobante, con código único V-XXXXXXXX, negocio, fecha, cliente/animal cuando están asociados, descripción guardada de cada producto o servicio, cantidad, precio unitario, subtotal, total y medio de pago. Acceso también desde Historial.
+- Compartir por WhatsApp prepara el texto completo para elegir destinatario y confirmar el envío. Copia manual de respaldo, incluyendo mensajes extensos sin truncarlos. Impresión/guardar PDF mediante el navegador. Es comprobante interno, no factura fiscal.
+- Diseño móvil por producto, vista de impresión limpia y confirmación breve de compra registrada. No se publica un enlace abierto a datos de ventas ni se envían mensajes automáticamente.
+- Permiso de lectura y organización requeridos; quien solo tiene permiso de alta puede recuperar únicamente sus propias ventas de una organización todavía autorizada. Respuesta sin caché.
+- Validación: 12 pruebas sales (6 de comprobantes), navegador en escritorio/móvil, copiar/fallo de permisos/impresión. Entrega real por WhatsApp pendiente de prueba del usuario; no se enviaron mensajes de prueba ni se generó APK.
+
+
 ## 0.8.23 — Confirmaciones de veterinaria y peluquería
 
 - Atención guardada: ficha clínica con cruz y confirmación, tanto en pacientes propios de la institución como en atención autorizada por el responsable.

@@ -188,3 +188,10 @@ No se requieren builds para revisar estos puntos de servidor/operación. Prepara
 - [x] Cuatro confirmaciones y apertura/cierre de menús; movimiento reducido y errores preservados.
 - [x] Pruebas focalizadas y exportación local Android, sin EAS.
 - [ ] En próximo APK comprobar menú en vertical/apaisado, botón Atrás y texto grande; confirmar las cuatro animaciones con operaciones reales.
+
+## Comprobantes de compra 0.8.24
+
+- [x] Comprobante posterior al cobro y desde Historial; código, descripción y totales.
+- [x] Permisos por organización/vendedor, diseño móvil, copia y vista de impresión validados.
+- [ ] Desde una venta propia, compartir por WhatsApp y confirmar recepción con texto completo; imprimir/guardar PDF en el navegador habitual.
+- Sin nuevo APK: funcionalidad del módulo web de ventas.

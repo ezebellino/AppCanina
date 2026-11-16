@@ -8,6 +8,8 @@
     <g class="motion-person-left"><circle cx="26" cy="24" r="10"/><path d="M11 57v-7a15 15 0 0 1 30 0v7"/></g><g class="motion-person-right"><circle cx="70" cy="24" r="10"/><path d="M55 57v-7a15 15 0 0 1 30 0v7"/></g><g class="motion-main"><circle cx="48" cy="56" r="13" fill="#e8f6ef"/><path d="M42 60q6-14 12 0ZM42 51h.1M47 47h.1M52 48h.1M56 52h.1" stroke-width="4"/></g>
     {% elif kind == 'visit' or kind == 'booking' %}
     <g class="motion-main"><rect x="18" y="15" width="58" height="52" rx="8"/><path d="M18 30h58M32 9v14M62 9v14M29 42h7m9 0h7m-23 12h7"/></g>
+    {% elif kind == 'receipt' %}
+    <g class="motion-main"><path d="M23 12h45v57l-8-5-8 5-8-5-8 5-12-5Z"/><path d="M33 26h25M33 37h25M33 49h16"/></g>
     {% elif kind == 'clinical' %}
     <g class="motion-main"><rect x="20" y="15" width="52" height="54" rx="7"/><rect x="34" y="9" width="24" height="12" rx="4" fill="#e8f6ef"/><path d="M46 30v18m-9-9h18M32 58h22"/></g>
     {% elif kind == 'grooming' %}
@@ -15,5 +17,5 @@
     {% endif %}
     <g class="motion-check"><circle cx="76" cy="61" r="15" fill="#176b55" stroke="#e8f6ef"/><path d="m68 61 5 5 10-11" stroke="white"/></g>
   </svg>
-  <div><strong>{% if kind == 'clinical' %}Atención guardada{% elif kind == 'booking' %}Turno agendado{% elif kind == 'grooming' %}¡Servicio terminado!{% elif kind == 'found' %}¡Volvió a casa!{% elif kind == 'sent' %}Solicitud enviada{% elif kind == 'family' %}Ahora lo cuidan juntos{% elif kind == 'visit' %}Visita aceptada{% endif %}</strong>{% if detail %}<p>{{ detail }}</p>{% endif %}</div>
+  <div><strong>{% if kind == 'receipt' %}Compra registrada{% elif kind == 'clinical' %}Atención guardada{% elif kind == 'booking' %}Turno agendado{% elif kind == 'grooming' %}¡Servicio terminado!{% elif kind == 'found' %}¡Volvió a casa!{% elif kind == 'sent' %}Solicitud enviada{% elif kind == 'family' %}Ahora lo cuidan juntos{% elif kind == 'visit' %}Visita aceptada{% endif %}</strong>{% if detail %}<p>{{ detail }}</p>{% endif %}</div>
 </div>

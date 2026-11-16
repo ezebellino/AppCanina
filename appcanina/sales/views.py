@@ -202,8 +202,8 @@ def sale_create(request):
                 request.session["sale_cart"] = []
                 request.session.pop("sale_appointment_id", None)
                 request.session.pop("sale_consultation_patient_id", None)
-                messages.success(request, f"Venta registrada por ${total}.")
-                return redirect("sale_create")
+                messages.success(request, "El comprobante está listo para compartir.", extra_tags="motion-receipt")
+                return redirect("sale_receipt", sale_id=sale.pk)
     total = sum((Decimal(item["total"]) for item in cart), Decimal("0"))
     return _sale_response(request, product_form, service_form, checkout_form, cart, total, linked_appointment, linked_consultation_patient, organization)
 
@@ -300,3 +300,27 @@ def cash_dashboard(request):
                 messages.success(request, f"Caja cerrada. Diferencia: ${session.closing_amount - summary['expected']}.")
                 return redirect("cash_dashboard")
     return render(request, "sales/cash_dashboard.html", {"session": session, "summary": summary, "movement_form": movement_form, "close_form": close_form})
+
+
+@login_required
+def sale_receipt(request, sale_id):
+    from django.core.exceptions import PermissionDenied
+    from django.utils.cache import add_never_cache_headers
+    from urllib.parse import urlencode
+    from .receipts import receipt_data
+    can_view = request.user.has_perm("sales.view_sale")
+    if not can_view and not request.user.has_perm("sales.add_sale"):
+        raise PermissionDenied
+    sales = Sale.objects.select_related("organization", "contact", "patient", "product").prefetch_related("lines")
+    if not request.user.is_superuser:
+        sales = sales.filter(organization__in=_operating_organizations(request.user))
+    if not can_view:
+        sales = sales.filter(seller=request.user)
+    sale = get_object_or_404(sales, pk=sale_id)
+    receipt = receipt_data(sale)
+    whatsapp_url = "https://wa.me/?" + urlencode({"text": receipt["text"]})
+    response = render(request, "sales/receipt.html", {"sale": sale, "receipt": receipt,
+                       "whatsapp_url": whatsapp_url if len(whatsapp_url) <= 7000 else None})
+    add_never_cache_headers(response)
+    response["Referrer-Policy"] = "no-referrer"
+    return response
