@@ -81,3 +81,5 @@
 @keyframes workspace-reveal{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:1024px){.mobile-navigation-panel .workspace-menu>summary{color:#153e35}.mobile-navigation-panel .workspace-menu>summary:hover,.mobile-navigation-panel .workspace-menu[open]>summary{background:#e7f4ef;color:#075448}.mobile-navigation-panel .veterinary-profile-link{border-color:#dbe6e1}.mobile-navigation-panel .workspace-menu .nav-subitem{width:calc(100% - 1rem)}}
 @media(prefers-reduced-motion:reduce){.workspace-menu[open]>div{animation:none}.workspace-chevron{transition:none}}
+
+.business-account-section{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:1.25rem 0;background:#f7fbf9}.business-account-section h2{margin:0 0 .35rem;font-size:1.1rem}.business-account-section p{margin:0;color:#526b64}.business-account-section>.button{flex-shrink:0}@media(max-width:640px){.business-account-section{align-items:flex-start;flex-direction:column}.business-account-section>.button{max-width:100%;white-space:normal}}
