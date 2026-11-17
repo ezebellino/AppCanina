@@ -288,6 +288,7 @@ class CommunityDevicePermission(models.Model):
 
 
 class CommunityNotification(models.Model):
+    kind = models.CharField(max_length=24, blank=True, default="")
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="community_notifications")
     report = models.ForeignKey(LostPetReport, on_delete=models.CASCADE, related_name="notifications")
     sighting = models.ForeignKey(Sighting, null=True, blank=True, on_delete=models.CASCADE, related_name="notifications")

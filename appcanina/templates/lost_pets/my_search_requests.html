@@ -2,6 +2,11 @@
 {% block title %}Mis búsquedas{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Comunidad</p><h1>Mis búsquedas</h1><p>Seguí la revisión de tus avisos y las búsquedas que publicaste.</p></div>{% if not user.is_staff %}<a class="button" href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a>{% endif %}</div>
+{% if collaboration_page %}
+<section class="card" aria-labelledby="collaborations-heading"><h2 id="collaborations-heading">Búsquedas en las que colaboraste</h2><p>Gracias por compartir fotos, pistas y avistamientos.</p>
+{% for update in collaboration_page %}<article class="contact-item"><h3>{{ update.title }}</h3><p>{{ update.body }}</p><small>{{ update.created_at|date:"d/m/Y H:i" }}</small>{% if not update.read_at %}<form method="post" action="{% url 'search_update_read' update.id %}">{% csrf_token %}<button class="button button-small button-ghost">Marcar como leído</button></form>{% else %}<p class="form-help">Leído</p>{% endif %}</article>{% endfor %}
+<div class="page-actions">{% if collaboration_page.has_previous %}<a class="button button-ghost" href="?page={{ page_obj.number }}&amp;collaborations={{ collaboration_page.previous_page_number }}">Novedades anteriores</a>{% endif %}{% if collaboration_page.has_next %}<a class="button button-ghost" href="?page={{ page_obj.number }}&amp;collaborations={{ collaboration_page.next_page_number }}">Más novedades</a>{% endif %}</div></section>
+{% endif %}
 <section class="community-animal-grid">{% for report in page_obj %}<article class="community-animal-card">
 {% if report.photo %}<div class="community-animal-photo"><img src="{{ report.photo.url }}" alt="{{ report.name }}"></div>{% endif %}
 <div class="community-animal-body"><h2>{{ report.name }}</h2><p><strong>{% if report.status == 'hidden' %}En revisión{% elif report.status == 'resolved' %}Encontrado · Búsqueda finalizada{% else %}{{ report.get_status_display }}{% endif %}</strong></p><p>{{ report.area_label }}</p>

@@ -1,9 +1,11 @@
 """Permissions and idempotent closure of active searches."""
 from django.db.models import Q
+from django.db import transaction
 from django.utils import timezone
 from organizations.models import OrganizationMembership
 from .models import LostPetReport
 from .visibility import can_review_reports
+from .notifications import notify_search_found
 
 
 def manageable_searches(user):
@@ -18,7 +20,11 @@ def manageable_searches(user):
     return reports.filter(Q(reporter=user) | Q(patient__organization_id__in=shelters))
 
 
+@transaction.atomic
 def finish_search(user, report_id):
-    return manageable_searches(user).filter(pk=report_id, status=LostPetReport.Status.PUBLISHED).update(
+    changed = manageable_searches(user).filter(pk=report_id, status=LostPetReport.Status.PUBLISHED).update(
         status=LostPetReport.Status.RESOLVED, updated_at=timezone.now(),
     )
+    if changed:
+        notify_search_found(LostPetReport.objects.get(pk=report_id))
+    return changed

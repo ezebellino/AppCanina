@@ -1,5 +1,5 @@
 from .adoption_archives import with_archive_state
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from organizations.roles import organizations_managed_by, verified_shelters_managed_by
@@ -8,7 +8,7 @@ from .visibility import deliverable_notifications
 
 
 def search_updates(user):
-    return deliverable_notifications().filter(recipient=user, report__reporter=user)
+    return deliverable_notifications().filter(recipient=user).filter(Q(report__reporter=user) | Q(kind="search_found"))
 
 
 def managed_interest_organizations(user):

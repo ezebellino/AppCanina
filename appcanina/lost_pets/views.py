@@ -367,7 +367,11 @@ def my_search_requests(request):
         by_report.setdefault(update.report_id, []).append(update)
     for report in page:
         report.pending_updates = by_report.get(report.pk, [])
-    response = render(request, "lost_pets/my_search_requests.html", {"page_obj": page})
+    collaboration_updates = search_updates(request.user).filter(kind="search_found").exclude(
+        report__reporter=request.user,
+    ).select_related("report").order_by("-created_at", "-id")
+    collaboration_page = Paginator(collaboration_updates, 20).get_page(request.GET.get("collaborations"))
+    response = render(request, "lost_pets/my_search_requests.html", {"page_obj": page, "collaboration_page": collaboration_page})
     response["Cache-Control"] = "no-store"
     return response
 
@@ -428,6 +432,9 @@ def report_change_status(request, report_id):
         messages.error(request, "El estado indicado no es válido.")
     elif status == LostPetReport.Status.REJECTED and not request.POST.get("review_note", "").strip():
         messages.error(request, "Indicá un motivo breve para rechazar la solicitud.")
+    elif status == LostPetReport.Status.RESOLVED and report.status == LostPetReport.Status.PUBLISHED:
+        changed = finish_search(request.user, report.pk)
+        messages.success(request, "Búsqueda finalizada. Avisamos a quienes colaboraron." if changed else "La búsqueda ya no está activa.")
     else:
         was_published = report.status == LostPetReport.Status.PUBLISHED
         old_status, old_note = report.status, report.review_note

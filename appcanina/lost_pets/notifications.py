@@ -66,3 +66,21 @@ def notify_request_review(report):
         body=_summary(report.review_note, "Ya está visible para la comunidad." if accepted else "Revisá la nota del equipo y podés corregirla desde Mis solicitudes."),
     )
     send_expo_push([notification])
+
+
+def notify_search_found(report):
+    """Called within the successful closure transaction; one inbox item per person."""
+    contributor_ids = Sighting.objects.filter(report=report).values("reporter_id")
+    from django.db.models import Q
+    recipients = User.objects.filter(
+        Q(pk__in=contributor_ids) | Q(pk=report.reporter_id), is_active=True,
+    )
+    notifications = CommunityNotification.objects.bulk_create([
+        CommunityNotification(
+            recipient=recipient, report=report, kind="search_found",
+            title=f"¡{report.name} fue encontrado!",
+            body="La búsqueda finalizó: ya no hace falta seguir buscando. Gracias por colaborar y acompañar a su familia.",
+        )
+        for recipient in recipients
+    ])
+    send_expo_push(notifications)

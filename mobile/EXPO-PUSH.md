@@ -20,7 +20,15 @@ Comandos seguros: python manage.py push_status (solo conteos/categorías), pytho
 
 Reintentos exponenciales con variación y Retry-After; seis intentos por fase y vencimiento de 24 horas. Errores de credenciales/payload requieren corrección operativa. DeviceNotRegistered desactiva únicamente el registro que conserva la sesión original. Lectura/visibilidad/sesión se revalidan antes del envío. Un fallo después de que Expo acepte pero antes de guardar el ticket puede duplicar un aviso: entrega al menos una vez, no exactamente una vez. La cola no procesa retrospectivamente novedades creadas antes de esta integración. Solo se encolan dispositivos registrados al producirse el evento.
 
-Alcance: búsquedas nuevas, avistamientos y respuesta de revisión comunitaria. Las novedades de adopción y vínculos familiares siguen sus canales existentes; no se incorporaron automáticamente a esta cola. Sin credenciales APNs/iOS: este bloque prepara Android. Los registros de entrega permanecen para diagnóstico; definir retención operativa antes de aumentar el volumen.
+Alcance: búsquedas nuevas, avistamientos, respuesta de revisión comunitaria y cierre por animal encontrado. Las novedades de adopción y vínculos familiares siguen sus canales existentes; no se incorporaron automáticamente a esta cola. Sin credenciales APNs/iOS: este bloque prepara Android. Los registros de entrega permanecen para diagnóstico; definir retención operativa antes de aumentar el volumen.
+
+## Cierre de búsquedas — servidor 0.8.26
+
+Al pasar una búsqueda publicada a encontrada/resuelta, se genera una novedad por cuenta activa que aportó avistamientos (incluidas fotos o pistas), más su autor. Varias contribuciones de la misma persona no duplican el aviso. El cierre, las novedades y los trabajos de push se guardan en una transacción; repetir el cierre no genera más avisos. Usa la cola existente, con sus reintentos y validación de sesión. No notifica al ocultar, rechazar o archivar; no reconstruye cierres anteriores.
+
+El APK existente recibe la notificación y permite abrir el aviso resuelto desde su bandeja. En la web aparece en Mis búsquedas, con contador de novedades y lectura individual. Requiere migración `lost_pets.0016`; no requiere build móvil. Una novedad por cuenta no garantiza entrega exactamente una vez por parte del proveedor.
+
+El usuario confirmó recepción real y navegación al tocar una prueba push tras restringir Firebase; también confirmó la recepción automática de una aprobación. La nueva notificación de cierre se valida con pruebas automatizadas; su recepción física específica queda por comprobar en el próximo cierre real.
 
 ## Prueba física pendiente
 
