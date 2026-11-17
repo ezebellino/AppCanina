@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Mi perfil · {{ app_name }}{% endblock %}
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">Mi cuenta</p><h1>Mi perfil</h1><p>Tus animales, tu actividad y tus datos personales, en un solo lugar.</p></div></div>
+<div class="page-heading"><div><p class="eyebrow">Mi cuenta</p><h1>Mi perfil</h1><p>{% if organization_profile %}Actualizá los datos de acceso y el correo de esta cuenta institucional.{% else %}Tus animales, tu actividad y tus datos personales, en un solo lugar.{% endif %}</p></div></div>
 <div class="profile-sections">
-<section class="card"><h2>Mis accesos</h2><p>Elegí qué querés hacer.</p><div class="profile-shortcuts">{% if user.is_staff %}<a class="button" href="{% url 'lost_pet_list' %}?view=requests">Revisar búsquedas</a>{% endif %}
-<a class="button button-ghost" href="{% url 'my_animals' %}">{% include "organizations/nav_icon.html" with icon="paw" %} Mis animales</a>
+{% if organization_profile %}<p><a class="button button-ghost" href="{% url 'business_profile' %}">← Volver al perfil institucional</a></p>{% else %}<section class="card"><h2>Mis accesos</h2><p>Elegí qué querés hacer.</p><div class="profile-shortcuts">{% if user.is_staff %}<a class="button" href="{% url 'lost_pet_list' %}?view=requests">Revisar búsquedas</a>{% endif %}
+{% if not organization_profile %}<a class="button button-ghost" href="{% url 'my_animals' %}">{% include "organizations/nav_icon.html" with icon="paw" %} Mis animales</a>{% endif %}
 {% if perms.lost_pets.view_lostpetreport or user.is_staff %}
 {% if not user.is_staff %}<a class="button" href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a>{% endif %}
 {% include "lost_pets/search_nav.html" with link_class="button button-ghost" %}
-<a class="button button-ghost" href="{% url 'my_adoption_interests' %}">Mis solicitudes de adopción</a>
+{% if not is_veterinary_workspace %}<a class="button button-ghost" href="{% url 'my_adoption_interests' %}">Mis solicitudes de adopción</a>{% endif %}
 {% endif %}
 {% if can_receive_adoption_requests %}<a class="button button-ghost" href="{% url 'adoption_interest_list' %}">Solicitudes recibidas</a>{% endif %}
-</div></section>
+</div></section>{% endif %}
 <section class="card"><h2>Mis datos personales</h2><p>Actualizá tus datos y el correo donde recibís los avisos.</p><p><strong>Usuario:</strong> {{ user.username }}</p>
 <form method="post" class="form-grid">{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<div class="form-actions"><button>Guardar mi perfil</button></div></form></section>
 </div>

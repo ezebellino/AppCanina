@@ -24,7 +24,7 @@ class PersonalProfileTests(TestCase):
         self.assertTrue(Organization.objects.filter(name="Unrelated private business").exists())
 
     def test_menu_matches_institution_even_before_approval(self):
-        for kind, label in (("shelter", "Mi institución"), ("veterinary", "Mi negocio")):
+        for kind, label in (("shelter", "Mi institución"), ("veterinary", "Perfil de la veterinaria")):
             with self.subTest(kind=kind):
                 organization = Organization.objects.create(name=kind, kind=kind)
                 membership = OrganizationMembership.objects.create(user=self.user, organization=organization)

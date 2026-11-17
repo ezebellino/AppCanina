@@ -19,4 +19,8 @@ def business_profile(request):
         managed_profile = Organization.objects.filter(memberships__user=user).order_by("id").first() if not user.is_staff else None
         if managed_profile:
             profile = managed_profile
-    return {"organization_profile": profile, "is_shelter_manager": bool(user and user.is_authenticated and verified_shelters_managed_by(user).exists()), **updates}
+    is_veterinary = bool(profile and profile.kind == Organization.Kind.VETERINARY)
+    from .navigation import veterinary_navigation
+    return {"organization_profile": profile, "is_veterinary_workspace": is_veterinary,
+            "veterinary_nav_groups": veterinary_navigation(request) if is_veterinary else [],
+            "is_shelter_manager": bool(user and user.is_authenticated and verified_shelters_managed_by(user).exists()), **updates}

@@ -1,0 +1,10 @@
+<nav class="sidebar-nav veterinary-nav" aria-label="Navegación de la veterinaria">
+  <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">{% include "organizations/nav_icon.html" with icon="home" %} Inicio</a>
+  {% for group in veterinary_nav_groups %}
+  <details class="workspace-menu" {% if group.open %}open{% endif %}>
+    <summary>{% include "organizations/nav_icon.html" with icon=group.icon %}<span>{{ group.label }}</span><svg class="workspace-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></summary>
+    <div>{% for link in group.links %}<a href="{{ link.url }}" class="nav-subitem {% if link.active %}active{% endif %}">{{ link.label }}</a>{% endfor %}</div>
+  </details>
+  {% endfor %}
+  <a href="{% url 'business_profile' %}" class="veterinary-profile-link {% if request.resolver_match.url_name == 'business_profile' %}active{% endif %}">{% include "organizations/nav_icon.html" with icon="home" %} Perfil de la veterinaria</a>
+</nav>

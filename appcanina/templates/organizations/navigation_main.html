@@ -1,5 +1,6 @@
+{% if is_veterinary_workspace %}{% include "organizations/navigation_veterinary.html" %}{% else %}
 <nav class="sidebar-nav" aria-label="Navegación principal">
-    <a href="{% url 'my_animals' %}" class="{% if request.resolver_match.url_name == 'my_animals' or request.resolver_match.url_name == 'my_animal_history' %}active{% endif %}">{% include "organizations/nav_icon.html" with icon="paw" %} Mis animales</a>
+{% if not organization_profile %}    <a href="{% url 'my_animals' %}" class="{% if request.resolver_match.url_name == 'my_animals' or request.resolver_match.url_name == 'my_animal_history' %}active{% endif %}">{% include "organizations/nav_icon.html" with icon="paw" %} Mis animales</a>{% endif %}
     <a href="{% url 'lost_pet_list' %}">{% include "organizations/nav_icon.html" with icon="community" %} Comunidad</a>
     {% if perms.lost_pets.view_lostpetreport and not user.is_staff %}<a href="{% url 'lost_pet_create' %}">＋ Publicar animal extraviado</a>{% include "lost_pets/search_nav.html" %}{% endif %}
     {% include "lost_pets/request_nav.html" %}
@@ -13,3 +14,4 @@
     {% if perms.inventory.view_product %}<a href="{% url 'inventory_list' %}" class="nav-group commerce {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'product_create' or request.resolver_match.url_name == 'product_edit' or request.resolver_match.url_name == 'sale_create' or request.resolver_match.url_name == 'sale_list' or request.resolver_match.url_name == 'cash_dashboard' or request.resolver_match.url_name == 'consultation_charge' %}active{% endif %}">{% include "organizations/nav_icon.html" with icon="shop" %}<span><strong>Comercio</strong><small>Inventario, ventas y caja</small></span><b aria-hidden="true">›</b></a>{% if perms.sales.add_sale %}<a href="{% url 'sale_create' %}" class="nav-subitem nav-sale">＋ Nueva venta</a>{% endif %}{% if perms.sales.view_cashsession %}<a href="{% url 'cash_dashboard' %}" class="nav-subitem">Caja diaria</a>{% endif %}{% endif %}
     {% if perms.patients.view_clinicalrecord %}<a href="{% url 'veterinary_authorized_patients' %}" class="{% if request.resolver_match.url_name == 'veterinary_authorized_patients' or request.resolver_match.url_name == 'veterinary_authorized_history' %}active{% endif %}">{% include "organizations/nav_icon.html" with icon="care" %} Atenciones autorizadas</a>{% endif %}
   </nav>
+{% endif %}
