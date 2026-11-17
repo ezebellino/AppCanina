@@ -14,6 +14,23 @@ class PatientForm(forms.ModelForm):
         return safe_image_upload(self.cleaned_data.get("photo"))
 
 
+class MyAnimalForm(PatientForm):
+    class Meta(PatientForm.Meta):
+        fields = ["name", "species", "photo", "breed", "birth_date", "microchip", "allergies"]
+        labels = {"name": "Nombre", "species": "Especie", "photo": "Foto (opcional)",
+                  "breed": "Raza (opcional)", "birth_date": "Fecha de nacimiento (opcional)",
+                  "microchip": "Microchip (opcional)", "allergies": "Alergias conocidas (opcional)"}
+        help_texts = {"photo": "Hasta 8 MB. Podés continuar sin foto.",
+                      "birth_date": "Si no la sabés, dejá este campo vacío."}
+
+    def clean_birth_date(self):
+        from django.utils import timezone
+        value = self.cleaned_data.get("birth_date")
+        if value and value > timezone.localdate():
+            raise forms.ValidationError("La fecha de nacimiento no puede ser futura.")
+        return value
+
+
 class ContactForm(forms.ModelForm):
     class Meta:
         model = Contact

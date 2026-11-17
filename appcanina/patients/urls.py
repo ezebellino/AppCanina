@@ -11,6 +11,7 @@ urlpatterns = [
     path("mis-animales/<int:patient_id>/familia/anular/", family_views.family_revoke, name="family_revoke"),
     path("", views.dashboard, name="dashboard"),
     path("mis-animales/", views.my_animals, name="my_animals"),
+    path("mis-animales/nuevo/", views.my_animal_create, name="my_animal_create"),
     path("mis-animales/<int:patient_id>/", views.my_animal_history, name="my_animal_history"),
     path("mis-animales/<int:patient_id>/compartir/", views.my_animal_sharing, name="my_animal_sharing"),
     path("mis-animales/<int:patient_id>/credencial.pdf", views.my_animal_credential, name="my_animal_credential"),

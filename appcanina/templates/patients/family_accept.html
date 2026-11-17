@@ -14,7 +14,7 @@
   </form>
   <form id="family-link-prepare" method="post" hidden>{% csrf_token %}<input type="hidden" name="action" value="prepare"><input type="hidden" name="code"></form>
   <noscript><p>Para continuar, pegá el código que acompaña al enlace.</p></noscript>
-  {% if user.is_authenticated %}<p><a href="{% url 'my_animals' %}">← Mis animales</a></p>{% endif %}
+  {% if user.is_authenticated %}<div class="form-actions"><a class="button button-ghost" href="{% url 'my_animals' %}">← Volver a mis animales</a></div>{% endif %}
 </section>
 <script src="{% static 'js/family-invitation.js' %}?v={{ app_version }}"></script>
 {% endblock %}

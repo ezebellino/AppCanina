@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.db import DatabaseError, transaction
 from django.db.models import F, Prefetch, Q, Sum
 from django.http import HttpResponse, Http404
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.views.decorators.cache import never_cache
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -95,6 +95,27 @@ def my_animals(request):
         patient.can_invite_family = can_invite(request.user, patient)
         patient.can_issue_credential = patient.patientcontact_set.filter(contact_id__in=contact_ids, role="responsible").exists()
     return render(request, "patients/my_animals.html", {"patients": patients})
+
+
+@never_cache
+@login_required
+@require_http_methods(["GET", "POST"])
+def my_animal_create(request):
+    from .forms import MyAnimalForm
+    form = MyAnimalForm(request.POST if request.method == "POST" else None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            patient = form.save()
+            link = OwnerAccountLink.objects.filter(user=request.user).select_related("contact").first()
+            contact = link.contact if link else Contact.objects.create(
+                full_name=request.user.get_full_name().strip() or request.user.username,
+            )
+            PatientContact.objects.create(patient=patient, contact=contact,
+                role=PatientContact.Role.RESPONSIBLE, is_primary=True)
+            grant_ownership(request.user, contact, patient)
+        messages.success(request, f"{patient.name} ya forma parte de tu familia animal.")
+        return redirect("my_animals")
+    return render(request, "patients/my_animal_form.html", {"form": form})
 
 
 @login_required
