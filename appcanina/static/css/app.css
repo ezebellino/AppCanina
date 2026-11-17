@@ -148,3 +148,6 @@ input,select,textarea{min-height:48px;border-color:#bfc9c5;background:#f0f4f2;bo
 .motion-play .motion-sparkle { transform-origin: 70px 24px; animation: motion-sparkle .65s ease-out both; }
 @keyframes motion-sparkle { 0% { opacity: 0; transform: scale(.4) rotate(-25deg); } 65% { opacity: 1; transform: scale(1.15) rotate(8deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
 @media(prefers-reduced-motion:reduce) { .motion-play .motion-sparkle { animation: none; } }
+/* Keep the platform review queues visually separate on all screen sizes. */
+#platform-summary > [data-platform-summary] > .card + .card { margin-top: 1rem; }
+#platform-summary .contact-item { overflow-wrap: anywhere; }

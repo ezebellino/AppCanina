@@ -6,6 +6,9 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.urls import reverse
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET
 
 from .forms import CommunityCollaboratorForm, OrganizationMembershipForm, ShelterProfileForm
 from .models import Organization, OrganizationMembership
@@ -104,12 +107,19 @@ def community_collaborators(request):
     )
 
 
+@never_cache
 @login_required
+@require_GET
 def platform_dashboard(request):
     """A platform-only landing page, intentionally separate from institutional operations."""
     if not request.user.is_staff:
         raise PermissionDenied
 
+    from lost_pets.models import LostPetReport
+    from lost_pets.visibility import reports_visible_to
+
+    reports = reports_visible_to(request.user)
+    search_requests = reports.filter(requested_via_mobile=True, status=LostPetReport.Status.HIDDEN)
     institution_filter = {"kind__in": [Organization.Kind.VETERINARY, Organization.Kind.SHELTER]}
     pending = Organization.objects.filter(
         **institution_filter,
@@ -128,15 +138,22 @@ def platform_dashboard(request):
     latest_requests = pending.prefetch_related("memberships__user").order_by("id")[:6]
     return render(
         request,
-        "organizations/platform_dashboard.html",
+        "organizations/platform_dashboard_summary.html" if request.GET.get("summary") == "1" else "organizations/platform_dashboard.html",
         {
             "metrics": [
-                {"value": pending.count(), "label": "solicitudes pendientes", "tone": "amber"},
-                {"value": approved.filter(kind=Organization.Kind.VETERINARY).count(), "label": "veterinarias aprobadas", "tone": "teal"},
-                {"value": approved.filter(kind=Organization.Kind.SHELTER).count(), "label": "refugios aprobados", "tone": "blue"},
-                {"value": community_users.count(), "label": "personas en Comunidad", "tone": "teal"},
+                {"value": pending.count(), "label": "instituciones pendientes", "tone": "amber", "href": reverse("organization_verification_list"), "action": "Validar instituciones"},
+                {"value": search_requests.count(), "label": "búsquedas pendientes", "tone": "amber", "href": reverse("lost_pet_list") + "?view=requests", "action": "Revisar búsquedas"},
+                {"value": reports.filter(status=LostPetReport.Status.PUBLISHED).count(), "label": "búsquedas activas", "tone": "blue", "href": reverse("lost_pet_list"), "action": "Ver búsquedas activas"},
+                {"value": reports.filter(status=LostPetReport.Status.RESOLVED).count(), "label": "búsquedas finalizadas", "tone": "teal", "href": reverse("lost_pet_list") + "?view=resolved", "action": "Ver búsquedas finalizadas"},
+            ],
+            "network_metrics": [
+                {"value": approved.filter(kind=Organization.Kind.VETERINARY).count(), "label": "veterinarias aprobadas"},
+                {"value": approved.filter(kind=Organization.Kind.SHELTER).count(), "label": "refugios aprobados"},
+                {"value": community_users.count(), "label": "personas en Comunidad"},
             ],
             "latest_requests": latest_requests,
+            "search_requests": search_requests.select_related("reporter").order_by("created_at", "id")[:6],
+            "updated_at": timezone.now(),
         },
     )
 
