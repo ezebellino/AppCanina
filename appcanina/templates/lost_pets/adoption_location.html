@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% load static %}
+{% block content %}
+<section class="card"><p class="eyebrow">Ubicación para adopciones</p><h1>Zona de referencia de {{ post.name }}</h1>
+<p>Indicá dónde está disponible el animal, aunque viva en un hogar de tránsito. Usá una referencia de la zona, nunca una dirección particular exacta. Las coordenadas se guardan con dos decimales y no se publican en el catálogo.</p>
+<form method="post" data-adoption-location>{% csrf_token %}{{ form.as_p }}
+<p data-location-status role="status">Usá la ubicación del dispositivo solo si estás en la zona del animal. También podés indicar una referencia aproximada manualmente.</p>
+<div class="form-actions"><button type="button" class="button button-ghost" data-use-location>Usar esta zona</button><button type="button" class="button button-ghost" data-clear-location>Quitar ubicación</button><button>Guardar zona</button><a class="button button-ghost" href="{% url 'adoption_list' %}?view=all">Volver a adopciones</a></div>
+</form></section><script defer src="{% static 'js/adoption-location.js' %}?v={{ app_version }}"></script>
+{% endblock %}

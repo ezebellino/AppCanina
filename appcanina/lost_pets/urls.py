@@ -6,6 +6,7 @@ from . import mobile_inbox, mobile_updates, archive_views
 
 
 urlpatterns = [
+    path("adopciones/<int:post_id>/ubicacion/", views.adoption_location, name="adoption_location"),
     path("adopciones/archivo/<str:audience>/<int:interest_id>/", archive_views.archive, name="adoption_archive"),
     path("api/v1/adopciones/archivo/<str:audience>/<int:interest_id>/", archive_views.mobile_archive, name="mobile_adoption_archive"),
     path("mis-busquedas/novedades/<int:notification_id>/leer/", views.search_update_read, name="search_update_read"),

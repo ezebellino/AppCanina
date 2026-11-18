@@ -599,10 +599,22 @@ def mobile_my_animal_credential(request, patient_id):
 @token_required("lost_pets.view_lostpetreport")
 def mobile_adoptions(request):
     posts = AdoptionPost.objects.filter(status=AdoptionPost.Status.PUBLISHED).select_related("organization")
-    query = request.GET.get("q", "").strip()
-    if query:
-        posts = posts.filter(Q(name__icontains=query) | Q(species__icontains=query) | Q(area_label__icontains=query))
-    return JsonResponse({"adoptions": [_mobile_adoption_data(request, post) for post in posts[:60]]})
+    from .adoption_discovery import discover
+    form, page, missing = discover(posts, request.GET, per_page=60)
+    if not form.is_valid():
+        return JsonResponse({"detail": "Revisá los filtros de búsqueda.", "errors": form.errors}, status=400)
+    items = []
+    for post in page:
+        item = _mobile_adoption_data(request, post)
+        distance = getattr(post, "distance_km", None)
+        item.update(locality=post.locality, distance_km=round(distance) if distance is not None else None,
+                    has_reference_location=post.location_latitude is not None and post.location_longitude is not None)
+        items.append(item)
+    response = JsonResponse({"adoptions": items, "page": page.number, "has_next": page.has_next(),
+        "total": page.paginator.count, "missing_locations": missing,
+        "shelters": [{"id": org.pk, "name": org.name, "locality": org.locality} for org in form.fields['shelter'].queryset]})
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @csrf_exempt

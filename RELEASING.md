@@ -1,5 +1,13 @@
 # Publicaciones web
 
+## 0.8.30 — Descubrimiento de adopciones
+
+- Catálogo común con búsqueda por nombre/raza, especie, refugio y localidad del animal. Ubicación opcional para ordenar por cercanía y radios de 10/25/50/100 km o sin límite. Localidad es búsqueda textual, no geocodificación.
+- Zona por publicación, también para hogares de tránsito: coordenadas con dos decimales, sin coordenadas en la API pública. No se copia automáticamente la dirección institucional. Anuncios antiguos siguen en el catálogo general; el responsable debe completar Ubicación de referencia para búsquedas por radio.
+- Filtros compartidos por web/API, paginación tras filtrar, estados privados y permisos institucionales conservados. El APK anterior sigue recibiendo la clave adoptions.
+- Migración 0017_adoption_reference_location. Validación: 73 pruebas Django, prueba React de permisos explícitos/filtros/paginación/reset, compilación JSX y revisión navegador angosto/escritorio con geolocalización simulada.
+- Nueva interfaz nativa preparada para el siguiente build; no se generó APK ni se probó esta interfaz nueva en dispositivo físico.
+
 ## 0.8.24 — Comprobantes de compra para WhatsApp
 
 - Al finalizar el cobro se abre el comprobante, con código único V-XXXXXXXX, negocio, fecha, cliente/animal cuando están asociados, descripción guardada de cada producto o servicio, cantidad, precio unitario, subtotal, total y medio de pago. Acceso también desde Historial.

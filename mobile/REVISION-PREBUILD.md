@@ -1,5 +1,9 @@
 # Revisión del paquete móvil — 2026-11-11
 
+## Incorporación 2026-11-18: adopciones cercanas
+
+AdoptionBrowser agrega localidad, especie, refugio, ubicación opcional y radios 10/25/50/100 km o sin límite, con paginación. Backend web 0.8.30 requerido. Prueba React aprobada y JSX compilado. Pendiente probar permiso real/denegado, teclado, geolocalización y paginación en el próximo APK. No generar otro build solo para este cambio.
+
 Estado: preparado para prueba física; no se generó un APK durante esta revisión.
 
 ## Alcance

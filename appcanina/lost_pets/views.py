@@ -3,6 +3,7 @@ from config.public_urls import public_url
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
+from django.urls import reverse
 from django.db.models import Prefetch, Q
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
@@ -77,7 +78,33 @@ def adoption_list(request):
         view_mode = "published"
         posts = posts.filter(status=AdoptionPost.Status.PUBLISHED)
     pending_count = AdoptionPost.objects.filter(status=AdoptionPost.Status.PENDING, organization__in=managed_organizations).count()
-    return render(request, "lost_pets/adoption_list.html", {"posts": posts, "view_mode": view_mode, "pending_count": pending_count, "can_manage_adoptions": can_manage_adoptions, "managed_organization_ids": list(managed_organizations.values_list("id", flat=True))})
+    from .adoption_discovery import discover
+    form, page, missing = discover(posts, request.GET)
+    query = request.GET.copy()
+    query.pop("page", None)
+    response = render(request, "lost_pets/adoption_list.html", {
+        "posts": page, "page_obj": page, "filter_form": form, "missing_locations": missing,
+        "filter_query": query.urlencode(), "view_mode": view_mode, "pending_count": pending_count,
+        "can_manage_adoptions": can_manage_adoptions,
+        "managed_organization_ids": list(managed_organizations.values_list("id", flat=True)),
+    })
+    response["Cache-Control"] = "private, no-store"
+    response["Referrer-Policy"] = "same-origin"
+    return response
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def adoption_location(request, post_id):
+    from .adoption_discovery import AdoptionLocationForm
+    post = get_object_or_404(AdoptionPost, pk=post_id, organization__in=_adoption_manager_organizations(request.user))
+    form = AdoptionLocationForm(request.POST if request.method == "POST" else None, instance=post)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Zona de referencia actualizada.")
+        return redirect(reverse("adoption_list") + "?view=all")
+    return render(request, "lost_pets/adoption_location.html", {"form": form, "post": post})
+
 
 
 @login_required
@@ -94,8 +121,8 @@ def adoption_create(request):
         post.organization = shelter
         post.status = AdoptionPost.Status.PUBLISHED
         post.save()
-        messages.success(request, f"{post.name} ya está publicado para adopción.")
-        return redirect("adoption_list")
+        messages.success(request, f"{post.name} ya está publicado. Podés agregar su zona de referencia para las búsquedas cercanas.")
+        return redirect("adoption_location", post_id=post.pk)
     return render(request, "lost_pets/adoption_form.html", {"form": form, "shelter": shelter})
 
 

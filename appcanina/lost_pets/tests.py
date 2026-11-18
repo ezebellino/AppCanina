@@ -487,7 +487,7 @@ class ShelterAdoptionPublishingTests(TestCase):
             {"name": "Lola", "species": "dog", "breed": "Mestiza", "age_label": "2 años", "description": "Rescatada y lista para un hogar.", "area_label": "Avellaneda"},
         )
         post = AdoptionPost.objects.get(name="Lola")
-        self.assertRedirects(response, reverse("adoption_list"))
+        self.assertRedirects(response, reverse("adoption_location", args=[post.pk]))
         self.assertEqual(post.organization, self.shelter)
         self.assertEqual(post.publisher, self.manager)
         self.assertEqual(post.status, AdoptionPost.Status.PUBLISHED)

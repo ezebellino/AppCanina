@@ -15,6 +15,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import {createSessionClient} from "./session-client.cjs";
 import SearchMap from "./SearchMap";
 import AdoptionActivity from "./AdoptionActivity";
+import AdoptionBrowser from "./AdoptionBrowser";
 import ShelterInbox from "./ShelterInbox";
 import NotificationsInbox from "./NotificationsInbox";
 
@@ -104,7 +105,7 @@ function AdoptionCard({post, onInterest, onShare}) {
     </View>
     <View style={styles.adoptionContent}>
       <View style={styles.adoptionTitleRow}><View style={styles.adoptionTitleBlock}><Text style={styles.adoptionName}>{post.name}</Text><Text style={styles.adoptionTraits}>{post.species}{post.breed ? ` · ${post.breed}` : ""}{post.age ? ` · ${post.age}` : ""}</Text></View><Text style={styles.adoptionHeart}>♡</Text></View>
-      <Text style={styles.adoptionLocation}>⌖ {post.area}</Text>
+      <Text style={styles.adoptionLocation}>⌖ {post.locality ? `${post.locality} · ` : ""}{post.area}</Text>{post.distance_km != null ? <Text style={styles.help}>Aprox. {post.distance_km} km</Text> : !post.has_reference_location ? <Text style={styles.help}>Distancia no disponible</Text> : null}
       <Text numberOfLines={3} style={styles.adoptionDescription}>{post.description || "Esperando conocer a su próxima familia."}</Text>
       {post.organization?.name ? <View style={styles.adoptionOrganization}><View style={styles.organizationMiniMark}>{post.organization.logo_url ? <Image source={{uri: post.organization.logo_url}} style={styles.organizationMiniLogo}/> : <Text style={styles.organizationMiniLetter}>{post.organization.name[0]}</Text>}</View><Text style={styles.adoptionOrganizationName}>Acompañado por {post.organization.name}</Text></View> : null}
 
@@ -183,7 +184,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
   const [sightingDescription, setSightingDescription] = useState("");
   const [sightingPhoto, setSightingPhoto] = useState(null);
   const [sightingLocation, setSightingLocation] = useState(null);
-  const [adoptions, setAdoptions] = useState([]);
+  const [adoptionDiscovery, setAdoptionDiscovery] = useState(undefined);
   const [adoptionName, setAdoptionName] = useState("");
   const [adoptionSpecies, setAdoptionSpecies] = useState("");
   const [adoptionBreed, setAdoptionBreed] = useState("");
@@ -612,15 +613,6 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
     }
   };
 
-  const loadAdoptions = async () => {
-    try {
-      const response = await sessionRequest(`${API}/adopciones/`, {headers: {Authorization: `Bearer ${token}`}});
-      const data = await response.json();
-      if (!response.ok) throw Error(data.detail || "No se pudieron cargar las adopciones.");
-      setAdoptions(data.adoptions);
-    } catch (error) { setMessage(error.message); }
-  };
-
   const submitAdoption = async () => {
     try {
       const form = new FormData();
@@ -941,7 +933,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
             <MenuItem active={screen === "buscar"} icon="⌕" label="Buscar animales" onPress={() => navigate("buscar")}/>
             <MenuItem icon="＋" label="Pedir una búsqueda" onPress={() => { resetSearchRequest(); navigate("solicitud"); }}/>
             <MenuItem active={screen === "mis-solicitudes"} icon="▤" label="Mis solicitudes" onPress={() => navigate("mis-solicitudes", loadMySearchRequests)}/>
-            <MenuItem active={screen === "adopciones"} icon="♡" label="Adopciones" onPress={() => navigate("adopciones", loadAdoptions)}/>
+            <MenuItem active={screen === "adopciones"} icon="♡" label="Adopciones" onPress={() => navigate("adopciones")}/>
             <MenuItem active={screen === "mi-actividad"} icon="◷" label="Mi actividad" onPress={() => navigate("mi-actividad", loadAdoptionInterests)}/>
           </> : <>
             <MenuItem active={screen === "veterinaria"} icon="⌂" label="Panel veterinaria" onPress={() => navigate("veterinaria", loadMyAnimals)}/>
@@ -1018,7 +1010,7 @@ function CommunityApp({initialNotice, onSessionEnd, allowRestore}) {
       {screen === "adopciones" ? <View style={styles.stack}>
         <Text style={styles.sectionTitle}>Adopciones responsables</Text><Text style={styles.help}>Estas publicaciones fueron revisadas por una veterinaria o refugio.</Text>
         <Button title="Publicar para adopción" onPress={() => setScreen("nueva-adopcion")}/>
-        {adoptions.length ? adoptions.map(post => <AdoptionCard key={post.id} post={post} onShare={() => shareAdoption(post)} onInterest={() => { setSelectedAdoption(post); setInterestMessage(""); setScreen("interes-adopcion"); }}/>) : <Text style={styles.empty}>Todavía no hay animales publicados para adoptar.</Text>}
+        <AdoptionBrowser initialFilters={adoptionDiscovery} onApplied={setAdoptionDiscovery} request={sessionRequest} api={API} token={token} renderItem={post => <AdoptionCard key={post.id} post={post} onShare={() => shareAdoption(post)} onInterest={() => { setSelectedAdoption(post); setInterestMessage(""); setScreen("interes-adopcion"); }}/>}/>
       </View> : null}
       {screen === "interes-adopcion" && selectedAdoption ? <View style={styles.stack}><Button title="← Volver a adopciones" onPress={() => setScreen("adopciones")}/><Text style={styles.sectionTitle}>Me interesa adoptar a {selectedAdoption.name}</Text><Text style={styles.help}>Tu mensaje llegará solo a la veterinaria o refugio responsable. Tus datos no se publicarán.</Text><View style={styles.field}><Text style={styles.fieldLabel}>Contanos por qué te interesa</Text><TextInput value={interestMessage} onChangeText={setInterestMessage} multiline placeholder="Ej.: Tengo experiencia, vivo en una casa con patio..." placeholderTextColor="#6c8378" style={[styles.input, styles.textarea]}/></View><Button title="Enviar interés privado" onPress={submitAdoptionInterest}/></View> : null}
       {screen === "mi-actividad" ? <View style={styles.stack}>
