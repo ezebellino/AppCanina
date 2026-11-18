@@ -2,21 +2,21 @@
   "expo": {
     "name": "Lazuna",
     "slug": "tu-veterinaria-comunidad",
-    "version": "0.8.21",
+    "version": "0.8.30",
     "icon": "./assets/icon.png",
     "newArchEnabled": false,
     "plugins": [
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Lazuna usa tu ubicaciÃ³n solo cuando elegÃ­s compartir el lugar de un avistamiento."
+          "locationWhenInUsePermission": "Lazuna usa tu ubicación cuando elegís buscar animales cercanos o compartir la zona de un avistamiento."
         }
       ],
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Lazuna usa la cÃ¡mara solo para adjuntar una foto a un aviso o avistamiento.",
-          "photosPermission": "Lazuna necesita acceso a tus fotos solo cuando elegÃ­s adjuntar una imagen."
+          "cameraPermission": "Lazuna usa la cámara solo cuando elegís adjuntar una foto.",
+          "photosPermission": "Lazuna accede a tus fotos solo cuando elegís adjuntar una imagen."
         }
       ],
       [
@@ -29,7 +29,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Lazuna usa la biometrÃ­a solo para desbloquear tu sesiÃ³n guardada en este telÃ©fono."
+          "faceIDPermission": "Lazuna usa la biometría solo para desbloquear tu sesión guardada en este teléfono."
         }
       ]
     ],

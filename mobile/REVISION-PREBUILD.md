@@ -1,5 +1,13 @@
 # Revisión del paquete móvil — 2026-11-11
 
+## Cierre del paquete 0.8.30 — 2026-11-18
+
+- Versión Android actualizada a 0.8.30. Permisos con acentos corregidos y explicación de ubicación ampliada para búsquedas cercanas. Identidad Android, firma y proyecto Expo conservados.
+- Node aislado 22.23.4, dependencias alineadas, expo-doctor 18/18, 36 pruebas Node y exportación Android de 756 módulos aprobados.
+- El usuario informó que las pruebas progresivas realizadas fueron satisfactorias. La nueva combinación nativa requiere instalar el APK siguiente para confirmar ícono de push, permisos, navegación y filtros.
+- Último build verificado antes de iniciar: 0.8.16, versionCode 5, FINISHED. Se prepara un único preview APK 0.8.30.
+- Las secciones antiguas siguientes son historial: Expo Push ya está integrado y el usuario confirmó recepción real en 0.8.16.
+
 ## Incorporación 2026-11-18: adopciones cercanas
 
 AdoptionBrowser agrega localidad, especie, refugio, ubicación opcional y radios 10/25/50/100 km o sin límite, con paginación. Backend web 0.8.30 requerido. Prueba React aprobada y JSX compilado. Pendiente probar permiso real/denegado, teclado, geolocalización y paginación en el próximo APK. No generar otro build solo para este cambio.
